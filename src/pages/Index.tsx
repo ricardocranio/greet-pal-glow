@@ -73,6 +73,15 @@ function IndexContent() {
             <Button
               size="sm"
               variant="outline"
+              onClick={() => generateAudienceReport(statuses)}
+              className="border-border text-muted-foreground hover:text-foreground"
+            >
+              <Download className="h-4 w-4 mr-1.5" />
+              Relatório
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={refresh}
               className="border-border text-muted-foreground hover:text-foreground"
             >
