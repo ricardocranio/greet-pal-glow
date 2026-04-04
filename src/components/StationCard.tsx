@@ -28,7 +28,7 @@ function SocialIcons({ social }: { social: SocialLinks }) {
 }
 
 export function StationCard({ status, onReport }: Props) {
-  const { station, online, listeners, lastChecked } = status;
+  const { station, online, listeners, lastChecked, source } = status;
   const { playingStationId, play } = useAudioPlayer();
   const isPlaying = playingStationId === station.id;
 
