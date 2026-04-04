@@ -298,7 +298,8 @@ export function AudienceRanking({ statuses }: Props) {
                     <td className="py-2 pr-2 font-display font-semibold text-foreground truncate max-w-[120px] sticky left-0 bg-card">
                       <div className="flex items-center gap-1.5">
                         <span className="text-muted-foreground font-mono text-[10px] w-4">{idx + 1}º</span>
-                        <span className="truncate">{row.station.name}</span>
+                        <img src={row.station.logoUrl} alt="" className="h-5 w-5 object-contain rounded shrink-0" width={20} height={20} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        <span className="truncate">{row.station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}</span>
                       </div>
                     </td>
                     {row.dayData.map((dd) => (
