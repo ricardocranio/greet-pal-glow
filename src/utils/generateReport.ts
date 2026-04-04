@@ -121,7 +121,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   hourRows.push(totalHourRow);
 
   const wsHours = XLSX.utils.aoa_to_sheet(hourRows);
-  wsHours["!cols"] = [{ wch: 30 }, ...hours.map(() => ({ wch: 8 })), { wch: 10 }];
+  wsHours["!cols"] = [{ wch: 30 }, ...hours.map(() => ({ wch: 8 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsHours, "Audiência por Horário");
 
   // ===== ABA 3: AUDIÊNCIA POR DIA =====
