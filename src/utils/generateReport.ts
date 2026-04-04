@@ -129,10 +129,10 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   // ===== ABA 3: AUDIÊNCIA POR DIA =====
   const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   const dayRows: (string | number | null)[][] = [];
-  dayRows.push(["AUDIÊNCIA POR DIA - NATAL/RN", ...dayNames, "TOTAL"]);
+  dayRows.push(["Emissora", "Logo", ...dayNames, "TOTAL"]);
 
   sorted.forEach(s => {
-    const row: (string | number)[] = [s.station.name];
+    const row: (string | number)[] = [cleanName(s.station.name), s.station.logoUrl];
     let stationTotal = 0;
     [0, 1, 2, 3, 4, 5, 6].forEach(dayIdx => {
       const daySnaps = snapshots.filter(snap => {
