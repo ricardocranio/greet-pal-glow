@@ -52,7 +52,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           if (!hourMap.has(h)) hourMap.set(h, []);
           hourMap.get(h)!.push(snap.listeners);
 
-          const d = new Date(snap.recorded_at).getDay();
+          const d = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
           if (!dayMap.has(d)) dayMap.set(d, []);
           dayMap.get(d)!.push(snap.listeners);
         });

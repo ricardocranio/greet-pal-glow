@@ -94,8 +94,8 @@ export function AudienceRanking({ statuses }: Props) {
     return statuses.map((s) => {
       const dayData = [0, 1, 2, 3, 4, 5, 6].map((dayIdx) => {
         const daySnaps = snapshots.filter((snap) => {
-          const d = new Date(snap.recorded_at);
-          return snap.station_id === s.station.id && d.getDay() === dayIdx;
+          const d = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+          return snap.station_id === s.station.id && d === dayIdx;
         });
         if (daySnaps.length === 0) {
           const currentDay = getBrasiliaDay();
