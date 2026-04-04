@@ -148,7 +148,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
       });
       const val = daySnaps.length > 0
         ? Math.round(daySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / daySnaps.length)
-        : (new Date().getDay() === dayIdx ? s.listeners : 0);
+        : (getBrasiliaDay() === dayIdx ? s.listeners : 0);
       stationTotal += val;
       row.push(val);
     });
