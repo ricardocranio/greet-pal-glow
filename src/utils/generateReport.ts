@@ -77,7 +77,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     const q = sd.quarters;
     const id = sd.station.station.id;
     const getPos = (qi: number) => quarterPositions[qi].find(p => p.id === id)?.pos ?? 0;
-    rows.push([`NATAL - ${sd.station.station.name}`, null, getPos(0), q[0].avg, getPos(1), q[1].avg, getPos(2), q[2].avg, getPos(3), q[3].avg,
+    rows.push([sd.station.station.name, null, getPos(0), q[0].avg, getPos(1), q[1].avg, getPos(2), q[2].avg, getPos(3), q[3].avg,
       calcVar(q[1].avg, q[0].avg), calcVar(q[2].avg, q[1].avg), calcVar(q[3].avg, q[2].avg)]);
   });
 
