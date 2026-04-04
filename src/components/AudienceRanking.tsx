@@ -98,8 +98,8 @@ export function AudienceRanking({ statuses }: Props) {
           return snap.station_id === s.station.id && d.getDay() === dayIdx;
         });
         if (daySnaps.length === 0) {
-          const now = new Date();
-          return { day: dayIdx, avg: now.getDay() === dayIdx ? s.listeners : 0, count: now.getDay() === dayIdx ? 1 : 0 };
+          const currentDay = getBrasiliaDay();
+          return { day: dayIdx, avg: currentDay === dayIdx ? s.listeners : 0, count: currentDay === dayIdx ? 1 : 0 };
         }
         const avg = Math.round(daySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / daySnaps.length);
         return { day: dayIdx, avg, count: daySnaps.length };
