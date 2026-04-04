@@ -215,7 +215,9 @@ export function AudienceRanking({ statuses }: Props) {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-display font-semibold text-foreground truncate">{s.station.name}</p>
+                    <p className="text-sm font-display font-semibold text-foreground truncate">
+                      {s.station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}
+                    </p>
                     <p className="text-[11px] font-mono text-muted-foreground">{s.station.frequency}</p>
                   </div>
                   <div className="text-right">
