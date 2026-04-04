@@ -157,7 +157,7 @@ export const stations: Station[] = [
     name: "104 FM NATAL",
     frequency: "104,7 MHz",
     streamUrl: "https://radios.braviahost.com.br:8000/",
-    logoUrl: "https://104fmprazeremouvir.com.br/assets/img/logo.png",
+    logoUrl: "https://104fmprazeremouvir.com.br/assets/img/logo/logo-white.png",
     instagramHandle: "@siga104fm",
     instagramFollowers: 18000,
     social: {
