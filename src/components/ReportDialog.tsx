@@ -24,11 +24,19 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-3 text-foreground">
-            <img src={station.logo} alt={station.name} className="h-10 w-10 object-contain rounded-lg bg-secondary p-1" width={40} height={40} />
-            {station.name}
-            <span className="text-sm font-mono text-muted-foreground font-normal">
-              {station.frequency}
-            </span>
+            <img
+              src={station.logoUrl}
+              alt={station.name}
+              className="h-10 w-10 object-contain rounded-lg bg-secondary p-1"
+              width={40}
+              height={40}
+            />
+            <div>
+              <span>{station.name}</span>
+              <span className="block text-sm font-mono text-muted-foreground font-normal">
+                {station.frequency}
+              </span>
+            </div>
           </DialogTitle>
         </DialogHeader>
 

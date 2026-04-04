@@ -1,10 +1,29 @@
-import { Users, TrendingUp, Clock } from "lucide-react";
+import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
+import { SocialLinks } from "@/data/stations";
 
 interface Props {
   status: StationStatus;
   onReport: () => void;
+}
+
+const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
+  <a href={href} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+    {children}
+  </a>
+);
+
+function SocialIcons({ social }: { social: SocialLinks }) {
+  return (
+    <div className="flex items-center gap-2">
+      {social.website && <SocialIcon href={social.website}><Globe className="h-3.5 w-3.5" /></SocialIcon>}
+      {social.instagram && <SocialIcon href={social.instagram}><Instagram className="h-3.5 w-3.5" /></SocialIcon>}
+      {social.facebook && <SocialIcon href={social.facebook}><Facebook className="h-3.5 w-3.5" /></SocialIcon>}
+      {social.twitter && <SocialIcon href={social.twitter}><Twitter className="h-3.5 w-3.5" /></SocialIcon>}
+      {social.youtube && <SocialIcon href={social.youtube}><Youtube className="h-3.5 w-3.5" /></SocialIcon>}
+    </div>
+  );
 }
 
 export function StationCard({ status, onReport }: Props) {
@@ -25,18 +44,33 @@ export function StationCard({ status, onReport }: Props) {
       </div>
 
       {/* Station info */}
-      <div className="flex items-start gap-3 mb-4">
+      <div className="flex items-start gap-3 mb-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
-          <img src={station.logo} alt={station.name} className="h-10 w-10 object-contain" loading="lazy" width={40} height={40} />
+          <img
+            src={station.logoUrl}
+            alt={station.name}
+            className="h-10 w-10 object-contain"
+            loading="lazy"
+            width={40}
+            height={40}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
         </div>
         <div>
-          <h3 className="font-display font-bold text-foreground leading-tight">
+          <h3 className="font-display font-bold text-foreground leading-tight text-sm">
             {station.name}
           </h3>
           <p className="text-xs font-mono text-muted-foreground">
             {station.frequency}
           </p>
         </div>
+      </div>
+
+      {/* Social links */}
+      <div className="mb-3">
+        <SocialIcons social={station.social} />
       </div>
 
       {/* Stats */}
