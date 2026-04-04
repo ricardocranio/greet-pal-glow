@@ -1,14 +1,6 @@
 import * as XLSX from "xlsx";
 import { StationStatus } from "@/hooks/useStationMonitor";
-
-const getBrasiliaHour = () => {
-  const now = new Date();
-  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getHours();
-};
-const getBrasiliaDay = () => {
-  const now = new Date();
-  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
-};
+import { formatBrasiliaDateInput, getBrasiliaDay, getBrasiliaHour, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
 
 interface SnapshotRow {
   station_id: string;
@@ -20,10 +12,12 @@ interface SnapshotRow {
 
 function getQuarterLabels(): { label: string; shortLabel: string }[] {
   const now = new Date();
+  const brasiliaYear = getBrasiliaYear(now);
+  const brasiliaMonthIndex = getBrasiliaMonthIndex(now);
   const months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   const quarters: { label: string; shortLabel: string }[] = [];
   for (let i = 3; i >= 0; i--) {
-    const endDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const endDate = new Date(brasiliaYear, brasiliaMonthIndex - i, 1);
     const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 2, 1);
     quarters.push({
       label: `${months[startDate.getMonth()]} A ${months[endDate.getMonth()]}${String(endDate.getFullYear()).slice(2)}`,
@@ -35,11 +29,18 @@ function getQuarterLabels(): { label: string; shortLabel: string }[] {
 
 function getMonthlyData(snapshots: SnapshotRow[], stationId: string, monthsAgo: number) {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0, 23, 59, 59);
-  const filtered = snapshots.filter(s =>
-    s.station_id === stationId && new Date(s.recorded_at) >= start && new Date(s.recorded_at) <= end
-  );
+  const brasiliaYear = getBrasiliaYear(now);
+  const brasiliaMonthIndex = getBrasiliaMonthIndex(now);
+  const targetDate = new Date(brasiliaYear, brasiliaMonthIndex - monthsAgo, 1);
+  const targetYear = targetDate.getFullYear();
+  const targetMonth = targetDate.getMonth() + 1;
+
+  const filtered = snapshots.filter((s) => {
+    if (s.station_id !== stationId) return false;
+
+    const recordedAt = new Date(s.recorded_at);
+    return getBrasiliaYear(recordedAt) === targetYear && getBrasiliaMonthIndex(recordedAt) + 1 === targetMonth;
+  });
   if (filtered.length === 0) return { avg: 0, peak: 0 };
   return {
     avg: Math.round(filtered.reduce((sum, s) => sum + s.listeners, 0) / filtered.length),
@@ -143,7 +144,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     let stationTotal = 0;
     [0, 1, 2, 3, 4, 5, 6].forEach(dayIdx => {
       const daySnaps = snapshots.filter(snap => {
-        const d = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+        const d = getBrasiliaDay(new Date(snap.recorded_at));
         return snap.station_id === s.station.id && d === dayIdx;
       });
       const val = daySnaps.length > 0
@@ -176,7 +177,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ranking_audiencia_natal_rn_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.download = `ranking_audiencia_natal_rn_${formatBrasiliaDateInput(new Date())}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
