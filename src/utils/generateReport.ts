@@ -50,10 +50,12 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   const sorted = [...statuses].sort((a, b) => b.listeners - a.listeners);
 
   // ===== ABA 1: RANKING AUDIÊNCIA =====
+  const cleanName = (name: string) => name.replace(/ NATAL/gi, "").replace(/DE /gi, "").trim();
+
   const rows: (string | number | null)[][] = [];
-  rows.push(["TODOS OS DIAS", null, "TODOS OS DIAS", null, null, null, null, null, null, null, "% MÊS ANTERIOR", null, null]);
-  rows.push(["6H19", null, ...quarters.flatMap((q) => [q.label, null]), "Var. Q2/Q1", "Var. Q3/Q2", "Var. Q4/Q3"]);
-  rows.push(["Emissora", null, "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", null, null, null]);
+  rows.push(["TODOS OS DIAS", null, null, "TODOS OS DIAS", null, null, null, null, null, null, null, "% MÊS ANTERIOR", null, null]);
+  rows.push([null, null, null, ...quarters.flatMap((q) => [q.label, null]), "Var. Q2/Q1", "Var. Q3/Q2", "Var. Q4/Q3"]);
+  rows.push(["Emissora", "Logo", null, "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", null, null, null]);
 
   const stationQuarterData = sorted.map(s => ({
     station: s,
@@ -70,33 +72,33 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   );
 
   const totals = [0, 1, 2, 3].map(qi => stationQuarterData.reduce((sum, s) => sum + s.quarters[qi].avg, 0));
-  rows.push(["NATAL/RN - TOTAL RÁDIO", null, null, totals[0], null, totals[1], null, totals[2], null, totals[3],
+  rows.push(["TOTAL RÁDIO", null, null, null, totals[0], null, totals[1], null, totals[2], null, totals[3],
     calcVar(totals[1], totals[0]), calcVar(totals[2], totals[1]), calcVar(totals[3], totals[2])]);
 
   stationQuarterData.forEach(sd => {
     const q = sd.quarters;
     const id = sd.station.station.id;
     const getPos = (qi: number) => quarterPositions[qi].find(p => p.id === id)?.pos ?? 0;
-    rows.push([`NATAL - ${sd.station.station.name}`, null, getPos(0), q[0].avg, getPos(1), q[1].avg, getPos(2), q[2].avg, getPos(3), q[3].avg,
+    rows.push([cleanName(sd.station.station.name), sd.station.station.logoUrl, null, getPos(0), q[0].avg, getPos(1), q[1].avg, getPos(2), q[2].avg, getPos(3), q[3].avg,
       calcVar(q[1].avg, q[0].avg), calcVar(q[2].avg, q[1].avg), calcVar(q[3].avg, q[2].avg)]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 35 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10, hidden: true }, { wch: 10, hidden: true }, { wch: 10, hidden: true }];
+  ws["!cols"] = [{ wch: 25 }, { wch: 40 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10, hidden: true }, { wch: 10, hidden: true }, { wch: 10, hidden: true }];
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, { s: { r: 0, c: 2 }, e: { r: 0, c: 9 } }, { s: { r: 0, c: 10 }, e: { r: 0, c: 12 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }, { s: { r: 1, c: 4 }, e: { r: 1, c: 5 } },
-    { s: { r: 1, c: 6 }, e: { r: 1, c: 7 } }, { s: { r: 1, c: 8 }, e: { r: 1, c: 9 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, { s: { r: 0, c: 3 }, e: { r: 0, c: 10 } }, { s: { r: 0, c: 11 }, e: { r: 0, c: 13 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, { s: { r: 1, c: 3 }, e: { r: 1, c: 4 } }, { s: { r: 1, c: 5 }, e: { r: 1, c: 6 } },
+    { s: { r: 1, c: 7 }, e: { r: 1, c: 8 } }, { s: { r: 1, c: 9 }, e: { r: 1, c: 10 } },
   ];
   XLSX.utils.book_append_sheet(wb, ws, "Ranking Audiência");
 
   // ===== ABA 2: AUDIÊNCIA POR HORÁRIO =====
   const hours = Array.from({ length: 16 }, (_, i) => i + 7);
   const hourRows: (string | number | null)[][] = [];
-  hourRows.push(["AUDIÊNCIA POR HORÁRIO - NATAL/RN", ...hours.map(h => `${String(h).padStart(2, '0')}:00`), "TOTAL"]);
+  hourRows.push(["Emissora", "Logo", ...hours.map(h => `${String(h).padStart(2, '0')}:00`), "TOTAL"]);
 
   sorted.forEach(s => {
-    const row: (string | number)[] = [s.station.name];
+    const row: (string | number)[] = [cleanName(s.station.name), s.station.logoUrl];
     let stationTotal = 0;
     hours.forEach(h => {
       const hourSnaps = snapshots.filter(snap => snap.station_id === s.station.id && snap.hour === h);
@@ -110,10 +112,10 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     hourRows.push(row);
   });
 
-  const totalHourRow: (string | number)[] = ["TOTAL"];
+  const totalHourRow: (string | number)[] = ["TOTAL", ""];
   let grandTotal = 0;
   hours.forEach((_, hi) => {
-    const total = hourRows.slice(1).reduce((sum, row) => sum + (Number(row[hi + 1]) || 0), 0);
+    const total = hourRows.slice(1).reduce((sum, row) => sum + (Number(row[hi + 2]) || 0), 0);
     grandTotal += total;
     totalHourRow.push(total);
   });
@@ -121,16 +123,16 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   hourRows.push(totalHourRow);
 
   const wsHours = XLSX.utils.aoa_to_sheet(hourRows);
-  wsHours["!cols"] = [{ wch: 30 }, ...hours.map(() => ({ wch: 8 })), { wch: 10, hidden: true }];
+  wsHours["!cols"] = [{ wch: 25 }, { wch: 40 }, ...hours.map(() => ({ wch: 8 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsHours, "Audiência por Horário");
 
   // ===== ABA 3: AUDIÊNCIA POR DIA =====
   const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   const dayRows: (string | number | null)[][] = [];
-  dayRows.push(["AUDIÊNCIA POR DIA - NATAL/RN", ...dayNames, "TOTAL"]);
+  dayRows.push(["Emissora", "Logo", ...dayNames, "TOTAL"]);
 
   sorted.forEach(s => {
-    const row: (string | number)[] = [s.station.name];
+    const row: (string | number)[] = [cleanName(s.station.name), s.station.logoUrl];
     let stationTotal = 0;
     [0, 1, 2, 3, 4, 5, 6].forEach(dayIdx => {
       const daySnaps = snapshots.filter(snap => {
@@ -147,10 +149,10 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     dayRows.push(row);
   });
 
-  const totalDayRow: (string | number)[] = ["TOTAL"];
+  const totalDayRow: (string | number)[] = ["TOTAL", ""];
   let dayGrandTotal = 0;
   dayNames.forEach((_, di) => {
-    const total = dayRows.slice(1).reduce((sum, row) => sum + (Number(row[di + 1]) || 0), 0);
+    const total = dayRows.slice(1).reduce((sum, row) => sum + (Number(row[di + 2]) || 0), 0);
     dayGrandTotal += total;
     totalDayRow.push(total);
   });
@@ -158,7 +160,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   dayRows.push(totalDayRow);
 
   const wsDays = XLSX.utils.aoa_to_sheet(dayRows);
-  wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
+  wsDays["!cols"] = [{ wch: 25 }, { wch: 40 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsDays, "Audiência por Dia");
 
   // Download
