@@ -82,7 +82,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 35 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+  ws["!cols"] = [{ wch: 35 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10, hidden: true }, { wch: 10, hidden: true }, { wch: 10, hidden: true }];
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, { s: { r: 0, c: 2 }, e: { r: 0, c: 9 } }, { s: { r: 0, c: 10 }, e: { r: 0, c: 12 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }, { s: { r: 1, c: 4 }, e: { r: 1, c: 5 } },
