@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock } from "lucide-react";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
 import { ReportDialog } from "@/components/ReportDialog";
@@ -9,6 +9,34 @@ import { Button } from "@/components/ui/button";
 import { generateAudienceReport } from "@/utils/generateReport";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+function BrasiliaClock() {
+  const [time, setTime] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const brasilia = now.toLocaleTimeString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setTime(brasilia);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Clock className="h-3.5 w-3.5 text-primary" />
+      <span className="font-mono font-medium text-foreground">{time}</span>
+      <span className="text-[10px] uppercase">Brasília</span>
+    </div>
+  );
+}
 
 function NowPlayingBar() {
   const { playingStationId, stop } = useAudioPlayer();
@@ -87,6 +115,7 @@ function IndexContent() {
           </div>
 
           <div className="flex items-center gap-4">
+            <BrasiliaClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Activity className="h-4 w-4 text-online" />
