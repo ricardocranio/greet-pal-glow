@@ -149,10 +149,10 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     dayRows.push(row);
   });
 
-  const totalDayRow: (string | number)[] = ["TOTAL"];
+  const totalDayRow: (string | number)[] = ["TOTAL", ""];
   let dayGrandTotal = 0;
   dayNames.forEach((_, di) => {
-    const total = dayRows.slice(1).reduce((sum, row) => sum + (Number(row[di + 1]) || 0), 0);
+    const total = dayRows.slice(1).reduce((sum, row) => sum + (Number(row[di + 2]) || 0), 0);
     dayGrandTotal += total;
     totalDayRow.push(total);
   });
@@ -160,7 +160,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   dayRows.push(totalDayRow);
 
   const wsDays = XLSX.utils.aoa_to_sheet(dayRows);
-  wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
+  wsDays["!cols"] = [{ wch: 25 }, { wch: 40 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsDays, "Audiência por Dia");
 
   // Download
