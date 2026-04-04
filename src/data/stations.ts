@@ -26,6 +26,8 @@ export const stations: Station[] = [
     frequency: "98,9 MHz",
     streamUrl: "http://cast42.sitehosting.com.br:8010",
     logoUrl: "https://98fmnatal.com.br/98-storage/2023/03/logo-98fm-natal.png",
+    instagramHandle: "@98fmnatal",
+    instagramFollowers: 312000,
     social: {
       website: "https://98fmnatal.com.br",
       instagram: "https://www.instagram.com/98fmnatal",
@@ -39,6 +41,8 @@ export const stations: Station[] = [
     frequency: "97,9 MHz",
     streamUrl: "https://azevedo.jmvstream.com/",
     logoUrl: "https://97fmnatal.com.br/images/logo.png",
+    instagramHandle: "@97fmnatal",
+    instagramFollowers: 185000,
     social: {
       website: "https://97fmnatal.com.br",
       instagram: "https://www.instagram.com/97fmnatal",
@@ -50,6 +54,8 @@ export const stations: Station[] = [
     frequency: "96,7 MHz",
     streamUrl: "http://centova10.ciclanohost.com.br:6258",
     logoUrl: "https://96fm.com.br/build/assets/logo-fba33526.png",
+    instagramHandle: "@96fmnatal",
+    instagramFollowers: 245000,
     social: {
       website: "https://www.96fm.com.br",
       instagram: "https://www.instagram.com/96fmnatal",
@@ -64,7 +70,13 @@ export const stations: Station[] = [
     frequency: "95,9 MHz",
     streamUrl: "https://radio.saopaulo01.com.br:10841",
     logoUrl: "https://cdn-radiotime-logos.tunein.com/s22475g.png",
-    social: {},
+    instagramHandle: "@95maisfmnatal",
+    instagramFollowers: 42000,
+    social: {
+      website: "https://www.95maisfm.com.br",
+      instagram: "https://www.instagram.com/95maisfmnatal",
+      facebook: "https://www.facebook.com/95maisfm",
+    },
   },
   {
     id: "91fm",
@@ -72,6 +84,8 @@ export const stations: Station[] = [
     frequency: "91,9 MHz",
     streamUrl: "https://live9.livemus.com.br:27802",
     logoUrl: "https://static.wixstatic.com/media/a8ed9c_2e9b3f3cf7b04e5c9c05d120e6f2f3b0~mv2.png",
+    instagramHandle: "@ruraldenatalfm",
+    instagramFollowers: 28000,
     social: {
       website: "https://www.ruraldenatalfm.com.br",
       instagram: "https://www.instagram.com/ruraldenatalfm",
@@ -88,6 +102,8 @@ export const stations: Station[] = [
     frequency: "106,3 MHz",
     streamUrl: "http://radios.braviahost.com.br:8012",
     logoUrl: "https://painel.clube.fm/wp-content/uploads/2025/02/Logo-Clube-106-3.png",
+    instagramHandle: "@clubefmnatal",
+    instagramFollowers: 15000,
     social: {
       website: "https://clube.fm/natal",
       instagram: "https://www.instagram.com/clubefmnatal",
@@ -99,6 +115,8 @@ export const stations: Station[] = [
     frequency: "91,1 MHz",
     streamUrl: "https://stm4.srvstm.com:7252",
     logoUrl: "https://cdn-radiotime-logos.tunein.com/s107307g.png",
+    instagramHandle: "@mundialfmnatal",
+    instagramFollowers: 8500,
     social: {
       website: "https://www.radiomundialfm.com.br",
     },
@@ -109,6 +127,8 @@ export const stations: Station[] = [
     frequency: "99,5 MHz",
     streamUrl: "https://pannatal.jmvstream.com/index.html?sid=1",
     logoUrl: "https://jpimg.com.br/uploads/2025/04/900x900_natal-500x500.png",
+    instagramHandle: "@jpfmnatal",
+    instagramFollowers: 52000,
     social: {
       website: "https://jovempan.com.br/afiliada/natal-fm",
       instagram: "https://www.instagram.com/jpfmnatal",
@@ -123,6 +143,8 @@ export const stations: Station[] = [
     frequency: "93,5 MHz",
     streamUrl: "https://s02.maxcast.com.br:8082/",
     logoUrl: "https://s.jpimg.com.br/wp-content/themes/jovempan/assets/build/images/logo-jpnews-red.svg",
+    instagramHandle: "@jpnewsnatal",
+    instagramFollowers: 35000,
     social: {
       website: "https://jovempan.com.br",
       instagram: "https://www.instagram.com/jpnewsnatal",
@@ -135,6 +157,8 @@ export const stations: Station[] = [
     frequency: "104,7 MHz",
     streamUrl: "https://radios.braviahost.com.br:8000/",
     logoUrl: "https://104fmprazeremouvir.com.br/assets/img/logo.png",
+    instagramHandle: "@104fmnatal",
+    instagramFollowers: 18000,
     social: {
       website: "https://104fmprazeremouvir.com.br",
       instagram: "https://www.instagram.com/104fmnatal",
