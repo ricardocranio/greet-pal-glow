@@ -44,6 +44,9 @@ export function AudienceRanking({ statuses }: Props) {
   // Build hour slots: 06:00, 07:00, ..., 22:00
   const TIME_SLOTS = ["Todos", ...ALL_HOURS.map((h) => `${String(h).padStart(2, "0")}:00`)];
 
+  // Determine which hours have real data
+  const hoursWithData = new Set(snapshots.map((s) => s.hour));
+
   const ranked = [...statuses]
     .map((s) => {
       if (selectedTime === "Todos") return { ...s, rankValue: s.listeners, label: "agora" };
@@ -143,21 +146,30 @@ export function AudienceRanking({ statuses }: Props) {
           {/* Hour slots with expand/collapse */}
           <div className="mb-4">
             <div className="flex flex-wrap gap-1.5">
-              {visibleSlots.map((slot) => (
-                <Button
-                  key={slot}
-                  size="sm"
-                  variant={selectedTime === slot ? "default" : "outline"}
-                  className={`text-[11px] h-7 px-2.5 ${
-                    selectedTime === slot
-                      ? "bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setSelectedTime(slot)}
-                >
-                  {slot}
-                </Button>
-              ))}
+              {visibleSlots.map((slot) => {
+                const slotHour = slot === "Todos" ? -1 : parseInt(slot.split(":")[0]);
+                const hasData = slot === "Todos" ? snapshots.length > 0 : hoursWithData.has(slotHour);
+                return (
+                  <Button
+                    key={slot}
+                    size="sm"
+                    variant={selectedTime === slot ? "default" : "outline"}
+                    className={`text-[11px] h-7 px-2.5 relative ${
+                      selectedTime === slot
+                        ? "bg-primary text-primary-foreground"
+                        : hasData
+                          ? "border-primary/50 text-foreground hover:text-foreground"
+                          : "border-border text-muted-foreground/50 hover:text-foreground"
+                    }`}
+                    onClick={() => setSelectedTime(slot)}
+                  >
+                    {hasData && selectedTime !== slot && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+                    )}
+                    {slot}
+                  </Button>
+                );
+              })}
 
               {/* Expand/Collapse button */}
               <Button
