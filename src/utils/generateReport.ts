@@ -158,7 +158,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   dayRows.push(totalDayRow);
 
   const wsDays = XLSX.utils.aoa_to_sheet(dayRows);
-  wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10 }];
+  wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsDays, "Audiência por Dia");
 
   // Download
