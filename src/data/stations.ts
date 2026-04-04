@@ -15,6 +15,8 @@ export interface Station {
   streamUrl: string;
   logoUrl: string;
   social: SocialLinks;
+  instagramHandle?: string;
+  instagramFollowers?: number;
 }
 
 export const stations: Station[] = [
