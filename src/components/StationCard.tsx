@@ -1,7 +1,8 @@
-import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube } from "lucide-react";
+import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
 import { SocialLinks } from "@/data/stations";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 interface Props {
   status: StationStatus;
@@ -28,9 +29,13 @@ function SocialIcons({ social }: { social: SocialLinks }) {
 
 export function StationCard({ status, onReport }: Props) {
   const { station, online, listeners, lastChecked } = status;
+  const { playingStationId, play } = useAudioPlayer();
+  const isPlaying = playingStationId === station.id;
 
   return (
-    <div className="relative group rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-[0_0_30px_-10px_hsl(var(--primary)/0.25)]">
+    <div className={`relative group rounded-xl border bg-card p-5 transition-all hover:shadow-[0_0_30px_-10px_hsl(var(--primary)/0.25)] ${
+      isPlaying ? "border-primary shadow-[0_0_30px_-10px_hsl(var(--primary)/0.3)]" : "border-border hover:border-primary/40"
+    }`}>
       {/* Live dot */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <span
@@ -45,7 +50,7 @@ export function StationCard({ status, onReport }: Props) {
 
       {/* Station info */}
       <div className="flex items-start gap-3 mb-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
+        <div className="relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
           <img
             src={station.logoUrl}
             alt={station.name}
@@ -58,7 +63,7 @@ export function StationCard({ status, onReport }: Props) {
             }}
           />
         </div>
-        <div>
+        <div className="flex-1">
           <h3 className="font-display font-bold text-foreground leading-tight text-sm">
             {station.name}
           </h3>
@@ -68,9 +73,22 @@ export function StationCard({ status, onReport }: Props) {
         </div>
       </div>
 
-      {/* Social links */}
-      <div className="mb-3">
+      {/* Social links + Play */}
+      <div className="flex items-center justify-between mb-3">
         <SocialIcons social={station.social} />
+        <Button
+          size="sm"
+          variant={isPlaying ? "default" : "outline"}
+          className={`h-8 w-8 p-0 rounded-full ${
+            isPlaying
+              ? "bg-primary text-primary-foreground"
+              : "border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+          }`}
+          onClick={() => play(station.id, station.streamUrl)}
+          disabled={!online}
+        >
+          {isPlaying ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+        </Button>
       </div>
 
       {/* Stats */}
