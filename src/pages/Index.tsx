@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX } from "lucide-react";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download } from "lucide-react";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
 import { ReportDialog } from "@/components/ReportDialog";
 import { AudienceRanking } from "@/components/AudienceRanking";
 import { AudioProvider, useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { Button } from "@/components/ui/button";
+import { generateAudienceReport } from "@/utils/generateReport";
 
 function NowPlayingBar() {
   const { playingStationId, stop } = useAudioPlayer();
@@ -69,6 +70,15 @@ function IndexContent() {
                 </span> conexões
               </span>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => generateAudienceReport(statuses)}
+              className="border-border text-muted-foreground hover:text-foreground"
+            >
+              <Download className="h-4 w-4 mr-1.5" />
+              Relatório
+            </Button>
             <Button
               size="sm"
               variant="outline"
