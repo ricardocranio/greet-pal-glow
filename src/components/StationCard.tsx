@@ -124,6 +124,9 @@ export function StationCard({ status, onReport }: Props) {
         <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <Clock className="h-3 w-3" />
           {lastChecked.toLocaleTimeString("pt-BR")}
+          {source === 'real' && (
+            <span className="ml-1 text-[10px] text-primary font-medium">• real</span>
+          )}
         </span>
         <Button
           size="sm"
