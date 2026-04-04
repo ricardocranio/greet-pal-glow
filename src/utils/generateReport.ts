@@ -1,6 +1,15 @@
 import * as XLSX from "xlsx";
 import { StationStatus } from "@/hooks/useStationMonitor";
 
+const getBrasiliaHour = () => {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getHours();
+};
+const getBrasiliaDay = () => {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+};
+
 interface SnapshotRow {
   station_id: string;
   listeners: number;
