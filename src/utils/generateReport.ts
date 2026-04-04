@@ -82,7 +82,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 35 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+  ws["!cols"] = [{ wch: 35 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10, hidden: true }, { wch: 10, hidden: true }, { wch: 10, hidden: true }];
   ws["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, { s: { r: 0, c: 2 }, e: { r: 0, c: 9 } }, { s: { r: 0, c: 10 }, e: { r: 0, c: 12 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }, { s: { r: 1, c: 4 }, e: { r: 1, c: 5 } },
@@ -121,7 +121,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   hourRows.push(totalHourRow);
 
   const wsHours = XLSX.utils.aoa_to_sheet(hourRows);
-  wsHours["!cols"] = [{ wch: 30 }, ...hours.map(() => ({ wch: 8 })), { wch: 10 }];
+  wsHours["!cols"] = [{ wch: 30 }, ...hours.map(() => ({ wch: 8 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsHours, "Audiência por Horário");
 
   // ===== ABA 3: AUDIÊNCIA POR DIA =====
@@ -158,7 +158,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   dayRows.push(totalDayRow);
 
   const wsDays = XLSX.utils.aoa_to_sheet(dayRows);
-  wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10 }];
+  wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsDays, "Audiência por Dia");
 
   // Download
