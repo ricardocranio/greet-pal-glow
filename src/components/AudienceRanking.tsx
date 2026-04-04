@@ -27,26 +27,31 @@ export function AudienceRanking({ statuses }: Props) {
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
 
   useEffect(() => {
-    if (activeTab === "horario" || activeTab === "dia") {
-      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      supabase
-        .from("audience_snapshots")
-        .select("station_id, listeners, hour, recorded_at")
-        .gte("recorded_at", cutoff)
-        .order("recorded_at", { ascending: true })
-        .then(({ data }) => {
-          if (data) setSnapshots(data);
-        });
-    }
-  }, [activeTab]);
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    supabase
+      .from("audience_snapshots")
+      .select("station_id, listeners, hour, recorded_at")
+      .gte("recorded_at", cutoff)
+      .order("recorded_at", { ascending: true })
+      .then(({ data }) => {
+        if (data) setSnapshots(data);
+      });
+  }, []);
 
   const TIME_SLOTS = ["Todos", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
 
   const ranked = [...statuses]
     .map((s) => {
       if (selectedTime === "Todos") return { ...s, rankValue: s.listeners, label: "agora" };
-      const historyEntry = s.history.find((h) => h.time === selectedTime);
-      return { ...s, rankValue: historyEntry?.listeners ?? 0, label: selectedTime };
+      // Use real DB data for the selected hour
+      const selectedHour = parseInt(selectedTime.split(":")[0]);
+      const hourSnaps = snapshots.filter(
+        (snap) => snap.station_id === s.station.id && snap.hour === selectedHour
+      );
+      const avg = hourSnaps.length > 0
+        ? Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length)
+        : 0;
+      return { ...s, rankValue: avg, label: selectedTime };
     })
     .filter((s) => s.rankValue > 0)
     .sort((a, b) => b.rankValue - a.rankValue);
