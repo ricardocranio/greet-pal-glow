@@ -111,7 +111,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
       const hourSnaps = snapshots.filter(snap => snap.station_id === s.station.id && snap.hour === h);
       const val = hourSnaps.length > 0
         ? Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length)
-        : (new Date().getHours() === h ? s.listeners : 0);
+        : (getBrasiliaHour() === h ? s.listeners : 0);
       stationTotal += val;
       row.push(val);
     });
