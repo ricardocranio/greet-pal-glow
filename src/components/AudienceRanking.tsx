@@ -16,6 +16,16 @@ interface SnapshotData {
 }
 
 // Every hour from 06 to 22
+const getBrasiliaHour = () => {
+  const now = new Date();
+  const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  return brasilia.getHours();
+};
+const getBrasiliaDay = () => {
+  const now = new Date();
+  const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  return brasilia.getDay();
+};
 const ALL_HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6..22
 const VISIBLE_HOURS_COUNT = 5; // show first 5 hours collapsed
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
