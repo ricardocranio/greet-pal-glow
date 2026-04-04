@@ -16,6 +16,16 @@ interface SnapshotData {
 }
 
 // Every hour from 06 to 22
+const getBrasiliaHour = () => {
+  const now = new Date();
+  const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  return brasilia.getHours();
+};
+const getBrasiliaDay = () => {
+  const now = new Date();
+  const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  return brasilia.getDay();
+};
 const ALL_HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6..22
 const VISIBLE_HOURS_COUNT = 5; // show first 5 hours collapsed
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -68,8 +78,8 @@ export function AudienceRanking({ statuses }: Props) {
       const hourData = ALL_HOURS.map((h) => {
         const hourSnaps = snapshots.filter((snap) => snap.station_id === s.station.id && snap.hour === h);
         if (hourSnaps.length === 0) {
-          const now = new Date();
-          return { hour: h, avg: now.getHours() === h ? s.listeners : 0, count: now.getHours() === h ? 1 : 0 };
+          const currentHour = getBrasiliaHour();
+          return { hour: h, avg: currentHour === h ? s.listeners : 0, count: currentHour === h ? 1 : 0 };
         }
         const avg = Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length);
         return { hour: h, avg, count: hourSnaps.length };
@@ -88,8 +98,8 @@ export function AudienceRanking({ statuses }: Props) {
           return snap.station_id === s.station.id && d.getDay() === dayIdx;
         });
         if (daySnaps.length === 0) {
-          const now = new Date();
-          return { day: dayIdx, avg: now.getDay() === dayIdx ? s.listeners : 0, count: now.getDay() === dayIdx ? 1 : 0 };
+          const currentDay = getBrasiliaDay();
+          return { day: dayIdx, avg: currentDay === dayIdx ? s.listeners : 0, count: currentDay === dayIdx ? 1 : 0 };
         }
         const avg = Math.round(daySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / daySnaps.length);
         return { day: dayIdx, avg, count: daySnaps.length };

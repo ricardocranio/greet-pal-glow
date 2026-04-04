@@ -1,6 +1,15 @@
 import * as XLSX from "xlsx";
 import { StationStatus } from "@/hooks/useStationMonitor";
 
+const getBrasiliaHour = () => {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getHours();
+};
+const getBrasiliaDay = () => {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+};
+
 interface SnapshotRow {
   station_id: string;
   listeners: number;
@@ -102,7 +111,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
       const hourSnaps = snapshots.filter(snap => snap.station_id === s.station.id && snap.hour === h);
       const val = hourSnaps.length > 0
         ? Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length)
-        : (new Date().getHours() === h ? s.listeners : 0);
+        : (getBrasiliaHour() === h ? s.listeners : 0);
       stationTotal += val;
       row.push(val);
     });
@@ -139,7 +148,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
       });
       const val = daySnaps.length > 0
         ? Math.round(daySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / daySnaps.length)
-        : (new Date().getDay() === dayIdx ? s.listeners : 0);
+        : (getBrasiliaDay() === dayIdx ? s.listeners : 0);
       stationTotal += val;
       row.push(val);
     });
