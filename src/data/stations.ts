@@ -115,10 +115,11 @@ export const stations: Station[] = [
     frequency: "91,1 MHz",
     streamUrl: "https://stm4.srvstm.com:7252",
     logoUrl: "https://cdn-radiotime-logos.tunein.com/s107307g.png",
-    instagramHandle: "@mundialfmnatal",
+    instagramHandle: "@radiomundialnatal",
     instagramFollowers: 8500,
     social: {
       website: "https://www.radiomundialfm.com.br",
+      instagram: "https://www.instagram.com/radiomundialnatal",
     },
   },
   {
