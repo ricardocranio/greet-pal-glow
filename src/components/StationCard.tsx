@@ -26,8 +26,8 @@ export function StationCard({ status, onReport }: Props) {
 
       {/* Station info */}
       <div className="flex items-start gap-3 mb-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Radio className="h-5 w-5" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
+          <img src={station.logo} alt={station.name} className="h-10 w-10 object-contain" loading="lazy" width={40} height={40} />
         </div>
         <div>
           <h3 className="font-display font-bold text-foreground leading-tight">
