@@ -25,7 +25,7 @@ export const stations: Station[] = [
     name: "98 FM NATAL",
     frequency: "98,9 MHz",
     streamUrl: "http://cast42.sitehosting.com.br:8010",
-    logoUrl: "https://98fmnatal.com.br/98-storage/2023/03/logo-98fm-natal.png",
+    logoUrl: "https://98fmnatal.com.br/site-core/views/18359912b2/inc/site/assets/images/new-logo2.png",
     instagramHandle: "@98fmnatal",
     instagramFollowers: 312000,
     social: {
@@ -69,7 +69,7 @@ export const stations: Station[] = [
     name: "95 FM NATAL",
     frequency: "95,9 MHz",
     streamUrl: "https://radio.saopaulo01.com.br:10841",
-    logoUrl: "https://cdn-radiotime-logos.tunein.com/s22475g.png",
+    logoUrl: "https://www.95maisfm.com.br/wp-content/uploads/2020/06/logo-1.png",
     instagramHandle: "@95maisfm",
     instagramFollowers: 42000,
     social: {
@@ -83,7 +83,7 @@ export const stations: Station[] = [
     name: "RURAL DE NATAL FM",
     frequency: "91,9 MHz",
     streamUrl: "https://live9.livemus.com.br:27802",
-    logoUrl: "https://static.wixstatic.com/media/a8ed9c_2e9b3f3cf7b04e5c9c05d120e6f2f3b0~mv2.png",
+    logoUrl: "https://static.wixstatic.com/media/a8ed9c_7c3021d0f64f46d3a50f3f7f4bc8835d~mv2.png",
     instagramHandle: "@ruraldenatalfm",
     instagramFollowers: 28000,
     social: {
@@ -143,7 +143,7 @@ export const stations: Station[] = [
     name: "JP NEWS NATAL",
     frequency: "93,5 MHz",
     streamUrl: "https://s02.maxcast.com.br:8082/",
-    logoUrl: "https://s.jpimg.com.br/wp-content/themes/jovempan/assets/build/images/logo-jpnews-red.svg",
+    logoUrl: "https://s.jpimg.com.br/wp-content/themes/jovempan/assets/build/images/jp-news_white.png",
     instagramHandle: "@jovempannewsnatal",
     instagramFollowers: 35000,
     social: {
@@ -157,7 +157,7 @@ export const stations: Station[] = [
     name: "104 FM NATAL",
     frequency: "104,7 MHz",
     streamUrl: "https://radios.braviahost.com.br:8000/",
-    logoUrl: "https://104fmprazeremouvir.com.br/assets/img/logo.png",
+    logoUrl: "https://104fmprazeremouvir.com.br/assets/img/logo/logo-white.png",
     instagramHandle: "@siga104fm",
     instagramFollowers: 18000,
     social: {
