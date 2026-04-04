@@ -1,4 +1,4 @@
-import { Radio, Users, TrendingUp, Clock } from "lucide-react";
+import { Users, TrendingUp, Clock } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
 
