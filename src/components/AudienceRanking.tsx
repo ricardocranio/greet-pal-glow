@@ -78,8 +78,8 @@ export function AudienceRanking({ statuses }: Props) {
       const hourData = ALL_HOURS.map((h) => {
         const hourSnaps = snapshots.filter((snap) => snap.station_id === s.station.id && snap.hour === h);
         if (hourSnaps.length === 0) {
-          const now = new Date();
-          return { hour: h, avg: now.getHours() === h ? s.listeners : 0, count: now.getHours() === h ? 1 : 0 };
+          const currentHour = getBrasiliaHour();
+          return { hour: h, avg: currentHour === h ? s.listeners : 0, count: currentHour === h ? 1 : 0 };
         }
         const avg = Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length);
         return { hour: h, avg, count: hourSnaps.length };
