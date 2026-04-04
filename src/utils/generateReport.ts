@@ -50,10 +50,12 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   const sorted = [...statuses].sort((a, b) => b.listeners - a.listeners);
 
   // ===== ABA 1: RANKING AUDIÊNCIA =====
+  const cleanName = (name: string) => name.replace(/ NATAL/gi, "").replace(/DE /gi, "").trim();
+
   const rows: (string | number | null)[][] = [];
-  rows.push(["TODOS OS DIAS", null, "TODOS OS DIAS", null, null, null, null, null, null, null, "% MÊS ANTERIOR", null, null]);
-  rows.push(["6H19", null, ...quarters.flatMap((q) => [q.label, null]), "Var. Q2/Q1", "Var. Q3/Q2", "Var. Q4/Q3"]);
-  rows.push(["Emissora", null, "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", null, null, null]);
+  rows.push(["TODOS OS DIAS", null, null, "TODOS OS DIAS", null, null, null, null, null, null, null, "% MÊS ANTERIOR", null, null]);
+  rows.push([null, null, null, ...quarters.flatMap((q) => [q.label, null]), "Var. Q2/Q1", "Var. Q3/Q2", "Var. Q4/Q3"]);
+  rows.push(["Emissora", "Logo", null, "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", "Pos.", "Audiência", null, null, null]);
 
   const stationQuarterData = sorted.map(s => ({
     station: s,
