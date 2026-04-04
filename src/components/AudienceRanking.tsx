@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock, Calendar, BarChart3 } from "lucide-react";
+import { Trophy, Clock, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,7 +15,9 @@ interface SnapshotData {
   recorded_at: string;
 }
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7..22
+// Every hour from 06 to 22
+const ALL_HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6..22
+const VISIBLE_HOURS_COUNT = 5; // show first 5 hours collapsed
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
@@ -25,6 +27,7 @@ export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
   const [selectedTime, setSelectedTime] = useState("Todos");
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
+  const [hoursExpanded, setHoursExpanded] = useState(false);
 
   useEffect(() => {
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -38,12 +41,12 @@ export function AudienceRanking({ statuses }: Props) {
       });
   }, []);
 
-  const TIME_SLOTS = ["Todos", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+  // Build hour slots: 06:00, 07:00, ..., 22:00
+  const TIME_SLOTS = ["Todos", ...ALL_HOURS.map((h) => `${String(h).padStart(2, "0")}:00`)];
 
   const ranked = [...statuses]
     .map((s) => {
       if (selectedTime === "Todos") return { ...s, rankValue: s.listeners, label: "agora" };
-      // Use real DB data for the selected hour
       const selectedHour = parseInt(selectedTime.split(":")[0]);
       const hourSnaps = snapshots.filter(
         (snap) => snap.station_id === s.station.id && snap.hour === selectedHour
@@ -56,10 +59,10 @@ export function AudienceRanking({ statuses }: Props) {
     .filter((s) => s.rankValue > 0)
     .sort((a, b) => b.rankValue - a.rankValue);
 
-  // Hourly data: average listeners per station per hour
+  // Hourly data
   const getHourlyData = () => {
     return statuses.map((s) => {
-      const hourData = HOURS.map((h) => {
+      const hourData = ALL_HOURS.map((h) => {
         const hourSnaps = snapshots.filter((snap) => snap.station_id === s.station.id && snap.hour === h);
         if (hourSnaps.length === 0) {
           const now = new Date();
@@ -73,7 +76,7 @@ export function AudienceRanking({ statuses }: Props) {
     }).sort((a, b) => b.total - a.total);
   };
 
-  // Daily data: average listeners per station per day of week
+  // Daily data
   const getDailyData = () => {
     return statuses.map((s) => {
       const dayData = [0, 1, 2, 3, 4, 5, 6].map((dayIdx) => {
@@ -92,6 +95,11 @@ export function AudienceRanking({ statuses }: Props) {
       return { station: s.station, dayData, total };
     }).sort((a, b) => b.total - a.total);
   };
+
+  // Visible hour slots for ranking tab (collapsible)
+  const visibleSlots = hoursExpanded
+    ? TIME_SLOTS
+    : TIME_SLOTS.slice(0, VISIBLE_HOURS_COUNT + 1); // +1 for "Todos"
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
@@ -131,23 +139,48 @@ export function AudienceRanking({ statuses }: Props) {
               Ranking de Audiência
             </h2>
           </div>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {TIME_SLOTS.map((slot) => (
+
+          {/* Hour slots with expand/collapse */}
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-1.5">
+              {visibleSlots.map((slot) => (
+                <Button
+                  key={slot}
+                  size="sm"
+                  variant={selectedTime === slot ? "default" : "outline"}
+                  className={`text-[11px] h-7 px-2.5 ${
+                    selectedTime === slot
+                      ? "bg-primary text-primary-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setSelectedTime(slot)}
+                >
+                  {slot}
+                </Button>
+              ))}
+
+              {/* Expand/Collapse button */}
               <Button
-                key={slot}
                 size="sm"
-                variant={selectedTime === slot ? "default" : "outline"}
-                className={`text-[11px] h-7 px-2.5 ${
-                  selectedTime === slot
-                    ? "bg-primary text-primary-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setSelectedTime(slot)}
+                variant="ghost"
+                className="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setHoursExpanded(!hoursExpanded)}
               >
-                {slot}
+                {hoursExpanded ? (
+                  <>
+                    <ChevronUp className="h-3.5 w-3.5 mr-1" />
+                    Recolher
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                    +{TIME_SLOTS.length - visibleSlots.length} horários
+                  </>
+                )}
               </Button>
-            ))}
+            </div>
           </div>
+
           <div className="space-y-2">
             {ranked.map((s, index) => {
               const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : null;
@@ -196,7 +229,7 @@ export function AudienceRanking({ statuses }: Props) {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
-                  {HOURS.map((h) => (
+                  {ALL_HOURS.map((h) => (
                     <th key={h} className="text-center py-2 px-1 font-mono font-semibold text-muted-foreground min-w-[40px]">
                       {String(h).padStart(2, "0")}h
                     </th>
