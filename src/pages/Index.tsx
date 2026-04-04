@@ -108,7 +108,7 @@ function IndexContent() {
             </div>
             <div>
               <h1 className="font-display font-bold text-lg text-foreground leading-tight">
-                Streaming Monitor
+                Monitoramento de Audiência
               </h1>
               <p className="text-xs text-muted-foreground">Rádios de Natal/RN</p>
             </div>
