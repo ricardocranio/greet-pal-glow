@@ -72,23 +72,23 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   );
 
   const totals = [0, 1, 2, 3].map(qi => stationQuarterData.reduce((sum, s) => sum + s.quarters[qi].avg, 0));
-  rows.push(["NATAL/RN - TOTAL RÁDIO", null, null, totals[0], null, totals[1], null, totals[2], null, totals[3],
+  rows.push(["TOTAL RÁDIO", null, null, null, totals[0], null, totals[1], null, totals[2], null, totals[3],
     calcVar(totals[1], totals[0]), calcVar(totals[2], totals[1]), calcVar(totals[3], totals[2])]);
 
   stationQuarterData.forEach(sd => {
     const q = sd.quarters;
     const id = sd.station.station.id;
     const getPos = (qi: number) => quarterPositions[qi].find(p => p.id === id)?.pos ?? 0;
-    rows.push([`NATAL - ${sd.station.station.name}`, null, getPos(0), q[0].avg, getPos(1), q[1].avg, getPos(2), q[2].avg, getPos(3), q[3].avg,
+    rows.push([cleanName(sd.station.station.name), sd.station.station.logoUrl, null, getPos(0), q[0].avg, getPos(1), q[1].avg, getPos(2), q[2].avg, getPos(3), q[3].avg,
       calcVar(q[1].avg, q[0].avg), calcVar(q[2].avg, q[1].avg), calcVar(q[3].avg, q[2].avg)]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 35 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10, hidden: true }, { wch: 10, hidden: true }, { wch: 10, hidden: true }];
+  ws["!cols"] = [{ wch: 25 }, { wch: 40 }, { wch: 2 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 5 }, { wch: 12 }, { wch: 10, hidden: true }, { wch: 10, hidden: true }, { wch: 10, hidden: true }];
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, { s: { r: 0, c: 2 }, e: { r: 0, c: 9 } }, { s: { r: 0, c: 10 }, e: { r: 0, c: 12 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } }, { s: { r: 1, c: 4 }, e: { r: 1, c: 5 } },
-    { s: { r: 1, c: 6 }, e: { r: 1, c: 7 } }, { s: { r: 1, c: 8 }, e: { r: 1, c: 9 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, { s: { r: 0, c: 3 }, e: { r: 0, c: 10 } }, { s: { r: 0, c: 11 }, e: { r: 0, c: 13 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, { s: { r: 1, c: 3 }, e: { r: 1, c: 4 } }, { s: { r: 1, c: 5 }, e: { r: 1, c: 6 } },
+    { s: { r: 1, c: 7 }, e: { r: 1, c: 8 } }, { s: { r: 1, c: 9 }, e: { r: 1, c: 10 } },
   ];
   XLSX.utils.book_append_sheet(wb, ws, "Ranking Audiência");
 
