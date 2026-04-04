@@ -102,11 +102,11 @@ export const stations: Station[] = [
     frequency: "106,3 MHz",
     streamUrl: "http://radios.braviahost.com.br:8012",
     logoUrl: "https://painel.clube.fm/wp-content/uploads/2025/02/Logo-Clube-106-3.png",
-    instagramHandle: "@clubefmnatal",
+    instagramHandle: "@clubenatal",
     instagramFollowers: 15000,
     social: {
       website: "https://clube.fm/natal",
-      instagram: "https://www.instagram.com/clubefmnatal",
+      instagram: "https://www.instagram.com/clubenatal",
     },
   },
   {
