@@ -7,6 +7,8 @@ import { AudienceRanking } from "@/components/AudienceRanking";
 import { AudioProvider, useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { Button } from "@/components/ui/button";
 import { generateAudienceReport } from "@/utils/generateReport";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function NowPlayingBar() {
   const { playingStationId, stop } = useAudioPlayer();
@@ -32,6 +34,7 @@ function IndexContent() {
   const { statuses, refresh } = useStationMonitor();
   const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const onlineCount = statuses.filter((s) => s.online).length;
   const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
@@ -41,9 +44,34 @@ function IndexContent() {
     setDialogOpen(true);
   };
 
+  const handleDownloadReport = async () => {
+    setDownloading(true);
+    try {
+      // Fetch last 90 days of snapshots from DB
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: snapshots, error } = await supabase
+        .from('audience_snapshots')
+        .select('station_id, listeners, peak_listeners, hour, recorded_at')
+        .gte('recorded_at', cutoff)
+        .order('recorded_at', { ascending: true });
+
+      if (error) {
+        console.error('Failed to fetch snapshots:', error);
+        toast.error('Erro ao buscar dados históricos');
+      }
+
+      generateAudienceReport(statuses, snapshots ?? []);
+      toast.success('Relatório gerado com sucesso!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao gerar relatório');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-16">
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -73,11 +101,12 @@ function IndexContent() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => generateAudienceReport(statuses)}
+              onClick={handleDownloadReport}
+              disabled={downloading}
               className="border-border text-muted-foreground hover:text-foreground"
             >
               <Download className="h-4 w-4 mr-1.5" />
-              Relatório
+              {downloading ? 'Gerando...' : 'Relatório'}
             </Button>
             <Button
               size="sm"
@@ -94,7 +123,6 @@ function IndexContent() {
 
       <main className="container max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Station cards */}
           <div className="lg:col-span-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {statuses.map((status) => (
@@ -106,8 +134,6 @@ function IndexContent() {
               ))}
             </div>
           </div>
-
-          {/* Ranking sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               <AudienceRanking statuses={statuses} />
@@ -117,7 +143,6 @@ function IndexContent() {
       </main>
 
       <NowPlayingBar />
-
       <ReportDialog
         status={selectedStation}
         open={dialogOpen}
