@@ -44,6 +44,9 @@ export function AudienceRanking({ statuses }: Props) {
   // Build hour slots: 06:00, 07:00, ..., 22:00
   const TIME_SLOTS = ["Todos", ...ALL_HOURS.map((h) => `${String(h).padStart(2, "0")}:00`)];
 
+  // Determine which hours have real data
+  const hoursWithData = new Set(snapshots.map((s) => s.hour));
+
   const ranked = [...statuses]
     .map((s) => {
       if (selectedTime === "Todos") return { ...s, rankValue: s.listeners, label: "agora" };
