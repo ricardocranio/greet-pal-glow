@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { TrendingUp, Clock, Users, Radio } from "lucide-react";
+import { TrendingUp, Clock, Users } from "lucide-react";
 
 interface Props {
   status: StationStatus | null;
@@ -23,8 +23,8 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="font-display flex items-center gap-2 text-foreground">
-            <Radio className="h-5 w-5 text-primary" />
+          <DialogTitle className="font-display flex items-center gap-3 text-foreground">
+            <img src={station.logo} alt={station.name} className="h-10 w-10 object-contain rounded-lg bg-secondary p-1" width={40} height={40} />
             {station.name}
             <span className="text-sm font-mono text-muted-foreground font-normal">
               {station.frequency}
