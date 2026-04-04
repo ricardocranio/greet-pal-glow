@@ -28,7 +28,7 @@ function SocialIcons({ social }: { social: SocialLinks }) {
 }
 
 export function StationCard({ status, onReport }: Props) {
-  const { station, online, listeners, lastChecked } = status;
+  const { station, online, listeners, lastChecked, source } = status;
   const { playingStationId, play } = useAudioPlayer();
   const isPlaying = playingStationId === station.id;
 
@@ -38,6 +38,12 @@ export function StationCard({ status, onReport }: Props) {
     }`}>
       {/* Live dot */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
+        {source === 'real' && online && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400 ring-1 ring-red-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+            Ao Vivo
+          </span>
+        )}
         <span
           className={`h-2.5 w-2.5 rounded-full ${
             online ? "bg-online animate-pulse" : "bg-offline"
@@ -118,6 +124,9 @@ export function StationCard({ status, onReport }: Props) {
         <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <Clock className="h-3 w-3" />
           {lastChecked.toLocaleTimeString("pt-BR")}
+          {source === 'real' && (
+            <span className="ml-1 text-[10px] text-primary font-medium">• real</span>
+          )}
         </span>
         <Button
           size="sm"
