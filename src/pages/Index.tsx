@@ -115,6 +115,7 @@ function IndexContent() {
           </div>
 
           <div className="flex items-center gap-4">
+            <BrasiliaClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Activity className="h-4 w-4 text-online" />
