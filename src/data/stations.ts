@@ -69,7 +69,7 @@ export const stations: Station[] = [
     name: "95 FM NATAL",
     frequency: "95,9 MHz",
     streamUrl: "https://radio.saopaulo01.com.br:10841",
-    logoUrl: "https://cdn-radiotime-logos.tunein.com/s22475g.png",
+    logoUrl: "https://www.95maisfm.com.br/wp-content/uploads/2020/06/logo-1.png",
     instagramHandle: "@95maisfm",
     instagramFollowers: 42000,
     social: {
