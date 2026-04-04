@@ -128,11 +128,11 @@ export const stations: Station[] = [
     frequency: "99,5 MHz",
     streamUrl: "https://pannatal.jmvstream.com/index.html?sid=1",
     logoUrl: "https://jpimg.com.br/uploads/2025/04/900x900_natal-500x500.png",
-    instagramHandle: "@jpfmnatal",
+    instagramHandle: "@jovempannatal",
     instagramFollowers: 52000,
     social: {
       website: "https://jovempan.com.br/afiliada/natal-fm",
-      instagram: "https://www.instagram.com/jpfmnatal",
+      instagram: "https://www.instagram.com/jovempannatal",
       facebook: "https://www.facebook.com/jpfmnatal",
       twitter: "https://twitter.com/jpfmnatal",
       youtube: "https://www.youtube.com/@jpfmnatal",
