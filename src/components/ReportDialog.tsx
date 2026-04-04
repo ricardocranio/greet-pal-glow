@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { TrendingUp, Clock, Users, Instagram, Calendar } from "lucide-react";
+import { TrendingUp, Clock, Users, Instagram, Calendar, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -16,14 +16,16 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-type ViewMode = "horario" | "dia";
+type ViewMode = "horario" | "dia" | "mes";
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("horario");
   const [hourlyData, setHourlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
+  const [monthlyData, setMonthlyData] = useState<{ time: string; listeners: number }[]>([]);
 
   useEffect(() => {
     if (!open || !status) return;
@@ -37,24 +39,33 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       .order("recorded_at", { ascending: true })
       .then(({ data }) => {
         if (!data || data.length === 0) {
-          // Fallback to in-memory history
           setHourlyData(status.history);
           setDailyData([]);
+          setMonthlyData([]);
           return;
         }
 
-        // Group by hour (07-22)
         const hourMap = new Map<number, number[]>();
         const dayMap = new Map<number, number[]>();
+        // monthKey -> { sum, count } for monthly average
+        const monthMap = new Map<string, { sum: number; count: number }>();
 
         data.forEach((snap) => {
           const h = snap.hour;
           if (!hourMap.has(h)) hourMap.set(h, []);
           hourMap.get(h)!.push(snap.listeners);
 
-          const d = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+          const dt = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+          const d = dt.getDay();
           if (!dayMap.has(d)) dayMap.set(d, []);
           dayMap.get(d)!.push(snap.listeners);
+
+          // Monthly: group by YYYY-MM
+          const mKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+          if (!monthMap.has(mKey)) monthMap.set(mKey, { sum: 0, count: 0 });
+          const m = monthMap.get(mKey)!;
+          m.sum += snap.listeners;
+          m.count += 1;
         });
 
         const hData = Array.from({ length: 16 }, (_, i) => i + 7).map((h) => {
@@ -69,15 +80,23 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           return { time: DAY_NAMES[d], listeners: avg };
         });
 
+        // Sort monthly keys and build chart data
+        const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        const mData = sortedMonths.map(([key, { sum, count }]) => {
+          const [, mm] = key.split("-");
+          return { time: MONTH_NAMES[parseInt(mm, 10) - 1], listeners: Math.round(sum / count) };
+        });
+
         setHourlyData(hData);
         setDailyData(dData);
+        setMonthlyData(mData);
       });
   }, [open, status]);
 
   if (!status) return null;
   const { station, peakListeners, peakTime, listeners } = status;
 
-  const chartData = viewMode === "horario" ? hourlyData : dailyData;
+  const chartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,7 +168,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
             }`}
           >
             <Clock className="h-3.5 w-3.5" />
-            Por Horário
+            Horário
           </button>
           <button
             onClick={() => setViewMode("dia")}
@@ -160,14 +179,29 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
             }`}
           >
             <Calendar className="h-3.5 w-3.5" />
-            Por Dia
+            Dia
+          </button>
+          <button
+            onClick={() => setViewMode("mes")}
+            className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium py-2 rounded-md transition-colors ${
+              viewMode === "mes"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
+            Mês
           </button>
         </div>
 
         {/* Chart */}
         <div className="rounded-lg bg-secondary/30 p-4">
           <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
-            {viewMode === "horario" ? "Audiência por Horário (07h - 22h)" : "Audiência por Dia da Semana"}
+            {viewMode === "horario"
+              ? "Audiência por Horário (07h - 22h)"
+              : viewMode === "dia"
+              ? "Audiência por Dia da Semana"
+              : "Audiência Média por Mês"}
           </p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData}>
