@@ -114,7 +114,7 @@ export const stations: Station[] = [
     name: "MUNDIAL FM NATAL",
     frequency: "91,1 MHz",
     streamUrl: "https://stm4.srvstm.com:7252",
-    logoUrl: "https://cdn-radiotime-logos.tunein.com/s107307g.png",
+    logoUrl: "/logos/mundial-fm.jpeg",
     instagramHandle: "@radiomundialnatal",
     instagramFollowers: 8500,
     social: {
