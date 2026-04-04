@@ -112,10 +112,10 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     hourRows.push(row);
   });
 
-  const totalHourRow: (string | number)[] = ["TOTAL"];
+  const totalHourRow: (string | number)[] = ["TOTAL", ""];
   let grandTotal = 0;
   hours.forEach((_, hi) => {
-    const total = hourRows.slice(1).reduce((sum, row) => sum + (Number(row[hi + 1]) || 0), 0);
+    const total = hourRows.slice(1).reduce((sum, row) => sum + (Number(row[hi + 2]) || 0), 0);
     grandTotal += total;
     totalHourRow.push(total);
   });
@@ -123,7 +123,7 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   hourRows.push(totalHourRow);
 
   const wsHours = XLSX.utils.aoa_to_sheet(hourRows);
-  wsHours["!cols"] = [{ wch: 30 }, ...hours.map(() => ({ wch: 8 })), { wch: 10, hidden: true }];
+  wsHours["!cols"] = [{ wch: 25 }, { wch: 40 }, ...hours.map(() => ({ wch: 8 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsHours, "Audiência por Horário");
 
   // ===== ABA 3: AUDIÊNCIA POR DIA =====
