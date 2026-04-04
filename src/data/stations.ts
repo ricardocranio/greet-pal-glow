@@ -83,7 +83,7 @@ export const stations: Station[] = [
     name: "RURAL DE NATAL FM",
     frequency: "91,9 MHz",
     streamUrl: "https://live9.livemus.com.br:27802",
-    logoUrl: "https://static.wixstatic.com/media/a8ed9c_2e9b3f3cf7b04e5c9c05d120e6f2f3b0~mv2.png",
+    logoUrl: "https://static.wixstatic.com/media/a8ed9c_7c3021d0f64f46d3a50f3f7f4bc8835d~mv2.png",
     instagramHandle: "@ruraldenatalfm",
     instagramFollowers: 28000,
     social: {
