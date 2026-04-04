@@ -88,8 +88,12 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
     const data = JSON.parse(text);
     const source = data.icestats?.source;
     if (!source) return null;
-    const s = Array.isArray(source) ? source[0] : source;
-    return { online: true, listeners: s.listeners ?? 0, peakListeners: s.listener_peak ?? 0, title: s.title ?? s.server_name ?? '', bitrate: s.bitrate ?? 0 };
+    // If multiple sources, pick the one with most listeners (the active stream)
+    const sources = Array.isArray(source) ? source : [source];
+    const s = sources.reduce((best: any, cur: any) => 
+      (cur.listeners ?? 0) > (best.listeners ?? 0) ? cur : best
+    , sources[0]);
+    return { online: true, listeners: s.listeners ?? 0, peakListeners: s.listener_peak ?? 0, title: s.title ?? s.server_name ?? '', bitrate: Number(s.bitrate ?? s['ice-bitrate'] ?? 0), };
   } catch { return null; }
 }
 
