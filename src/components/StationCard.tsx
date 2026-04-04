@@ -38,6 +38,12 @@ export function StationCard({ status, onReport }: Props) {
     }`}>
       {/* Live dot */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
+        {source === 'real' && online && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400 ring-1 ring-red-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+            Ao Vivo
+          </span>
+        )}
         <span
           className={`h-2.5 w-2.5 rounded-full ${
             online ? "bg-online animate-pulse" : "bg-offline"
