@@ -146,21 +146,30 @@ export function AudienceRanking({ statuses }: Props) {
           {/* Hour slots with expand/collapse */}
           <div className="mb-4">
             <div className="flex flex-wrap gap-1.5">
-              {visibleSlots.map((slot) => (
-                <Button
-                  key={slot}
-                  size="sm"
-                  variant={selectedTime === slot ? "default" : "outline"}
-                  className={`text-[11px] h-7 px-2.5 ${
-                    selectedTime === slot
-                      ? "bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setSelectedTime(slot)}
-                >
-                  {slot}
-                </Button>
-              ))}
+              {visibleSlots.map((slot) => {
+                const slotHour = slot === "Todos" ? -1 : parseInt(slot.split(":")[0]);
+                const hasData = slot === "Todos" ? snapshots.length > 0 : hoursWithData.has(slotHour);
+                return (
+                  <Button
+                    key={slot}
+                    size="sm"
+                    variant={selectedTime === slot ? "default" : "outline"}
+                    className={`text-[11px] h-7 px-2.5 relative ${
+                      selectedTime === slot
+                        ? "bg-primary text-primary-foreground"
+                        : hasData
+                          ? "border-primary/50 text-foreground hover:text-foreground"
+                          : "border-border text-muted-foreground/50 hover:text-foreground"
+                    }`}
+                    onClick={() => setSelectedTime(slot)}
+                  >
+                    {hasData && selectedTime !== slot && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+                    )}
+                    {slot}
+                  </Button>
+                );
+              })}
 
               {/* Expand/Collapse button */}
               <Button
