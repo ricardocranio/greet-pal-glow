@@ -143,7 +143,7 @@ export const stations: Station[] = [
     name: "JP NEWS NATAL",
     frequency: "93,5 MHz",
     streamUrl: "https://s02.maxcast.com.br:8082/",
-    logoUrl: "https://s.jpimg.com.br/wp-content/themes/jovempan/assets/build/images/jp-news_white.png",
+    logoUrl: "https://jpimg.com.br/uploads/2024/02/avatar-news-natal-rgb-500x500.png",
     instagramHandle: "@jovempannewsnatal",
     instagramFollowers: 35000,
     social: {
