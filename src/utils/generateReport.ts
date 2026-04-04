@@ -143,8 +143,8 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
     let stationTotal = 0;
     [0, 1, 2, 3, 4, 5, 6].forEach(dayIdx => {
       const daySnaps = snapshots.filter(snap => {
-        const d = new Date(snap.recorded_at);
-        return snap.station_id === s.station.id && d.getDay() === dayIdx;
+        const d = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).getDay();
+        return snap.station_id === s.station.id && d === dayIdx;
       });
       const val = daySnaps.length > 0
         ? Math.round(daySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / daySnaps.length)
