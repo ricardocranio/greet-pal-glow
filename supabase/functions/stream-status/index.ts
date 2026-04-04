@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -42,7 +44,6 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
     bitrate: 0,
   };
 
-  // Try multiple Shoutcast/Icecast endpoints
   const endpoints = [
     { path: '/stats?sid=1&json=1', parser: parseShoutcastJson },
     { path: '/status-json.xsl', parser: parseIcecastJson },
@@ -53,61 +54,33 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-
       const response = await fetch(`${stream.url}${endpoint.path}`, {
         signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)',
-          'Accept': '*/*',
-        },
+        headers: { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
       });
       clearTimeout(timeout);
-
       if (response.ok) {
         const text = await response.text();
         const parsed = endpoint.parser(text);
-        if (parsed) {
-          return { ...result, ...parsed, id: stream.id };
-        }
+        if (parsed) return { ...result, ...parsed, id: stream.id };
       }
-    } catch (_e) {
-      // Try next endpoint
-    }
+    } catch (_e) { /* next */ }
   }
-
   return result;
 }
 
 function parseShoutcastJson(text: string): Partial<StreamResult> | null {
   try {
     const data = JSON.parse(text);
-    // Shoutcast v2 format
     if (data.streams) {
-      const s = Array.isArray(data.streams) ? data.streams[0] : Object.values(data.streams)[0] as Record<string, unknown>;
-      if (s) {
-        return {
-          online: (s as any).streamstatus === 1,
-          listeners: (s as any).currentlisteners ?? 0,
-          peakListeners: (s as any).peaklisteners ?? 0,
-          title: (s as any).songtitle ?? '',
-          bitrate: (s as any).bitrate ?? 0,
-        };
-      }
+      const s = Array.isArray(data.streams) ? data.streams[0] : Object.values(data.streams)[0] as any;
+      if (s) return { online: s.streamstatus === 1, listeners: s.currentlisteners ?? 0, peakListeners: s.peaklisteners ?? 0, title: s.songtitle ?? '', bitrate: s.bitrate ?? 0 };
     }
-    // Shoutcast v1 JSON format
     if (data.currentlisteners !== undefined) {
-      return {
-        online: data.streamstatus === 1,
-        listeners: data.currentlisteners ?? 0,
-        peakListeners: data.peaklisteners ?? 0,
-        title: data.songtitle ?? data.servertitle ?? '',
-        bitrate: data.bitrate ?? 0,
-      };
+      return { online: data.streamstatus === 1, listeners: data.currentlisteners ?? 0, peakListeners: data.peaklisteners ?? 0, title: data.songtitle ?? data.servertitle ?? '', bitrate: data.bitrate ?? 0 };
     }
     return null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function parseIcecastJson(text: string): Partial<StreamResult> | null {
@@ -116,36 +89,55 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
     const source = data.icestats?.source;
     if (!source) return null;
     const s = Array.isArray(source) ? source[0] : source;
-    return {
-      online: true,
-      listeners: s.listeners ?? 0,
-      peakListeners: s.listener_peak ?? 0,
-      title: s.title ?? s.server_name ?? '',
-      bitrate: s.bitrate ?? 0,
-    };
-  } catch {
-    return null;
-  }
+    return { online: true, listeners: s.listeners ?? 0, peakListeners: s.listener_peak ?? 0, title: s.title ?? s.server_name ?? '', bitrate: s.bitrate ?? 0 };
+  } catch { return null; }
 }
 
 function parseShoutcast7html(text: string): Partial<StreamResult> | null {
   try {
-    // Format: <body>CUR,STATUS,PEAK,MAX,UNIQUE,BITRATE,SONGTITLE</body>
     const match = text.match(/<body[^>]*>(.*?)<\/body>/is);
     if (!match) return null;
     const parts = match[1].split(',');
     if (parts.length >= 7) {
-      return {
-        online: parseInt(parts[1]) === 1,
-        listeners: parseInt(parts[0]) || 0,
-        peakListeners: parseInt(parts[2]) || 0,
-        title: parts.slice(6).join(',').trim(),
-        bitrate: parseInt(parts[5]) || 0,
-      };
+      return { online: parseInt(parts[1]) === 1, listeners: parseInt(parts[0]) || 0, peakListeners: parseInt(parts[2]) || 0, title: parts.slice(6).join(',').trim(), bitrate: parseInt(parts[5]) || 0 };
     }
     return null;
-  } catch {
-    return null;
+  } catch { return null; }
+}
+
+async function saveSnapshots(statuses: StreamResult[]) {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const now = new Date();
+    const hour = now.getHours();
+
+    // Only save during monitoring hours (07:00-22:00)
+    if (hour < 7 || hour > 22) return;
+
+    const rows = statuses
+      .filter(s => s.online)
+      .map(s => ({
+        station_id: s.id,
+        listeners: s.listeners,
+        peak_listeners: s.peakListeners,
+        title: s.title,
+        bitrate: s.bitrate,
+        hour,
+        recorded_at: now.toISOString(),
+      }));
+
+    if (rows.length > 0) {
+      await supabase.from('audience_snapshots').insert(rows);
+    }
+
+    // Clean up data older than 90 days
+    const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('audience_snapshots').delete().lt('recorded_at', cutoff);
+  } catch (e) {
+    console.error('Failed to save snapshots:', e);
   }
 }
 
@@ -155,28 +147,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Fetch all streams in parallel with individual timeouts
     const results = await Promise.allSettled(
       STREAMS.map(stream => fetchShoutcastStats(stream))
     );
 
     const statuses: StreamResult[] = results.map((r, i) => {
       if (r.status === 'fulfilled') return r.value;
-      return {
-        id: STREAMS[i].id,
-        online: false,
-        listeners: 0,
-        peakListeners: 0,
-        title: '',
-        bitrate: 0,
-        error: 'timeout',
-      };
+      return { id: STREAMS[i].id, online: false, listeners: 0, peakListeners: 0, title: '', bitrate: 0, error: 'timeout' };
     });
 
-    return new Response(JSON.stringify({ 
-      statuses, 
-      timestamp: new Date().toISOString() 
-    }), {
+    // Save to database in background
+    saveSnapshots(statuses);
+
+    return new Response(JSON.stringify({ statuses, timestamp: new Date().toISOString() }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

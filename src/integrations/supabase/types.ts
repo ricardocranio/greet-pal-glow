@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audience_snapshots: {
+        Row: {
+          bitrate: number | null
+          created_at: string
+          hour: number
+          id: string
+          listeners: number
+          peak_listeners: number
+          recorded_at: string
+          station_id: string
+          title: string | null
+        }
+        Insert: {
+          bitrate?: number | null
+          created_at?: string
+          hour: number
+          id?: string
+          listeners?: number
+          peak_listeners?: number
+          recorded_at?: string
+          station_id: string
+          title?: string | null
+        }
+        Update: {
+          bitrate?: number | null
+          created_at?: string
+          hour?: number
+          id?: string
+          listeners?: number
+          peak_listeners?: number
+          recorded_at?: string
+          station_id?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
