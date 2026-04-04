@@ -95,10 +95,10 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   // ===== ABA 2: AUDIÊNCIA POR HORÁRIO =====
   const hours = Array.from({ length: 16 }, (_, i) => i + 7);
   const hourRows: (string | number | null)[][] = [];
-  hourRows.push(["AUDIÊNCIA POR HORÁRIO - NATAL/RN", ...hours.map(h => `${String(h).padStart(2, '0')}:00`), "TOTAL"]);
+  hourRows.push(["Emissora", "Logo", ...hours.map(h => `${String(h).padStart(2, '0')}:00`), "TOTAL"]);
 
   sorted.forEach(s => {
-    const row: (string | number)[] = [s.station.name];
+    const row: (string | number)[] = [cleanName(s.station.name), s.station.logoUrl];
     let stationTotal = 0;
     hours.forEach(h => {
       const hourSnaps = snapshots.filter(snap => snap.station_id === s.station.id && snap.hour === h);
