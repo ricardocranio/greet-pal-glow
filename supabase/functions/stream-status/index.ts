@@ -112,10 +112,12 @@ async function saveSnapshots(statuses: StreamResult[]) {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const now = new Date();
-    const hour = now.getHours();
+    // Use Brasília timezone (UTC-3) for hour calculation
+    const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+    const hour = brasiliaTime.getHours();
 
-    // Only save during monitoring hours (07:00-22:00)
-    if (hour < 7 || hour > 22) return;
+    // Only save during monitoring hours (06:00-22:00 Brasília)
+    if (hour < 6 || hour > 22) return;
 
     const rows = statuses
       .filter(s => s.online)
