@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { TrendingUp, Clock, Users, Radio } from "lucide-react";
+import { TrendingUp, Clock, Users } from "lucide-react";
 
 interface Props {
   status: StationStatus | null;
