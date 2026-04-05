@@ -47,6 +47,7 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
   const endpoints = [
     { path: '/stats?sid=1&json=1', parser: parseShoutcastJson },
     { path: '/status-json.xsl', parser: parseIcecastJson },
+    { path: '/status2.xsl', parser: parseIcecastStatus2 },
     { path: '/7.html', parser: parseShoutcast7html },
   ];
 
@@ -94,6 +95,35 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
       (cur.listeners ?? 0) > (best.listeners ?? 0) ? cur : best
     , sources[0]);
     return { online: true, listeners: s.listeners ?? 0, peakListeners: s.listener_peak ?? 0, title: s.title ?? s.server_name ?? '', bitrate: Number(s.bitrate ?? s['ice-bitrate'] ?? 0), };
+  } catch { return null; }
+}
+
+// Parse Icecast status2.xsl CSV format:
+// Line format: /mount,connections,stream_name,listeners,description,currently_playing,stream_url
+function parseIcecastStatus2(text: string): Partial<StreamResult> | null {
+  try {
+    const lines = text.split('\n').filter(l => l.startsWith('/'));
+    if (lines.length === 0) return null;
+    // Pick the mount with most listeners
+    let best: Partial<StreamResult> | null = null;
+    let bestListeners = -1;
+    for (const line of lines) {
+      const parts = line.split(',');
+      if (parts.length >= 4) {
+        const listeners = parseInt(parts[3]) || 0;
+        if (listeners > bestListeners) {
+          bestListeners = listeners;
+          best = {
+            online: true,
+            listeners,
+            peakListeners: 0,
+            title: (parts[2] || '').trim(),
+            bitrate: 0,
+          };
+        }
+      }
+    }
+    return best;
   } catch { return null; }
 }
 
