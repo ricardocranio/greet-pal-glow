@@ -1,10 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock, Calendar, CalendarRange, ZoomIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Trophy, Clock, Calendar, CalendarRange } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear, formatBrasiliaDateInput } from "@/lib/brasiliaTime";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Legend } from "recharts";
+import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
@@ -20,19 +18,11 @@ interface SnapshotData {
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 const MONTH_SHORT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
-const STATION_COLORS = [
-  "hsl(var(--primary))",
-  "#f97316", "#10b981", "#8b5cf6", "#ef4444",
-  "#06b6d4", "#f59e0b", "#ec4899", "#14b8a6", "#6366f1",
-];
-
 type TabType = "ranking" | "horario" | "dia" | "mes";
-type ZoomInterval = 3 | 5;
 
 export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
-  const [zoomInterval, setZoomInterval] = useState<ZoomInterval>(5);
 
   useEffect(() => {
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -46,74 +36,28 @@ export function AudienceRanking({ statuses }: Props) {
       });
   }, []);
 
-  // Ranking uses live data
   const ranked = [...statuses]
     .map((s) => ({ ...s, rankValue: s.listeners }))
     .filter((s) => s.rankValue > 0)
     .sort((a, b) => b.rankValue - a.rankValue);
 
-  // Real-time chart data: today's snapshots grouped by N-minute intervals
-  const chartData = useMemo(() => {
-    const todayStr = formatBrasiliaDateInput();
-    const todaySnaps = snapshots.filter(
-      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
-    );
-
-    // Build time slots for every N minutes of the day
-    const intervalMin = zoomInterval;
-    const slots: { time: string; minuteOfDay: number; [stationId: string]: number | string }[] = [];
-
-    for (let m = 0; m < 24 * 60; m += intervalMin) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const label = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-      slots.push({ time: label, minuteOfDay: m });
-    }
-
-    // Group snapshots into intervals per station
-    const stationIds = statuses.map((s) => s.station.id);
-    for (const slot of slots) {
-      const slotStart = slot.minuteOfDay;
-      const slotEnd = slotStart + intervalMin;
-
-      for (const sid of stationIds) {
-        const matching = todaySnaps.filter((snap) => {
-          if (snap.station_id !== sid) return false;
-          const d = new Date(snap.recorded_at);
-          const brasiliaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-          const b = new Date(brasiliaStr);
-          const snapMinute = b.getHours() * 60 + b.getMinutes();
-          return snapMinute >= slotStart && snapMinute < slotEnd;
-        });
-
-        if (matching.length > 0) {
-          const avg = Math.round(matching.reduce((sum, s) => sum + s.listeners, 0) / matching.length);
-          (slot as any)[sid] = avg;
+  const getHourlyData = () => {
+    return statuses.map((s) => {
+      const hourData = Array.from({ length: 16 }, (_, i) => i + 7).map((h) => {
+        const hourSnaps = snapshots.filter(
+          (snap) => snap.station_id === s.station.id && snap.hour === h
+        );
+        if (hourSnaps.length === 0) {
+          const currentHour = getBrasiliaHour();
+          return { hour: h, avg: currentHour === h ? s.listeners : 0, count: currentHour === h ? 1 : 0 };
         }
-      }
-    }
-
-    // Filter to only slots that have at least one station with data, plus current time context
-    const now = new Date();
-    const brasiliaStr = now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-    const bNow = new Date(brasiliaStr);
-    const currentMinute = bNow.getHours() * 60 + bNow.getMinutes();
-
-    return slots.filter((slot) => {
-      if (slot.minuteOfDay > currentMinute + intervalMin) return false;
-      const hasData = stationIds.some((sid) => (slot as any)[sid] !== undefined);
-      return hasData || slot.minuteOfDay <= currentMinute;
-    });
-  }, [snapshots, statuses, zoomInterval]);
-
-  // Get station name/color mapping for chart
-  const stationMeta = useMemo(() => {
-    return statuses.map((s, i) => ({
-      id: s.station.id,
-      name: s.station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "").trim(),
-      color: STATION_COLORS[i % STATION_COLORS.length],
-    }));
-  }, [statuses]);
+        const avg = Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length);
+        return { hour: h, avg, count: hourSnaps.length };
+      });
+      const total = hourData.reduce((sum, hd) => sum + hd.avg, 0);
+      return { station: s.station, hourData, total };
+    }).sort((a, b) => b.total - a.total);
+  };
 
   const getDailyData = () => {
     return statuses.map((s) => {
@@ -189,7 +133,7 @@ export function AudienceRanking({ statuses }: Props) {
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
-    { id: "horario", label: "Tempo Real", icon: Clock },
+    { id: "horario", label: "Horário", icon: Clock },
     { id: "dia", label: "Dia", icon: Calendar },
     { id: "mes", label: "Mês", icon: CalendarRange },
   ];
@@ -203,8 +147,6 @@ export function AudienceRanking({ statuses }: Props) {
       </div>
     </td>
   );
-
-  const dayName = DAY_SHORT[getBrasiliaDay()];
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
@@ -278,94 +220,38 @@ export function AudienceRanking({ statuses }: Props) {
         </>
       )}
 
-      {/* REAL-TIME CHART TAB */}
+      {/* HOURLY TAB */}
       {activeTab === "horario" && (
         <>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-bold text-foreground flex items-center gap-2">
-              <Clock className="h-5 w-5 text-accent" />
-              Audiência Tempo Real
-            </h2>
-            <span className="text-[10px] text-muted-foreground uppercase">{dayName} — Hoje</span>
-          </div>
-
-          {/* Zoom selector */}
-          <div className="flex items-center gap-2 mb-4">
-            <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">Intervalo:</span>
-            {([5, 3] as ZoomInterval[]).map((interval) => (
-              <Button
-                key={interval}
-                size="sm"
-                variant={zoomInterval === interval ? "default" : "outline"}
-                className={`text-[10px] h-6 px-2 ${
-                  zoomInterval === interval
-                    ? "bg-primary text-primary-foreground"
-                    : "border-border text-muted-foreground"
-                }`}
-                onClick={() => setZoomInterval(interval)}
-              >
-                {interval} min
-              </Button>
-            ))}
-          </div>
-
-          {/* Chart */}
-          <div className="w-full" style={{ height: 320 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                {/* Madrugada zones: 00:00-05:59 and 22:00-23:59 */}
-                <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                  interval={Math.floor(60 / zoomInterval) - 1}
-                  tickLine={false}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                />
-                <YAxis
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 11,
-                  }}
-                  labelStyle={{ fontWeight: 700, marginBottom: 4 }}
-                  formatter={(value: number, name: string) => [value?.toLocaleString("pt-BR") ?? "—", name]}
-                />
-
-                {/* Reference lines for madrugada boundaries */}
-                <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-
-                {stationMeta.map((sm) => (
-                  <Line
-                    key={sm.id}
-                    type="monotone"
-                    dataKey={sm.id}
-                    name={sm.name}
-                    stroke={sm.color}
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls={false}
-                  />
+          <h2 className="font-display font-bold text-foreground flex items-center gap-2 mb-4">
+            <Clock className="h-5 w-5 text-accent" />
+            Audiência por Horário
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
+                  {Array.from({ length: 16 }, (_, i) => i + 7).map((h) => (
+                    <th key={h} className="text-center py-2 px-1 font-semibold text-muted-foreground min-w-[35px]">
+                      {String(h).padStart(2, "0")}h
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {getHourlyData().map((row, idx) => (
+                  <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
+                    {renderStationCell(row.station, idx)}
+                    {row.hourData.map((hd) => (
+                      <td key={hd.hour} className={`text-center py-2 px-1 font-mono ${hd.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
+                        {hd.avg > 0 ? hd.avg.toLocaleString("pt-BR") : "—"}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Madrugada legend */}
-          <div className="flex items-center gap-2 mt-2 justify-center">
-            <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" />
-            <span className="text-[10px] text-muted-foreground">🌙 Madrugada (22h–05h)</span>
+              </tbody>
+            </table>
           </div>
         </>
       )}
