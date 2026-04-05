@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock, Calendar, CalendarRange, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Trophy, Clock, Calendar, CalendarRange } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
 
@@ -16,18 +15,23 @@ interface SnapshotData {
   recorded_at: string;
 }
 
-const ALL_HOURS = Array.from({ length: 17 }, (_, i) => i + 6);
-const VISIBLE_HOURS_COUNT = 5;
+// All 24 hours ordered: 06-21 then 22-05 (madrugada)
+const DAY_HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6..21
+const MADRUGADA_HOURS = [22, 23, 0, 1, 2, 3, 4, 5];
+const ALL_HOURS = [...DAY_HOURS, ...MADRUGADA_HOURS];
+
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 const MONTH_SHORT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+function hourLabel(h: number): string {
+  return `${String(h).padStart(2, "0")}h`;
+}
 
 type TabType = "ranking" | "horario" | "dia" | "mes";
 
 export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
-  const [selectedTime, setSelectedTime] = useState("Todos");
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
-  const [hoursExpanded, setHoursExpanded] = useState(false);
 
   useEffect(() => {
     const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -41,21 +45,9 @@ export function AudienceRanking({ statuses }: Props) {
       });
   }, []);
 
-  const TIME_SLOTS = ["Todos", ...ALL_HOURS.map((h) => `${String(h).padStart(2, "0")}:00`)];
-  const hoursWithData = new Set(snapshots.map((s) => s.hour));
-
+  // Ranking uses live data
   const ranked = [...statuses]
-    .map((s) => {
-      if (selectedTime === "Todos") return { ...s, rankValue: s.listeners, label: "agora" };
-      const selectedHour = parseInt(selectedTime.split(":")[0]);
-      const hourSnaps = snapshots.filter(
-        (snap) => snap.station_id === s.station.id && snap.hour === selectedHour
-      );
-      const avg = hourSnaps.length > 0
-        ? Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length)
-        : 0;
-      return { ...s, rankValue: avg, label: selectedTime };
-    })
+    .map((s) => ({ ...s, rankValue: s.listeners }))
     .filter((s) => s.rankValue > 0)
     .sort((a, b) => b.rankValue - a.rankValue);
 
@@ -94,13 +86,11 @@ export function AudienceRanking({ statuses }: Props) {
     }).sort((a, b) => b.total - a.total);
   };
 
-  // Monthly data: sum daily averages per month (last 3 months + current)
   const getMonthlyData = () => {
     const now = new Date();
     const currentMonth = getBrasiliaMonthIndex(now);
     const currentYear = getBrasiliaYear(now);
 
-    // Build list of last 4 months (including current)
     const months: { month: number; year: number; label: string }[] = [];
     for (let i = 3; i >= 0; i--) {
       const d = new Date(currentYear, currentMonth - i, 1);
@@ -122,14 +112,12 @@ export function AudienceRanking({ statuses }: Props) {
           });
 
           if (monthSnaps.length === 0) {
-            // If it's the current month, use live data
             if (m.month === currentMonth && m.year === currentYear) {
               return { avg: s.listeners, count: 1 };
             }
             return { avg: 0, count: 0 };
           }
 
-          // Group by day to get daily averages, then sum
           const byDay = new Map<number, number[]>();
           monthSnaps.forEach((snap) => {
             const dayKey = new Date(snap.recorded_at).getDate();
@@ -137,7 +125,6 @@ export function AudienceRanking({ statuses }: Props) {
             byDay.get(dayKey)!.push(snap.listeners);
           });
 
-          // Average per day, then average across days
           const dailyAvgs = Array.from(byDay.values()).map(
             (vals) => Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
           );
@@ -151,10 +138,6 @@ export function AudienceRanking({ statuses }: Props) {
       }).sort((a, b) => b.total - a.total),
     };
   };
-
-  const visibleSlots = hoursExpanded
-    ? TIME_SLOTS
-    : TIME_SLOTS.slice(0, VISIBLE_HOURS_COUNT + 1);
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
@@ -204,9 +187,8 @@ export function AudienceRanking({ statuses }: Props) {
               <Trophy className="h-5 w-5 text-accent" />
               Ranking de Audiência
             </h2>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">ao vivo</span>
           </div>
-
-
 
           <div className="space-y-2">
             {ranked.map((s, index) => {
@@ -257,10 +239,20 @@ export function AudienceRanking({ statuses }: Props) {
             <table className="w-full text-[11px]">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
+                  <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card" rowSpan={2}>Emissora</th>
+                  <th colSpan={DAY_HOURS.length} className="text-center py-1 px-1 text-[10px] font-semibold text-muted-foreground border-b border-border/30">
+                    Diurno
+                  </th>
+                  <th colSpan={MADRUGADA_HOURS.length} className="text-center py-1 px-1 text-[10px] font-semibold text-primary/70 border-b border-border/30">
+                    🌙 Madrugada
+                  </th>
+                </tr>
+                <tr className="border-b border-border">
                   {ALL_HOURS.map((h) => (
-                    <th key={h} className="text-center py-2 px-1 font-mono font-semibold text-muted-foreground min-w-[40px]">
-                      {String(h).padStart(2, "0")}h
+                    <th key={h} className={`text-center py-2 px-1 font-mono font-semibold min-w-[40px] ${
+                      MADRUGADA_HOURS.includes(h) ? "text-primary/60" : "text-muted-foreground"
+                    }`}>
+                      {hourLabel(h)}
                     </th>
                   ))}
                 </tr>
@@ -270,7 +262,11 @@ export function AudienceRanking({ statuses }: Props) {
                   <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
                     {renderStationCell(row.station, idx)}
                     {row.hourData.map((hd) => (
-                      <td key={hd.hour} className={`text-center py-2 px-1 font-mono ${hd.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
+                      <td key={hd.hour} className={`text-center py-2 px-1 font-mono ${
+                        hd.avg > 0
+                          ? MADRUGADA_HOURS.includes(hd.hour) ? "text-primary/80" : "text-foreground"
+                          : "text-muted-foreground/40"
+                      }`}>
                         {hd.avg > 0 ? hd.avg.toLocaleString("pt-BR") : "—"}
                       </td>
                     ))}
