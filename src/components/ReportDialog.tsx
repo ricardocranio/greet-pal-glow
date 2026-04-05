@@ -63,15 +63,31 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         setAllSnapshots(data);
 
-        const hourMap = new Map<number, number[]>();
+        // Filter TODAY's snapshots for hourly view
+        const todayStr = formatBrasiliaDateInput();
+        const todayData = data.filter(
+          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+        );
+
+        // Hourly: TODAY only, all 24 hours (including madrugada)
+        const todayHourMap = new Map<number, number[]>();
+        todayData.forEach((snap) => {
+          const h = snap.hour;
+          if (!todayHourMap.has(h)) todayHourMap.set(h, []);
+          todayHourMap.get(h)!.push(snap.listeners);
+        });
+
+        const hData = Array.from({ length: 24 }, (_, i) => i).map((h) => {
+          const vals = todayHourMap.get(h) || [];
+          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+          return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
+        });
+
+        // Daily/Monthly: use all 90-day data
         const dayMap = new Map<number, number[]>();
         const monthMap = new Map<string, { sum: number; count: number }>();
 
         data.forEach((snap) => {
-          const h = snap.hour;
-          if (!hourMap.has(h)) hourMap.set(h, []);
-          hourMap.get(h)!.push(snap.listeners);
-
           const dt = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
           const d = dt.getDay();
           if (!dayMap.has(d)) dayMap.set(d, []);
@@ -82,12 +98,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           const m = monthMap.get(mKey)!;
           m.sum += snap.listeners;
           m.count += 1;
-        });
-
-        const hData = Array.from({ length: 16 }, (_, i) => i + 7).map((h) => {
-          const vals = hourMap.get(h) || [];
-          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-          return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
         });
 
         const dData = [0, 1, 2, 3, 4, 5, 6].map((d) => {
@@ -398,7 +408,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           <div className="rounded-lg bg-secondary/30 p-4">
             <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
               {viewMode === "horario"
-                ? "Audiência por Horário (07h - 22h)"
+                ? "Audiência por Horário — Hoje (00h - 23h)"
                 : viewMode === "dia"
                 ? "Audiência por Dia da Semana"
                 : "Audiência Média por Mês"}
