@@ -45,14 +45,31 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open || !status) return;
 
-    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    supabase
-      .from("audience_snapshots")
-      .select("listeners, hour, recorded_at")
-      .eq("station_id", status.station.id)
-      .gte("recorded_at", cutoff)
-      .order("recorded_at", { ascending: true })
-      .then(({ data }) => {
+    async function fetchAll() {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: SnapshotRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data } = await supabase
+          .from("audience_snapshots")
+          .select("listeners, hour, recorded_at")
+          .eq("station_id", status!.station.id)
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      return allData;
+    }
+
+    fetchAll().then((data) => {
         if (!data || data.length === 0) {
           setHourlyData(status.history);
           setDailyData([]);
