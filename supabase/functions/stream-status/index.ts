@@ -120,8 +120,7 @@ async function saveSnapshots(statuses: StreamResult[]) {
     const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
     const hour = brasiliaTime.getHours();
 
-    // Only save during monitoring hours (06:00-22:00 Brasília)
-    if (hour < 6 || hour > 22) return;
+    // Save all hours (24h continuous monitoring)
 
     const rows = statuses
       .filter(s => s.online)
