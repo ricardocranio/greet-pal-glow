@@ -98,6 +98,35 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
   } catch { return null; }
 }
 
+// Parse Icecast status2.xsl CSV format:
+// Line format: /mount,connections,stream_name,listeners,description,currently_playing,stream_url
+function parseIcecastStatus2(text: string): Partial<StreamResult> | null {
+  try {
+    const lines = text.split('\n').filter(l => l.startsWith('/'));
+    if (lines.length === 0) return null;
+    // Pick the mount with most listeners
+    let best: Partial<StreamResult> | null = null;
+    let bestListeners = -1;
+    for (const line of lines) {
+      const parts = line.split(',');
+      if (parts.length >= 4) {
+        const listeners = parseInt(parts[3]) || 0;
+        if (listeners > bestListeners) {
+          bestListeners = listeners;
+          best = {
+            online: true,
+            listeners,
+            peakListeners: 0,
+            title: (parts[2] || '').trim(),
+            bitrate: 0,
+          };
+        }
+      }
+    }
+    return best;
+  } catch { return null; }
+}
+
 function parseShoutcast7html(text: string): Partial<StreamResult> | null {
   try {
     const match = text.match(/<body[^>]*>(.*?)<\/body>/is);
