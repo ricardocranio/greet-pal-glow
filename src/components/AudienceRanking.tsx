@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Trophy, Clock, Calendar, CalendarRange } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
+import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear, formatBrasiliaDateInput } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
@@ -52,15 +52,23 @@ export function AudienceRanking({ statuses }: Props) {
     .sort((a, b) => b.rankValue - a.rankValue);
 
   const getHourlyData = () => {
+    const todayStr = formatBrasiliaDateInput();
+    const currentHour = getBrasiliaHour();
+
     return statuses.map((s) => {
       const hourData = ALL_HOURS.map((h) => {
-        const hourSnaps = snapshots.filter((snap) => snap.station_id === s.station.id && snap.hour === h);
-        if (hourSnaps.length === 0) {
-          const currentHour = getBrasiliaHour();
-          return { hour: h, avg: currentHour === h ? s.listeners : 0, count: currentHour === h ? 1 : 0 };
+        // For current hour, use live data
+        if (h === currentHour) {
+          return { hour: h, avg: s.listeners, count: 1 };
         }
-        const avg = Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length);
-        return { hour: h, avg, count: hourSnaps.length };
+        // For other hours, use today's snapshots
+        const todaySnaps = snapshots.filter((snap) => {
+          if (snap.station_id !== s.station.id || snap.hour !== h) return false;
+          return formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr;
+        });
+        if (todaySnaps.length === 0) return { hour: h, avg: 0, count: 0 };
+        const avg = Math.round(todaySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / todaySnaps.length);
+        return { hour: h, avg, count: todaySnaps.length };
       });
       const total = hourData.reduce((sum, hd) => sum + hd.avg, 0);
       return { station: s.station, hourData, total };
