@@ -10,7 +10,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ReferenceLine, ReferenceArea,
 } from "recharts";
-import { TrendingUp, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
@@ -108,6 +108,39 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       });
   }, [open, status]);
 
+  // Compute peak and min from today's snapshots
+  const todayStats = useMemo(() => {
+    if (!status || allSnapshots.length === 0) {
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
+    }
+    const todayStr = formatBrasiliaDateInput();
+    const todaySnaps = allSnapshots.filter(
+      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+    );
+    if (todaySnaps.length === 0) {
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
+    }
+
+    let peakSnap = todaySnaps[0];
+    let minSnap = todaySnaps[0];
+    for (const snap of todaySnaps) {
+      if (snap.listeners > peakSnap.listeners) peakSnap = snap;
+      if (snap.listeners < minSnap.listeners) minSnap = snap;
+    }
+
+    const formatTime = (snap: SnapshotRow) => {
+      const d = new Date(snap.recorded_at);
+      return d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+    };
+
+    return {
+      peakValue: peakSnap.listeners,
+      peakTimeStr: formatTime(peakSnap),
+      minValue: minSnap.listeners,
+      minTimeStr: formatTime(minSnap),
+    };
+  }, [allSnapshots, status]);
+
   // Real-time chart: today's snapshots for this station, grouped by N-minute intervals
   const realtimeData = useMemo(() => {
     if (!status) return [];
@@ -115,6 +148,8 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
     const todaySnaps = allSnapshots.filter(
       (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
     );
+
+    if (todaySnaps.length === 0) return [];
 
     const intervalMin = zoomInterval;
     const slots: { time: string; minuteOfDay: number; listeners?: number }[] = [];
@@ -126,17 +161,21 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       slots.push({ time: label, minuteOfDay: m });
     }
 
+    // Pre-compute brasilia minutes for each snapshot
+    const snapsWithMinute = todaySnaps.map((snap) => {
+      const d = new Date(snap.recorded_at);
+      const brasiliaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const b = new Date(brasiliaStr);
+      return { ...snap, snapMinute: b.getHours() * 60 + b.getMinutes() };
+    });
+
     for (const slot of slots) {
       const slotStart = slot.minuteOfDay;
       const slotEnd = slotStart + intervalMin;
 
-      const matching = todaySnaps.filter((snap) => {
-        const d = new Date(snap.recorded_at);
-        const brasiliaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-        const b = new Date(brasiliaStr);
-        const snapMinute = b.getHours() * 60 + b.getMinutes();
-        return snapMinute >= slotStart && snapMinute < slotEnd;
-      });
+      const matching = snapsWithMinute.filter(
+        (s) => s.snapMinute >= slotStart && s.snapMinute < slotEnd
+      );
 
       if (matching.length > 0) {
         slot.listeners = Math.round(matching.reduce((sum, s) => sum + s.listeners, 0) / matching.length);
@@ -148,14 +187,15 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
     const bNow = new Date(brasiliaStr);
     const currentMinute = bNow.getHours() * 60 + bNow.getMinutes();
 
+    // Only return slots up to current time that have data
     return slots.filter((slot) => {
       if (slot.minuteOfDay > currentMinute + intervalMin) return false;
-      return slot.listeners !== undefined || slot.minuteOfDay <= currentMinute;
+      return slot.listeners !== undefined;
     });
   }, [allSnapshots, zoomInterval, status]);
 
   if (!status) return null;
-  const { station, peakListeners, peakTime, listeners } = status;
+  const { station, listeners } = status;
 
   const chartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
   const dayName = DAY_SHORT[getBrasiliaDay()];
@@ -190,13 +230,15 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           </div>
           <div className="rounded-lg bg-secondary/50 p-3 text-center">
             <TrendingUp className="h-4 w-4 mx-auto mb-1 text-accent" />
-            <p className="text-[11px] text-muted-foreground uppercase">Pico</p>
-            <p className="font-mono font-bold text-accent">{peakListeners.toLocaleString("pt-BR")}</p>
+            <p className="text-[11px] text-muted-foreground uppercase">Pico Hoje</p>
+            <p className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</p>
+            <p className="text-[10px] text-muted-foreground font-mono">às {todayStats.peakTimeStr}</p>
           </div>
           <div className="rounded-lg bg-secondary/50 p-3 text-center">
-            <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-            <p className="text-[11px] text-muted-foreground uppercase">Horário Pico</p>
-            <p className="font-mono font-bold text-foreground">{peakTime}</p>
+            <TrendingDown className="h-4 w-4 mx-auto mb-1 text-orange-400" />
+            <p className="text-[11px] text-muted-foreground uppercase">Menor Hoje</p>
+            <p className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</p>
+            <p className="text-[10px] text-muted-foreground font-mono">às {todayStats.minTimeStr}</p>
           </div>
           {station.instagramFollowers && (
             <a
@@ -297,46 +339,52 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
               ))}
             </div>
 
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                  interval={Math.floor(60 / zoomInterval) - 1}
-                  tickLine={false}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                />
-                <YAxis
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                    fontSize: 11,
-                  }}
-                  labelStyle={{ fontWeight: 700, marginBottom: 4 }}
-                  formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]}
-                />
-                <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                <Line
-                  type="monotone"
-                  dataKey="listeners"
-                  name="Conexões"
-                  stroke="hsl(160 84% 44%)"
-                  strokeWidth={2}
-                  dot={false}
-                  connectNulls={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {realtimeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
+                  <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    interval={Math.max(Math.floor(60 / zoomInterval) - 1, 0)}
+                    tickLine={false}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize: 11,
+                    }}
+                    labelStyle={{ fontWeight: 700, marginBottom: 4 }}
+                    formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]}
+                  />
+                  <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <Line
+                    type="monotone"
+                    dataKey="listeners"
+                    name="Conexões"
+                    stroke="hsl(160 84% 44%)"
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
+                Aguardando dados de hoje...
+              </div>
+            )}
 
             <div className="flex items-center gap-2 mt-2 justify-center">
               <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" />
