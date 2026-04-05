@@ -25,15 +25,26 @@ export function AudienceRanking({ statuses }: Props) {
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
 
   useEffect(() => {
-    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    supabase
-      .from("audience_snapshots")
-      .select("station_id, listeners, hour, recorded_at")
-      .gte("recorded_at", cutoff)
-      .order("recorded_at", { ascending: true })
-      .then(({ data }) => {
-        if (data) setSnapshots(data);
-      });
+    async function fetchAll() {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: SnapshotData[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from("audience_snapshots")
+          .select("station_id, listeners, hour, recorded_at")
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      setSnapshots(allData);
+    }
+    fetchAll();
   }, []);
 
   const ranked = [...statuses]
