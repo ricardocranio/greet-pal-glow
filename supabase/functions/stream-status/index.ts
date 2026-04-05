@@ -47,6 +47,7 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
   const endpoints = [
     { path: '/stats?sid=1&json=1', parser: parseShoutcastJson },
     { path: '/status-json.xsl', parser: parseIcecastJson },
+    { path: '/status2.xsl', parser: parseIcecastStatus2 },
     { path: '/7.html', parser: parseShoutcast7html },
   ];
 
