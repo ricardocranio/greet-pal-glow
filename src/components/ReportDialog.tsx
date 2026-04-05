@@ -408,7 +408,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           <div className="rounded-lg bg-secondary/30 p-4">
             <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
               {viewMode === "horario"
-                ? "Audiência por Horário (07h - 22h)"
+                ? "Audiência por Horário — Hoje (00h - 23h)"
                 : viewMode === "dia"
                 ? "Audiência por Dia da Semana"
                 : "Audiência Média por Mês"}
