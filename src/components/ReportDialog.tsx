@@ -8,12 +8,13 @@ import {
 import { StationStatus } from "@/hooks/useStationMonitor";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  ReferenceLine, ReferenceArea,
+  ReferenceLine, ReferenceArea, Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
+import { stations } from "@/data/stations";
 
 interface Props {
   status: StationStatus | null;
@@ -21,8 +22,15 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-type ViewMode = "realtime" | "horario" | "dia" | "mes";
+type ViewMode = "realtime" | "horario" | "dia" | "mes" | "blend";
 type ZoomInterval = 3 | 5;
+type BlendView = "horario" | "dia";
+
+const STATION_COLORS = [
+  "hsl(160 84% 44%)", "hsl(210 90% 55%)", "hsl(340 75% 55%)", "hsl(45 90% 50%)",
+  "hsl(280 70% 55%)", "hsl(20 85% 55%)", "hsl(180 60% 45%)", "hsl(120 50% 45%)",
+  "hsl(0 70% 55%)", "hsl(240 60% 60%)",
+];
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
@@ -41,9 +49,83 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
+  const [blendView, setBlendView] = useState<BlendView>("horario");
+  const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
+
+  // Fetch blend data (all stations) when blend mode is active
+  useEffect(() => {
+    if (!open || viewMode !== "blend") return;
+
+    async function fetchBlendData() {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data } = await supabase
+          .from("audience_snapshots")
+          .select("station_id, listeners, hour, recorded_at")
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      if (allData.length === 0) { setBlendData([]); return; }
+
+      if (blendView === "horario") {
+        // Today only, hourly, all stations
+        const todayStr = formatBrasiliaDateInput();
+        const todayData = allData.filter(s => formatBrasiliaDateInput(new Date(s.recorded_at)) === todayStr);
+        const hourMap = new Map<number, Map<string, number[]>>();
+        todayData.forEach(s => {
+          if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
+          const stMap = hourMap.get(s.hour)!;
+          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
+          stMap.get(s.station_id)!.push(s.listeners);
+        });
+        const rows = Array.from({ length: 24 }, (_, h) => {
+          const row: Record<string, any> = { time: `${String(h).padStart(2, "0")}:00` };
+          const stMap = hourMap.get(h);
+          stations.forEach(st => {
+            const vals = stMap?.get(st.id) || [];
+            row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+          });
+          return row;
+        });
+        setBlendData(rows);
+      } else {
+        // Day of week, all stations
+        const dayMap = new Map<number, Map<string, number[]>>();
+        allData.forEach(s => {
+          const dt = new Date(new Date(s.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+          const d = dt.getDay();
+          if (!dayMap.has(d)) dayMap.set(d, new Map());
+          const stMap = dayMap.get(d)!;
+          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
+          stMap.get(s.station_id)!.push(s.listeners);
+        });
+        const rows = [0, 1, 2, 3, 4, 5, 6].map(d => {
+          const row: Record<string, any> = { time: DAY_NAMES[d] };
+          const stMap = dayMap.get(d);
+          stations.forEach(st => {
+            const vals = stMap?.get(st.id) || [];
+            row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+          });
+          return row;
+        });
+        setBlendData(rows);
+      }
+    }
+
+    fetchBlendData();
+  }, [open, viewMode, blendView]);
 
   useEffect(() => {
-    if (!open || !status) return;
 
     async function fetchAll() {
       const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -334,6 +416,17 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
             <CalendarDays className="h-3 w-3" />
             Mês
           </button>
+          <button
+            onClick={() => setViewMode("blend")}
+            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
+              viewMode === "blend"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Layers className="h-3 w-3" />
+            Blend
+          </button>
         </div>
 
         {/* Real-time chart */}
@@ -421,7 +514,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
         )}
 
         {/* Historical charts */}
-        {viewMode !== "realtime" && (
+        {(viewMode === "horario" || viewMode === "dia" || viewMode === "mes") && (
           <div className="rounded-lg bg-secondary/30 p-4">
             <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
               {viewMode === "horario"
@@ -466,8 +559,100 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           </div>
         )}
 
+        {/* Blend chart - all stations overlaid */}
+        {viewMode === "blend" && (
+          <div className="rounded-lg bg-secondary/30 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                Comparativo — Todas as Emissoras
+              </p>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] text-muted-foreground">Visualizar:</span>
+              <Button
+                size="sm"
+                variant={blendView === "horario" ? "default" : "outline"}
+                className={`text-[10px] h-6 px-2 ${
+                  blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
+                }`}
+                onClick={() => setBlendView("horario")}
+              >
+                Por Hora (Hoje)
+              </Button>
+              <Button
+                size="sm"
+                variant={blendView === "dia" ? "default" : "outline"}
+                className={`text-[10px] h-6 px-2 ${
+                  blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
+                }`}
+                onClick={() => setBlendView("dia")}
+              >
+                Por Dia
+              </Button>
+            </div>
+
+            {blendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={blendData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={blendView === "horario" ? 2 : 0}
+                  />
+                  <YAxis
+                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(220 18% 12%)",
+                      border: "1px solid hsl(220 14% 18%)",
+                      borderRadius: "8px",
+                      color: "hsl(210 20% 92%)",
+                      fontSize: 11,
+                    }}
+                    labelStyle={{ fontWeight: 700, marginBottom: 4 }}
+                    formatter={(value: number, name: string) => {
+                      const st = stations.find(s => s.id === name);
+                      return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
+                    }}
+                  />
+                  <Legend
+                    formatter={(value: string) => {
+                      const st = stations.find(s => s.id === value);
+                      return st?.frequency ?? value;
+                    }}
+                    wrapperStyle={{ fontSize: 9 }}
+                  />
+                  {stations.map((st, i) => (
+                    <Line
+                      key={st.id}
+                      type="monotone"
+                      dataKey={st.id}
+                      name={st.id}
+                      stroke={STATION_COLORS[i % STATION_COLORS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+                Carregando dados comparativos...
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="text-[11px] text-muted-foreground text-center mt-2">
-          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : "Dados reais • Média dos últimos 90 dias"}
+          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : viewMode === "blend" ? "Comparativo de todas as emissoras" : "Dados reais • Média dos últimos 90 dias"}
         </p>
       </DialogContent>
     </Dialog>
