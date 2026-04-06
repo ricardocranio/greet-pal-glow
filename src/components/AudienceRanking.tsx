@@ -18,7 +18,7 @@ interface SnapshotData {
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 const MONTH_SHORT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
-type TabType = "ranking" | "horario" | "dia" | "mes";
+type TabType = "ranking" | "horario";
 
 export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
