@@ -324,7 +324,7 @@ export function AudienceRanking({ statuses }: Props) {
 
       {/* MONTHLY TAB */}
       {activeTab === "mes" && (() => {
-        const { months, rows } = getMonthlyData();
+        const { months, rows } = monthlyResult;
         return (
           <>
             <h2 className="font-display font-bold text-foreground flex items-center gap-2 mb-4">
