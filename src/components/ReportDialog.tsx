@@ -52,6 +52,21 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
+  const realtimeChartRef = useRef<HTMLDivElement>(null);
+  const blendChartRef = useRef<HTMLDivElement>(null);
+
+  const handleSavePng = useCallback(async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!ref.current) return;
+    try {
+      const dataUrl = await toPng(ref.current, { backgroundColor: '#0f1729', pixelRatio: 2 });
+      const link = document.createElement('a');
+      link.download = `${filename}_${formatBrasiliaDateInput()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao salvar PNG:', err);
+    }
+  }, []);
 
   // Fetch blend data (all stations) when blend mode is active
   useEffect(() => {
