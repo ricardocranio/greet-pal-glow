@@ -416,6 +416,17 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
             <CalendarDays className="h-3 w-3" />
             Mês
           </button>
+          <button
+            onClick={() => setViewMode("blend")}
+            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
+              viewMode === "blend"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Layers className="h-3 w-3" />
+            Blend
+          </button>
         </div>
 
         {/* Real-time chart */}
