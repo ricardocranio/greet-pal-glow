@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock, Calendar, CalendarRange } from "lucide-react";
+import { Trophy, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
 
