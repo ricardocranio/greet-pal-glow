@@ -8,7 +8,7 @@ import {
 import { StationStatus } from "@/hooks/useStationMonitor";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  ReferenceLine, ReferenceArea, Legend,
+  ReferenceLine, ReferenceArea,
 } from "recharts";
 import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
