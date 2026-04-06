@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock } from "lucide-react";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
 import { ReportDialog } from "@/components/ReportDialog";
