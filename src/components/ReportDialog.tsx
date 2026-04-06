@@ -514,7 +514,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
         )}
 
         {/* Historical charts */}
-        {viewMode !== "realtime" && (
+        {(viewMode === "horario" || viewMode === "dia" || viewMode === "mes") && (
           <div className="rounded-lg bg-secondary/30 p-4">
             <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
               {viewMode === "horario"
@@ -559,8 +559,100 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           </div>
         )}
 
+        {/* Blend chart - all stations overlaid */}
+        {viewMode === "blend" && (
+          <div className="rounded-lg bg-secondary/30 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                Comparativo — Todas as Emissoras
+              </p>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] text-muted-foreground">Visualizar:</span>
+              <Button
+                size="sm"
+                variant={blendView === "horario" ? "default" : "outline"}
+                className={`text-[10px] h-6 px-2 ${
+                  blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
+                }`}
+                onClick={() => setBlendView("horario")}
+              >
+                Por Hora (Hoje)
+              </Button>
+              <Button
+                size="sm"
+                variant={blendView === "dia" ? "default" : "outline"}
+                className={`text-[10px] h-6 px-2 ${
+                  blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
+                }`}
+                onClick={() => setBlendView("dia")}
+              >
+                Por Dia
+              </Button>
+            </div>
+
+            {blendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={blendData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={blendView === "horario" ? 2 : 0}
+                  />
+                  <YAxis
+                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(220 18% 12%)",
+                      border: "1px solid hsl(220 14% 18%)",
+                      borderRadius: "8px",
+                      color: "hsl(210 20% 92%)",
+                      fontSize: 11,
+                    }}
+                    labelStyle={{ fontWeight: 700, marginBottom: 4 }}
+                    formatter={(value: number, name: string) => {
+                      const st = stations.find(s => s.id === name);
+                      return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
+                    }}
+                  />
+                  <Legend
+                    formatter={(value: string) => {
+                      const st = stations.find(s => s.id === value);
+                      return st?.frequency ?? value;
+                    }}
+                    wrapperStyle={{ fontSize: 9 }}
+                  />
+                  {stations.map((st, i) => (
+                    <Line
+                      key={st.id}
+                      type="monotone"
+                      dataKey={st.id}
+                      name={st.id}
+                      stroke={STATION_COLORS[i % STATION_COLORS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+                Carregando dados comparativos...
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="text-[11px] text-muted-foreground text-center mt-2">
-          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : "Dados reais • Média dos últimos 90 dias"}
+          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : viewMode === "blend" ? "Comparativo de todas as emissoras" : "Dados reais • Média dos últimos 90 dias"}
         </p>
       </DialogContent>
     </Dialog>
