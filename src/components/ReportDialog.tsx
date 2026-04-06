@@ -8,12 +8,13 @@ import {
 import { StationStatus } from "@/hooks/useStationMonitor";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  ReferenceLine, ReferenceArea,
+  ReferenceLine, ReferenceArea, Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
+import { stations } from "@/data/stations";
 
 interface Props {
   status: StationStatus | null;
