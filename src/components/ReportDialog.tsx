@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,12 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ReferenceLine, ReferenceArea,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity, Layers } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { stations } from "@/data/stations";
+import { toPng } from "html-to-image";
 
 interface Props {
   status: StationStatus | null;
@@ -51,6 +52,21 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
+  const realtimeChartRef = useRef<HTMLDivElement>(null);
+  const blendChartRef = useRef<HTMLDivElement>(null);
+
+  const handleSavePng = useCallback(async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!ref.current) return;
+    try {
+      const dataUrl = await toPng(ref.current, { backgroundColor: '#0f1729', pixelRatio: 2 });
+      const link = document.createElement('a');
+      link.download = `${filename}_${formatBrasiliaDateInput()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao salvar PNG:', err);
+    }
+  }, []);
 
   // Fetch blend data (all stations) when blend mode is active
   useEffect(() => {
@@ -412,11 +428,20 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         {/* Real-time chart */}
         {viewMode === "realtime" && (
-          <div className="rounded-lg bg-secondary/30 p-4">
+          <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Audiência em Tempo Real — {dayName}
               </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                onClick={() => handleSavePng(realtimeChartRef, `tempo_real_${station.name.replace(/\s+/g, '_')}`)}
+              >
+                <Download className="h-3 w-3 mr-1" />
+                PNG
+              </Button>
             </div>
 
             {/* Zoom selector */}
@@ -542,11 +567,20 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         {/* Blend chart - all stations overlaid */}
         {viewMode === "blend" && (
-          <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
+          <div ref={blendChartRef} className="rounded-lg bg-secondary/30 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
                 Comparativo — Todas as Emissoras
               </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
+              >
+                <Download className="h-3 w-3 mr-1" />
+                PNG
+              </Button>
             </div>
 
             {/* Sub-mode toggle */}
