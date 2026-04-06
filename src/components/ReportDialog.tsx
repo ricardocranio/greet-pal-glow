@@ -51,7 +51,81 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
-    if (!open || !status) return;
+
+  // Fetch blend data (all stations) when blend mode is active
+  useEffect(() => {
+    if (!open || viewMode !== "blend") return;
+
+    async function fetchBlendData() {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data } = await supabase
+          .from("audience_snapshots")
+          .select("station_id, listeners, hour, recorded_at")
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      if (allData.length === 0) { setBlendData([]); return; }
+
+      if (blendView === "horario") {
+        // Today only, hourly, all stations
+        const todayStr = formatBrasiliaDateInput();
+        const todayData = allData.filter(s => formatBrasiliaDateInput(new Date(s.recorded_at)) === todayStr);
+        const hourMap = new Map<number, Map<string, number[]>>();
+        todayData.forEach(s => {
+          if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
+          const stMap = hourMap.get(s.hour)!;
+          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
+          stMap.get(s.station_id)!.push(s.listeners);
+        });
+        const rows = Array.from({ length: 24 }, (_, h) => {
+          const row: Record<string, any> = { time: `${String(h).padStart(2, "0")}:00` };
+          const stMap = hourMap.get(h);
+          stations.forEach(st => {
+            const vals = stMap?.get(st.id) || [];
+            row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+          });
+          return row;
+        });
+        setBlendData(rows);
+      } else {
+        // Day of week, all stations
+        const dayMap = new Map<number, Map<string, number[]>>();
+        allData.forEach(s => {
+          const dt = new Date(new Date(s.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+          const d = dt.getDay();
+          if (!dayMap.has(d)) dayMap.set(d, new Map());
+          const stMap = dayMap.get(d)!;
+          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
+          stMap.get(s.station_id)!.push(s.listeners);
+        });
+        const rows = [0, 1, 2, 3, 4, 5, 6].map(d => {
+          const row: Record<string, any> = { time: DAY_NAMES[d] };
+          const stMap = dayMap.get(d);
+          stations.forEach(st => {
+            const vals = stMap?.get(st.id) || [];
+            row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+          });
+          return row;
+        });
+        setBlendData(rows);
+      }
+    }
+
+    fetchBlendData();
+  }, [open, viewMode, blendView]);
+
+  useEffect(() => {
 
     async function fetchAll() {
       const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
