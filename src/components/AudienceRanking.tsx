@@ -164,8 +164,6 @@ export function AudienceRanking({ statuses }: Props) {
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "horario", label: "Horário", icon: Clock },
-    { id: "dia", label: "Dia", icon: Calendar },
-    { id: "mes", label: "Mês", icon: CalendarRange },
   ];
 
   const renderStationCell = (station: { logoUrl: string; name: string; frequency?: string }, idx: number) => (
