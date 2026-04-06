@@ -59,7 +59,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     const audio = new Audio(finalUrl);
     audio.volume = volume;
-    audio.crossOrigin = "anonymous";
     audio.play().catch((err) => {
       console.warn("Erro ao reproduzir stream:", err.message);
     });
