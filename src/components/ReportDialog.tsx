@@ -49,8 +49,8 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
-
-  useEffect(() => {
+  const [blendView, setBlendView] = useState<BlendView>("horario");
+  const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
     if (!open || !status) return;
 
     async function fetchAll() {
