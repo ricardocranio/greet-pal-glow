@@ -8,7 +8,7 @@ import {
 import { StationStatus } from "@/hooks/useStationMonitor";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  ReferenceLine, ReferenceArea, Legend,
+  ReferenceLine, ReferenceArea,
 } from "recharts";
 import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -561,73 +561,88 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         {/* Blend chart - all stations overlaid */}
         {viewMode === "blend" && (
-          <div className="rounded-lg bg-secondary/30 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+          <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
                 Comparativo — Todas as Emissoras
               </p>
             </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] text-muted-foreground">Visualizar:</span>
+
+            {/* Sub-mode toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-muted-foreground font-medium">Visualizar:</span>
               <Button
                 size="sm"
                 variant={blendView === "horario" ? "default" : "outline"}
-                className={`text-[10px] h-6 px-2 ${
+                className={`text-[11px] h-7 px-3 ${
                   blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
                 }`}
                 onClick={() => setBlendView("horario")}
               >
+                <Clock className="h-3 w-3 mr-1" />
                 Por Hora (Hoje)
               </Button>
               <Button
                 size="sm"
                 variant={blendView === "dia" ? "default" : "outline"}
-                className={`text-[10px] h-6 px-2 ${
+                className={`text-[11px] h-7 px-3 ${
                   blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
                 }`}
                 onClick={() => setBlendView("dia")}
               >
+                <Calendar className="h-3 w-3 mr-1" />
                 Por Dia
               </Button>
             </div>
 
+            {/* Station legend - grid layout */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
+              {stations.map((st, i) => (
+                <div key={st.id} className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-[3px] rounded-full shrink-0"
+                    style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
+                  />
+                  <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono ml-auto shrink-0">{st.frequency}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Chart */}
             {blendData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={blendData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={blendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
                   <XAxis
                     dataKey="time"
-                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
-                    axisLine={false}
+                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
                     tickLine={false}
                     interval={blendView === "horario" ? 2 : 0}
                   />
                   <YAxis
-                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
+                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
-                    width={40}
+                    width={42}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "hsl(220 18% 12%)",
-                      border: "1px solid hsl(220 14% 18%)",
-                      borderRadius: "8px",
+                      backgroundColor: "hsl(220 18% 10%)",
+                      border: "1px solid hsl(220 14% 22%)",
+                      borderRadius: "10px",
                       color: "hsl(210 20% 92%)",
-                      fontSize: 11,
+                      fontSize: 12,
+                      padding: "10px 14px",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
                     }}
-                    labelStyle={{ fontWeight: 700, marginBottom: 4 }}
+                    labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
                     formatter={(value: number, name: string) => {
                       const st = stations.find(s => s.id === name);
                       return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
                     }}
-                  />
-                  <Legend
-                    formatter={(value: string) => {
-                      const st = stations.find(s => s.id === value);
-                      return st?.frequency ?? value;
-                    }}
-                    wrapperStyle={{ fontSize: 9 }}
+                    itemSorter={(item: any) => -(item.value || 0)}
                   />
                   {stations.map((st, i) => (
                     <Line
@@ -636,15 +651,16 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
                       dataKey={st.id}
                       name={st.id}
                       stroke={STATION_COLORS[i % STATION_COLORS.length]}
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                       dot={false}
                       connectNulls
+                      strokeOpacity={0.9}
                     />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                 Carregando dados comparativos...
               </div>
             )}
