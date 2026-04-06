@@ -567,11 +567,20 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         {/* Blend chart - all stations overlaid */}
         {viewMode === "blend" && (
-          <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
+          <div ref={blendChartRef} className="rounded-lg bg-secondary/30 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
                 Comparativo — Todas as Emissoras
               </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
+              >
+                <Download className="h-3 w-3 mr-1" />
+                PNG
+              </Button>
             </div>
 
             {/* Sub-mode toggle */}
