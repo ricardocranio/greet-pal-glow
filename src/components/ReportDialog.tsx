@@ -22,8 +22,15 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-type ViewMode = "realtime" | "horario" | "dia" | "mes";
+type ViewMode = "realtime" | "horario" | "dia" | "mes" | "blend";
 type ZoomInterval = 3 | 5;
+type BlendView = "horario" | "dia";
+
+const STATION_COLORS = [
+  "hsl(160 84% 44%)", "hsl(210 90% 55%)", "hsl(340 75% 55%)", "hsl(45 90% 50%)",
+  "hsl(280 70% 55%)", "hsl(20 85% 55%)", "hsl(180 60% 45%)", "hsl(120 50% 45%)",
+  "hsl(0 70% 55%)", "hsl(240 60% 60%)",
+];
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
