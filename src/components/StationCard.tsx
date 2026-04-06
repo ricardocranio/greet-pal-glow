@@ -98,7 +98,7 @@ export function StationCard({ status, onReport }: Props) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="mb-4">
         <div className="rounded-lg bg-secondary/50 p-3">
           <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
             <Users className="h-3.5 w-3.5" />
@@ -107,21 +107,6 @@ export function StationCard({ status, onReport }: Props) {
           <p className="font-mono font-bold text-lg text-foreground">
             {online ? listeners.toLocaleString("pt-BR") : "—"}
           </p>
-        </div>
-        <div className="rounded-lg bg-secondary/50 p-3">
-          <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
-            <Instagram className="h-3.5 w-3.5" />
-            <span className="text-[11px] uppercase tracking-wide">Instagram</span>
-          </div>
-          {station.instagramFollowers ? (
-            <p className="font-mono font-bold text-lg text-foreground">
-              {station.instagramFollowers >= 1000
-                ? `${(station.instagramFollowers / 1000).toFixed(station.instagramFollowers >= 100000 ? 0 : 1)}K`
-                : station.instagramFollowers.toLocaleString("pt-BR")}
-            </p>
-          ) : (
-            <p className="font-mono font-bold text-lg text-muted-foreground/40">—</p>
-          )}
         </div>
       </div>
 
