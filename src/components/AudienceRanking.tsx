@@ -15,8 +15,6 @@ interface SnapshotData {
   recorded_at: string;
 }
 
-const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
-const MONTH_SHORT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
 type TabType = "ranking" | "horario";
 
