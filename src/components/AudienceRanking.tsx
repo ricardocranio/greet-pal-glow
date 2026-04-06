@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock, Calendar, CalendarRange } from "lucide-react";
+import { Trophy, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
+import { getBrasiliaHour } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
@@ -15,10 +15,8 @@ interface SnapshotData {
   recorded_at: string;
 }
 
-const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
-const MONTH_SHORT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
-type TabType = "ranking" | "horario" | "dia" | "mes";
+type TabType = "ranking" | "horario";
 
 export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
@@ -83,89 +81,10 @@ export function AudienceRanking({ statuses }: Props) {
     }).sort((a, b) => b.total - a.total);
   }, [statuses, snapshotsByStation]);
 
-  const dailyData = useMemo(() => {
-    return statuses.map((s) => {
-      const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
-      // Pre-group by day
-      const byDay = new Map<number, SnapshotData[]>();
-      for (const snap of stationSnaps) {
-        const d = getBrasiliaDay(new Date(snap.recorded_at));
-        let arr = byDay.get(d);
-        if (!arr) { arr = []; byDay.set(d, arr); }
-        arr.push(snap);
-      }
-      const dayData = [0, 1, 2, 3, 4, 5, 6].map((dayIdx) => {
-        const daySnaps = byDay.get(dayIdx) ?? [];
-        if (daySnaps.length === 0) {
-          const currentDay = getBrasiliaDay();
-          return { day: dayIdx, avg: currentDay === dayIdx ? s.listeners : 0, count: currentDay === dayIdx ? 1 : 0 };
-        }
-        const avg = Math.round(daySnaps.reduce((sum, snap) => sum + snap.listeners, 0) / daySnaps.length);
-        return { day: dayIdx, avg, count: daySnaps.length };
-      });
-      const total = dayData.reduce((sum, dd) => sum + dd.avg, 0);
-      return { station: s.station, dayData, total };
-    }).sort((a, b) => b.total - a.total);
-  }, [statuses, snapshotsByStation]);
-
-  const monthlyResult = useMemo(() => {
-    const now = new Date();
-    const currentMonth = getBrasiliaMonthIndex(now);
-    const currentYear = getBrasiliaYear(now);
-
-    const months: { month: number; year: number; label: string }[] = [];
-    for (let i = 3; i >= 0; i--) {
-      const d = new Date(currentYear, currentMonth - i, 1);
-      months.push({
-        month: d.getMonth(),
-        year: d.getFullYear(),
-        label: `${MONTH_SHORT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
-      });
-    }
-
-    return {
-      months,
-      rows: statuses.map((s) => {
-        const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
-        const monthData = months.map((m) => {
-          const monthSnaps = stationSnaps.filter((snap) => {
-            const rd = new Date(snap.recorded_at);
-            return getBrasiliaMonthIndex(rd) === m.month && getBrasiliaYear(rd) === m.year;
-          });
-
-          if (monthSnaps.length === 0) {
-            if (m.month === currentMonth && m.year === currentYear) {
-              return { avg: s.listeners, count: 1 };
-            }
-            return { avg: 0, count: 0 };
-          }
-
-          const byDay = new Map<number, number[]>();
-          monthSnaps.forEach((snap) => {
-            const dayKey = new Date(snap.recorded_at).getDate();
-            if (!byDay.has(dayKey)) byDay.set(dayKey, []);
-            byDay.get(dayKey)!.push(snap.listeners);
-          });
-
-          const dailyAvgs = Array.from(byDay.values()).map(
-            (vals) => Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
-          );
-          const avg = Math.round(dailyAvgs.reduce((a, b) => a + b, 0) / dailyAvgs.length);
-
-          return { avg, count: monthSnaps.length };
-        });
-
-        const total = monthData.reduce((sum, md) => sum + md.avg, 0);
-        return { station: s.station, monthData, total };
-      }).sort((a, b) => b.total - a.total),
-    };
-  }, [statuses, snapshotsByStation]);
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "horario", label: "Horário", icon: Clock },
-    { id: "dia", label: "Dia", icon: Calendar },
-    { id: "mes", label: "Mês", icon: CalendarRange },
   ];
 
   const renderStationCell = (station: { logoUrl: string; name: string; frequency?: string }, idx: number) => (
@@ -286,80 +205,6 @@ export function AudienceRanking({ statuses }: Props) {
         </>
       )}
 
-      {/* DAILY TAB */}
-      {activeTab === "dia" && (
-        <>
-          <h2 className="font-display font-bold text-foreground flex items-center gap-2 mb-4">
-            <Calendar className="h-5 w-5 text-accent" />
-            Audiência por Dia
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
-                  {DAY_SHORT.map((d, i) => (
-                    <th key={i} className="text-center py-2 px-1.5 font-semibold text-muted-foreground min-w-[45px]">
-                      {d}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dailyData.map((row, idx) => (
-                  <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
-                    {renderStationCell(row.station, idx)}
-                    {row.dayData.map((dd) => (
-                      <td key={dd.day} className={`text-center py-2 px-1.5 font-mono ${dd.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
-                        {dd.avg > 0 ? dd.avg.toLocaleString("pt-BR") : "—"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* MONTHLY TAB */}
-      {activeTab === "mes" && (() => {
-        const { months, rows } = monthlyResult;
-        return (
-          <>
-            <h2 className="font-display font-bold text-foreground flex items-center gap-2 mb-4">
-              <CalendarRange className="h-5 w-5 text-accent" />
-              Audiência por Mês
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
-                    {months.map((m) => (
-                      <th key={m.label} className="text-center py-2 px-1.5 font-semibold text-muted-foreground min-w-[55px]">
-                        {m.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, idx) => (
-                    <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
-                      {renderStationCell(row.station, idx)}
-                      {row.monthData.map((md, mi) => (
-                        <td key={mi} className={`text-center py-2 px-1.5 font-mono ${md.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
-                          {md.avg > 0 ? md.avg.toLocaleString("pt-BR") : "—"}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        );
-      })()}
     </div>
   );
 }
