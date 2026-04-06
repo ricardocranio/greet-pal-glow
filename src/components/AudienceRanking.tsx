@@ -1,11 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock, Layers } from "lucide-react";
+import { Trophy, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBrasiliaHour } from "@/lib/brasiliaTime";
-import { stations } from "@/data/stations";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { formatBrasiliaDateInput } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
@@ -18,21 +15,12 @@ interface SnapshotData {
   recorded_at: string;
 }
 
-const STATION_COLORS = [
-  "hsl(160 84% 44%)", "hsl(210 90% 55%)", "hsl(340 75% 55%)", "hsl(45 90% 50%)",
-  "hsl(280 70% 55%)", "hsl(20 85% 55%)", "hsl(180 60% 45%)", "hsl(120 50% 45%)",
-  "hsl(0 70% 55%)", "hsl(240 60% 60%)",
-];
 
-const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-type TabType = "ranking" | "horario" | "blend";
-type BlendView = "horario" | "dia";
+type TabType = "ranking" | "horario";
 
 export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
-  const [blendView, setBlendView] = useState<BlendView>("horario");
 
   useEffect(() => {
     async function fetchAll() {
@@ -57,6 +45,7 @@ export function AudienceRanking({ statuses }: Props) {
     fetchAll();
   }, []);
 
+  // Pre-index snapshots by station_id for fast lookups
   const snapshotsByStation = useMemo(() => {
     const map = new Map<string, SnapshotData[]>();
     for (const snap of snapshots) {
@@ -92,54 +81,10 @@ export function AudienceRanking({ statuses }: Props) {
     }).sort((a, b) => b.total - a.total);
   }, [statuses, snapshotsByStation]);
 
-  const blendData = useMemo(() => {
-    if (snapshots.length === 0) return [];
-
-    if (blendView === "horario") {
-      const todayStr = formatBrasiliaDateInput();
-      const todaySnaps = snapshots.filter(s => formatBrasiliaDateInput(new Date(s.recorded_at)) === todayStr);
-      const hourMap = new Map<number, Map<string, number[]>>();
-      todaySnaps.forEach(s => {
-        if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
-        const stMap = hourMap.get(s.hour)!;
-        if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
-        stMap.get(s.station_id)!.push(s.listeners);
-      });
-      return Array.from({ length: 24 }, (_, h) => {
-        const row: Record<string, any> = { time: `${String(h).padStart(2, "0")}:00` };
-        const stMap = hourMap.get(h);
-        stations.forEach(st => {
-          const vals = stMap?.get(st.id) || [];
-          row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-        });
-        return row;
-      });
-    } else {
-      const dayMap = new Map<number, Map<string, number[]>>();
-      snapshots.forEach(s => {
-        const dt = new Date(new Date(s.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-        const d = dt.getDay();
-        if (!dayMap.has(d)) dayMap.set(d, new Map());
-        const stMap = dayMap.get(d)!;
-        if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
-        stMap.get(s.station_id)!.push(s.listeners);
-      });
-      return [0, 1, 2, 3, 4, 5, 6].map(d => {
-        const row: Record<string, any> = { time: DAY_NAMES[d] };
-        const stMap = dayMap.get(d);
-        stations.forEach(st => {
-          const vals = stMap?.get(st.id) || [];
-          row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-        });
-        return row;
-      });
-    }
-  }, [snapshots, blendView]);
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "horario", label: "Horário", icon: Clock },
-    { id: "blend", label: "Blend", icon: Layers },
   ];
 
   const renderStationCell = (station: { logoUrl: string; name: string; frequency?: string }, idx: number) => (
@@ -260,115 +205,6 @@ export function AudienceRanking({ statuses }: Props) {
         </>
       )}
 
-      {/* BLEND TAB */}
-      {activeTab === "blend" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display font-bold text-foreground flex items-center gap-2">
-              <Layers className="h-5 w-5 text-accent" />
-              Comparativo
-            </h2>
-          </div>
-
-          {/* Sub-mode toggle */}
-          <div className="flex items-center gap-2">
-            <button
-              className={`text-[11px] font-medium py-1.5 px-3 rounded-md transition-colors ${
-                blendView === "horario"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary/30 text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setBlendView("horario")}
-            >
-              <Clock className="h-3 w-3 inline mr-1" />
-              Por Hora (Hoje)
-            </button>
-            <button
-              className={`text-[11px] font-medium py-1.5 px-3 rounded-md transition-colors ${
-                blendView === "dia"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary/30 text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setBlendView("dia")}
-            >
-              Por Dia
-            </button>
-          </div>
-
-          {/* Station legend */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-1">
-            {stations.map((st, i) => (
-              <div key={st.id} className="flex items-center gap-1.5">
-                <div
-                  className="w-3 h-[3px] rounded-full shrink-0"
-                  style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
-                />
-                <span className="text-[10px] text-foreground font-medium truncate">{st.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Chart */}
-          {blendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={blendData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
-                  axisLine={{ stroke: "hsl(var(--border))" }}
-                  tickLine={false}
-                  interval={blendView === "horario" ? 3 : 0}
-                />
-                <YAxis
-                  tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={35}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(220 18% 10%)",
-                    border: "1px solid hsl(220 14% 22%)",
-                    borderRadius: "10px",
-                    color: "hsl(210 20% 92%)",
-                    fontSize: 11,
-                    padding: "8px 12px",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                  }}
-                  labelStyle={{ fontWeight: 700, marginBottom: 4, fontSize: 12 }}
-                  formatter={(value: number, name: string) => {
-                    const st = stations.find(s => s.id === name);
-                    return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
-                  }}
-                  itemSorter={(item: any) => -(item.value || 0)}
-                />
-                {stations.map((st, i) => (
-                  <Line
-                    key={st.id}
-                    type="monotone"
-                    dataKey={st.id}
-                    name={st.id}
-                    stroke={STATION_COLORS[i % STATION_COLORS.length]}
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls
-                    strokeOpacity={0.9}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-              Carregando dados comparativos...
-            </div>
-          )}
-
-          <p className="text-[10px] text-muted-foreground text-center">
-            {blendView === "horario" ? "Dados de hoje" : "Média dos últimos 90 dias"}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
