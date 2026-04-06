@@ -47,17 +47,30 @@ export function AudienceRanking({ statuses }: Props) {
     fetchAll();
   }, []);
 
-  const ranked = [...statuses]
-    .map((s) => ({ ...s, rankValue: s.listeners }))
-    .filter((s) => s.rankValue > 0)
-    .sort((a, b) => b.rankValue - a.rankValue);
+  // Pre-index snapshots by station_id for fast lookups
+  const snapshotsByStation = useMemo(() => {
+    const map = new Map<string, SnapshotData[]>();
+    for (const snap of snapshots) {
+      let arr = map.get(snap.station_id);
+      if (!arr) { arr = []; map.set(snap.station_id, arr); }
+      arr.push(snap);
+    }
+    return map;
+  }, [snapshots]);
 
-  const getHourlyData = () => {
+  const ranked = useMemo(() =>
+    [...statuses]
+      .map((s) => ({ ...s, rankValue: s.listeners }))
+      .filter((s) => s.rankValue > 0)
+      .sort((a, b) => b.rankValue - a.rankValue),
+    [statuses]
+  );
+
+  const hourlyData = useMemo(() => {
     return statuses.map((s) => {
+      const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
       const hourData = Array.from({ length: 16 }, (_, i) => i + 7).map((h) => {
-        const hourSnaps = snapshots.filter(
-          (snap) => snap.station_id === s.station.id && snap.hour === h
-        );
+        const hourSnaps = stationSnaps.filter((snap) => snap.hour === h);
         if (hourSnaps.length === 0) {
           const currentHour = getBrasiliaHour();
           return { hour: h, avg: currentHour === h ? s.listeners : 0, count: currentHour === h ? 1 : 0 };
@@ -68,15 +81,21 @@ export function AudienceRanking({ statuses }: Props) {
       const total = hourData.reduce((sum, hd) => sum + hd.avg, 0);
       return { station: s.station, hourData, total };
     }).sort((a, b) => b.total - a.total);
-  };
+  }, [statuses, snapshotsByStation]);
 
-  const getDailyData = () => {
+  const dailyData = useMemo(() => {
     return statuses.map((s) => {
+      const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
+      // Pre-group by day
+      const byDay = new Map<number, SnapshotData[]>();
+      for (const snap of stationSnaps) {
+        const d = getBrasiliaDay(new Date(snap.recorded_at));
+        let arr = byDay.get(d);
+        if (!arr) { arr = []; byDay.set(d, arr); }
+        arr.push(snap);
+      }
       const dayData = [0, 1, 2, 3, 4, 5, 6].map((dayIdx) => {
-        const daySnaps = snapshots.filter((snap) => {
-          const d = getBrasiliaDay(new Date(snap.recorded_at));
-          return snap.station_id === s.station.id && d === dayIdx;
-        });
+        const daySnaps = byDay.get(dayIdx) ?? [];
         if (daySnaps.length === 0) {
           const currentDay = getBrasiliaDay();
           return { day: dayIdx, avg: currentDay === dayIdx ? s.listeners : 0, count: currentDay === dayIdx ? 1 : 0 };
@@ -87,9 +106,9 @@ export function AudienceRanking({ statuses }: Props) {
       const total = dayData.reduce((sum, dd) => sum + dd.avg, 0);
       return { station: s.station, dayData, total };
     }).sort((a, b) => b.total - a.total);
-  };
+  }, [statuses, snapshotsByStation]);
 
-  const getMonthlyData = () => {
+  const monthlyResult = useMemo(() => {
     const now = new Date();
     const currentMonth = getBrasiliaMonthIndex(now);
     const currentYear = getBrasiliaYear(now);
@@ -107,9 +126,9 @@ export function AudienceRanking({ statuses }: Props) {
     return {
       months,
       rows: statuses.map((s) => {
+        const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
         const monthData = months.map((m) => {
-          const monthSnaps = snapshots.filter((snap) => {
-            if (snap.station_id !== s.station.id) return false;
+          const monthSnaps = stationSnaps.filter((snap) => {
             const rd = new Date(snap.recorded_at);
             return getBrasiliaMonthIndex(rd) === m.month && getBrasiliaYear(rd) === m.year;
           });
@@ -140,7 +159,7 @@ export function AudienceRanking({ statuses }: Props) {
         return { station: s.station, monthData, total };
       }).sort((a, b) => b.total - a.total),
     };
-  };
+  }, [statuses, snapshotsByStation]);
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
