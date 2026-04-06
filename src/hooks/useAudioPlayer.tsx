@@ -50,7 +50,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const audio = new Audio(streamUrl);
+    // Proxy http:// streams through edge function to avoid mixed content
+    let finalUrl = streamUrl;
+    if (streamUrl.startsWith("http://")) {
+      const proxyBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stream-proxy`;
+      finalUrl = `${proxyBase}?url=${encodeURIComponent(streamUrl)}`;
+    }
+
+    const audio = new Audio(finalUrl);
     audio.volume = volume;
     audio.crossOrigin = "anonymous";
     audio.play().catch((err) => {
