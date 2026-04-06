@@ -428,11 +428,20 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         {/* Real-time chart */}
         {viewMode === "realtime" && (
-          <div className="rounded-lg bg-secondary/30 p-4">
+          <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Audiência em Tempo Real — {dayName}
               </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                onClick={() => handleSavePng(realtimeChartRef, `tempo_real_${station.name.replace(/\s+/g, '_')}`)}
+              >
+                <Download className="h-3 w-3 mr-1" />
+                PNG
+              </Button>
             </div>
 
             {/* Zoom selector */}
