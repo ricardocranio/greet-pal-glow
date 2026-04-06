@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock } from "lucide-react";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
 import { ReportDialog } from "@/components/ReportDialog";
@@ -39,8 +40,10 @@ function BrasiliaClock() {
 }
 
 function NowPlayingBar() {
-  const { playingStationId, stop } = useAudioPlayer();
+  const { playingStationId, stop, volume, setVolume } = useAudioPlayer();
   if (!playingStationId) return null;
+
+  const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-20 bg-card/95 backdrop-blur-sm border-t border-border">
@@ -49,10 +52,22 @@ function NowPlayingBar() {
           <Volume2 className="h-4 w-4 text-primary animate-pulse" />
           <span className="text-sm text-foreground font-display">Reproduzindo ao vivo</span>
         </div>
-        <Button size="sm" variant="outline" onClick={stop} className="text-xs border-border text-muted-foreground">
-          <VolumeX className="h-4 w-4 mr-1.5" />
-          Parar
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 w-32">
+            <VolumeIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Slider
+              value={[volume * 100]}
+              onValueChange={([v]) => setVolume(v / 100)}
+              max={100}
+              step={1}
+              className="w-full"
+            />
+          </div>
+          <Button size="sm" variant="outline" onClick={stop} className="text-xs border-border text-muted-foreground">
+            <VolumeX className="h-4 w-4 mr-1.5" />
+            Parar
+          </Button>
+        </div>
       </div>
     </div>
   );
