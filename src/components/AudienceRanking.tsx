@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Trophy, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBrasiliaHour, getBrasiliaDay, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
+import { getBrasiliaHour } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
