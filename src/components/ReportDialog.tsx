@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,12 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ReferenceLine, ReferenceArea,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Users, Instagram, Calendar, CalendarDays, ZoomIn, Activity, Layers } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { stations } from "@/data/stations";
+import { toPng } from "html-to-image";
 
 interface Props {
   status: StationStatus | null;
