@@ -270,7 +270,7 @@ export function AudienceRanking({ statuses }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {getHourlyData().map((row, idx) => (
+                {hourlyData.map((row, idx) => (
                   <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
                     {renderStationCell(row.station, idx)}
                     {row.hourData.map((hd) => (
