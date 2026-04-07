@@ -261,7 +261,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           if (!dayMap.has(d)) dayMap.set(d, []);
           dayMap.get(d)!.push(snap.listeners);
 
-          const mKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+          const mKey = `${brasiliaDate.getUTCFullYear()}-${String(brasiliaDate.getUTCMonth() + 1).padStart(2, "0")}`;
           if (!monthMap.has(mKey)) monthMap.set(mKey, { sum: 0, count: 0 });
           const m = monthMap.get(mKey)!;
           m.sum += snap.listeners;
