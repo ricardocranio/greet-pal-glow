@@ -24,7 +24,7 @@ export const stations: Station[] = [
     id: "98fm",
     name: "98 FM NATAL",
     frequency: "98,9 MHz",
-    streamUrl: "http://cast42.sitehosting.com.br:8010",
+    streamUrl: "https://cast42.sitehosting.com.br:8010",
     logoUrl: "https://98fmnatal.com.br/site-core/views/18359912b2/inc/site/assets/images/new-logo2.png",
     instagramHandle: "@98fmnatal",
     instagramFollowers: 312000,
