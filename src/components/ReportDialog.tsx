@@ -357,9 +357,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }
 
     const now = new Date();
-    const brasiliaStr = now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-    const bNow = new Date(brasiliaStr);
-    const currentMinute = bNow.getHours() * 60 + bNow.getMinutes();
+    const bNow = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const currentMinute = bNow.getUTCHours() * 60 + bNow.getUTCMinutes();
 
     return slots.filter((slot) => {
       if (slot.minuteOfDay > currentMinute + intervalMin) return false;
