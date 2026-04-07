@@ -52,7 +52,7 @@ export const stations: Station[] = [
     id: "96fm",
     name: "96 FM NATAL",
     frequency: "96,7 MHz",
-    streamUrl: "http://centova10.ciclanohost.com.br:6258",
+    streamUrl: "https://centova10.ciclanohost.com.br:6258",
     logoUrl: "https://96fm.com.br/build/assets/logo-fba33526.png",
     instagramHandle: "@96fmnatal",
     instagramFollowers: 245000,
