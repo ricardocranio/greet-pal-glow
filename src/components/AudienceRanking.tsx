@@ -181,15 +181,16 @@ export function AudienceRanking({ statuses }: Props) {
             Audiência por Horário
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
+             <table className="w-full text-[11px]">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
-                  {Array.from({ length: 16 }, (_, i) => i + 7).map((h) => (
+                  {Array.from({ length: 24 }, (_, i) => i).map((h) => (
                     <th key={h} className="text-center py-2 px-1 font-semibold text-muted-foreground min-w-[35px]">
                       {String(h).padStart(2, "0")}h
                     </th>
                   ))}
+                  <th className="text-center py-2 px-1 font-bold text-accent min-w-[45px]">Média</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,6 +202,9 @@ export function AudienceRanking({ statuses }: Props) {
                         {hd.avg > 0 ? hd.avg.toLocaleString("pt-BR") : "—"}
                       </td>
                     ))}
+                    <td className="text-center py-2 px-1 font-mono font-bold text-accent">
+                      {row.dailyAvg > 0 ? row.dailyAvg.toLocaleString("pt-BR") : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
