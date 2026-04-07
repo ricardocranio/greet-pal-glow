@@ -392,6 +392,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
               <span>{station.name}</span>
               <span className="block text-sm font-mono text-muted-foreground font-normal">
                 {station.frequency}
+                {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">×{simulatorFactor} simulado</span>}
               </span>
             </div>
           </DialogTitle>
