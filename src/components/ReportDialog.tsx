@@ -54,7 +54,8 @@ function getDateTimeStamp(): string {
   return `${date} às ${time} (Brasília)`;
 }
 
-export function ReportDialog({ status, open, onOpenChange, visibleStations }: Props) {
+export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
+  const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
   const [zoomInterval, setZoomInterval] = useState<ZoomInterval>(5);
   const [hourlyData, setHourlyData] = useState<{ time: string; listeners: number }[]>([]);
