@@ -254,8 +254,10 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         const monthMap = new Map<string, { sum: number; count: number }>();
 
         data.forEach((snap) => {
-          const dt = new Date(new Date(snap.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-          const d = dt.getDay();
+          // Fast Brasília conversion (UTC-3) instead of expensive toLocaleString
+          const utcMs = new Date(snap.recorded_at).getTime();
+          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+          const d = brasiliaDate.getUTCDay();
           if (!dayMap.has(d)) dayMap.set(d, []);
           dayMap.get(d)!.push(snap.listeners);
 
