@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
-import { Trophy, Clock } from "lucide-react";
+import { Trophy, Clock, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getBrasiliaHour } from "@/lib/brasiliaTime";
 
@@ -15,16 +15,22 @@ interface SnapshotData {
   recorded_at: string;
 }
 
+interface DailyAvgData {
+  station_id: string;
+  date: string;
+  avg_listeners: number;
+  peak_listeners: number;
+}
 
-type TabType = "ranking" | "horario";
+type TabType = "ranking" | "horario" | "mensal";
 
 export function AudienceRanking({ statuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabType>("ranking");
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
+  const [dailyAvgs, setDailyAvgs] = useState<DailyAvgData[]>([]);
 
   useEffect(() => {
     async function fetchToday() {
-      // Get today's date in Brasília timezone
       const now = new Date();
       const brasiliaStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
       const startOfDay = `${brasiliaStr}T00:00:00-03:00`;
@@ -49,12 +55,32 @@ export function AudienceRanking({ statuses }: Props) {
       setSnapshots(allData);
     }
     fetchToday();
-    // Refresh every 5 minutes
     const interval = setInterval(fetchToday, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Pre-index snapshots by station_id for fast lookups
+  // Fetch daily averages for monthly view
+  useEffect(() => {
+    async function fetchDailyAvgs() {
+      const allData: DailyAvgData[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from("daily_averages")
+          .select("station_id, date, avg_listeners, peak_listeners")
+          .order("date", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...(data as DailyAvgData[]));
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      setDailyAvgs(allData);
+    }
+    fetchDailyAvgs();
+  }, []);
+
   const snapshotsByStation = useMemo(() => {
     const map = new Map<string, SnapshotData[]>();
     for (const snap of snapshots) {
@@ -94,10 +120,56 @@ export function AudienceRanking({ statuses }: Props) {
     }).sort((a, b) => b.dailyAvg - a.dailyAvg);
   }, [statuses, snapshotsByStation]);
 
+  // Monthly data from daily_averages
+  const monthlyData = useMemo(() => {
+    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    
+    // Group by station + month
+    const monthlyMap = new Map<string, Map<string, { sum: number; count: number; peak: number; days: { date: string; avg: number }[] }>>();
+    const allMonths = new Set<string>();
+
+    for (const row of dailyAvgs) {
+      const d = new Date(row.date + "T12:00:00");
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      allMonths.add(monthKey);
+
+      if (!monthlyMap.has(row.station_id)) monthlyMap.set(row.station_id, new Map());
+      const stMap = monthlyMap.get(row.station_id)!;
+      if (!stMap.has(monthKey)) stMap.set(monthKey, { sum: 0, count: 0, peak: 0, days: [] });
+      const entry = stMap.get(monthKey)!;
+      entry.sum += row.avg_listeners;
+      entry.count += 1;
+      entry.peak = Math.max(entry.peak, row.peak_listeners);
+      entry.days.push({ date: row.date, avg: row.avg_listeners });
+    }
+
+    const sortedMonths = Array.from(allMonths).sort();
+    const monthLabels = sortedMonths.map((mk) => {
+      const [y, m] = mk.split("-");
+      return `${monthNames[parseInt(m) - 1]}/${y.slice(2)}`;
+    });
+
+    const stationData = statuses.map((s) => {
+      const stMap = monthlyMap.get(s.station.id);
+      const months = sortedMonths.map((mk) => {
+        const entry = stMap?.get(mk);
+        return {
+          avg: entry ? Math.round(entry.sum / entry.count) : 0,
+          peak: entry?.peak ?? 0,
+          days: entry?.days ?? [],
+        };
+      });
+      const totalAvg = months.reduce((sum, m) => sum + m.avg, 0);
+      return { station: s.station, months, totalAvg };
+    }).sort((a, b) => b.totalAvg - a.totalAvg);
+
+    return { monthLabels, sortedMonths, stationData };
+  }, [dailyAvgs, statuses]);
 
   const tabs: { id: TabType; label: string; icon: typeof Trophy }[] = [
     { id: "ranking", label: "Ranking", icon: Trophy },
     { id: "horario", label: "Horário", icon: Clock },
+    { id: "mensal", label: "Mensal", icon: Calendar },
   ];
 
   const renderStationCell = (station: { logoUrl: string; name: string; frequency?: string }, idx: number) => (
@@ -222,6 +294,61 @@ export function AudienceRanking({ statuses }: Props) {
         </>
       )}
 
+      {/* MONTHLY TAB */}
+      {activeTab === "mensal" && (
+        <>
+          <h2 className="font-display font-bold text-foreground flex items-center gap-2 mb-4">
+            <Calendar className="h-5 w-5 text-accent" />
+            Resumo Mensal
+          </h2>
+          {monthlyData.monthLabels.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Dados mensais ainda não disponíveis. As médias diárias são calculadas automaticamente às 23:59.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
+                    {monthlyData.monthLabels.map((ml) => (
+                      <th key={ml} className="text-center py-2 px-1 font-semibold text-muted-foreground min-w-[50px]" colSpan={2}>
+                        {ml}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <th className="sticky left-0 bg-card"></th>
+                    {monthlyData.monthLabels.map((ml) => (
+                      <>
+                        <th key={`${ml}-avg`} className="text-center py-1 px-1 text-[9px] text-muted-foreground/70 min-w-[40px]">Média</th>
+                        <th key={`${ml}-peak`} className="text-center py-1 px-1 text-[9px] text-muted-foreground/70 min-w-[40px]">Pico</th>
+                      </>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyData.stationData.map((row, idx) => (
+                    <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
+                      {renderStationCell(row.station, idx)}
+                      {row.months.map((m, mi) => (
+                        <>
+                          <td key={`${mi}-avg`} className={`text-center py-2 px-1 font-mono ${m.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
+                            {m.avg > 0 ? m.avg.toLocaleString("pt-BR") : "—"}
+                          </td>
+                          <td key={`${mi}-peak`} className={`text-center py-2 px-1 font-mono ${m.peak > 0 ? "text-accent" : "text-muted-foreground/40"}`}>
+                            {m.peak > 0 ? m.peak.toLocaleString("pt-BR") : "—"}
+                          </td>
+                        </>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
