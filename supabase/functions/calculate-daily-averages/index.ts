@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       if (snap.listeners > cur) entry.hourMax.set(snap.hour, snap.listeners);
     }
 
-    // Build rows
+    // Build daily rows
     const rows = Array.from(byStation.entries()).map(([station_id, entry]) => {
       const avg = Math.round(entry.listeners.reduce((a, b) => a + b, 0) / entry.listeners.length);
       const peak = Math.max(...entry.listeners);
@@ -83,7 +83,66 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    return new Response(JSON.stringify({ date: targetDate, stations: rows.length, snapshots: allData.length }), {
+    // ===== MONTHLY AVERAGES =====
+    // Extract month from target date (YYYY-MM)
+    const targetMonth = targetDate.substring(0, 7);
+
+    // Fetch all daily_averages for this month
+    const monthStart = `${targetMonth}-01`;
+    const monthEndDate = new Date(parseInt(targetMonth.split('-')[0]), parseInt(targetMonth.split('-')[1]), 0);
+    const monthEnd = `${targetMonth}-${String(monthEndDate.getDate()).padStart(2, '0')}`;
+
+    const monthlyData: any[] = [];
+    let mFrom = 0;
+    while (true) {
+      const { data } = await supabase
+        .from('daily_averages')
+        .select('station_id, avg_listeners, peak_listeners, peak_hour')
+        .gte('date', monthStart)
+        .lte('date', monthEnd)
+        .range(mFrom, mFrom + pageSize - 1);
+      if (!data || data.length === 0) break;
+      monthlyData.push(...data);
+      if (data.length < pageSize) break;
+      mFrom += pageSize;
+    }
+
+    // Aggregate monthly by station
+    const monthByStation = new Map<string, { sum: number; count: number; peak: number; peakHour: number; peakVal: number }>();
+    for (const row of monthlyData) {
+      let entry = monthByStation.get(row.station_id);
+      if (!entry) entry = { sum: 0, count: 0, peak: 0, peakHour: 0, peakVal: 0 };
+      entry.sum += row.avg_listeners;
+      entry.count += 1;
+      if (row.peak_listeners > entry.peak) {
+        entry.peak = row.peak_listeners;
+        entry.peakHour = row.peak_hour ?? 0;
+      }
+      monthByStation.set(row.station_id, entry);
+    }
+
+    const monthlyRows = Array.from(monthByStation.entries()).map(([station_id, entry]) => ({
+      station_id,
+      month: targetMonth,
+      avg_listeners: Math.round(entry.sum / entry.count),
+      peak_listeners: entry.peak,
+      peak_hour: entry.peakHour,
+      total_days: entry.count,
+    }));
+
+    if (monthlyRows.length > 0) {
+      await supabase
+        .from('monthly_averages')
+        .upsert(monthlyRows, { onConflict: 'station_id,month' });
+    }
+
+    return new Response(JSON.stringify({ 
+      date: targetDate, 
+      stations: rows.length, 
+      snapshots: allData.length,
+      monthly_stations: monthlyRows.length,
+      month: targetMonth,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

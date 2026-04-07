@@ -8,6 +8,8 @@ export interface SocialLinks {
   spotify?: string;
 }
 
+export type StationCategory = 'commercial' | 'religious' | 'state';
+
 export interface Station {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ export interface Station {
   social: SocialLinks;
   instagramHandle?: string;
   instagramFollowers?: number;
+  category: StationCategory;
 }
 
 export const stations: Station[] = [
@@ -28,6 +31,7 @@ export const stations: Station[] = [
     logoUrl: "https://98fmnatal.com.br/site-core/views/18359912b2/inc/site/assets/images/new-logo2.png",
     instagramHandle: "@98fmnatal",
     instagramFollowers: 312000,
+    category: 'commercial',
     social: {
       website: "https://98fmnatal.com.br",
       instagram: "https://www.instagram.com/98fmnatal",
@@ -43,6 +47,7 @@ export const stations: Station[] = [
     logoUrl: "https://97fmnatal.com.br/images/logo.png",
     instagramHandle: "@97fmnatal",
     instagramFollowers: 185000,
+    category: 'commercial',
     social: {
       website: "https://97fmnatal.com.br",
       instagram: "https://www.instagram.com/97fmnatal",
@@ -56,6 +61,7 @@ export const stations: Station[] = [
     logoUrl: "https://96fm.com.br/build/assets/logo-fba33526.png",
     instagramHandle: "@96fmnatal",
     instagramFollowers: 245000,
+    category: 'commercial',
     social: {
       website: "https://www.96fm.com.br",
       instagram: "https://www.instagram.com/96fmnatal",
@@ -72,6 +78,7 @@ export const stations: Station[] = [
     logoUrl: "https://www.95maisfm.com.br/wp-content/uploads/2020/06/logo-1.png",
     instagramHandle: "@95maisfm",
     instagramFollowers: 42000,
+    category: 'commercial',
     social: {
       website: "https://www.95maisfm.com.br",
       instagram: "https://www.instagram.com/95maisfm",
@@ -86,6 +93,7 @@ export const stations: Station[] = [
     logoUrl: "https://static.wixstatic.com/media/a8ed9c_7c3021d0f64f46d3a50f3f7f4bc8835d~mv2.png",
     instagramHandle: "@ruraldenatalfm",
     instagramFollowers: 28000,
+    category: 'commercial',
     social: {
       website: "https://www.ruraldenatalfm.com.br",
       instagram: "https://www.instagram.com/ruraldenatalfm",
@@ -104,6 +112,7 @@ export const stations: Station[] = [
     logoUrl: "https://painel.clube.fm/wp-content/uploads/2025/02/Logo-Clube-106-3.png",
     instagramHandle: "@clubenatal",
     instagramFollowers: 15000,
+    category: 'commercial',
     social: {
       website: "https://clube.fm/natal",
       instagram: "https://www.instagram.com/clubenatal",
@@ -117,6 +126,7 @@ export const stations: Station[] = [
     logoUrl: "/logos/mundial-fm.jpeg",
     instagramHandle: "@radiomundialnatal",
     instagramFollowers: 8500,
+    category: 'commercial',
     social: {
       website: "https://www.radiomundialfm.com.br",
       instagram: "https://www.instagram.com/radiomundialnatal",
@@ -130,6 +140,7 @@ export const stations: Station[] = [
     logoUrl: "https://jpimg.com.br/uploads/2025/04/900x900_natal-500x500.png",
     instagramHandle: "@jovempannatal",
     instagramFollowers: 52000,
+    category: 'commercial',
     social: {
       website: "https://jovempan.com.br/afiliada/natal-fm",
       instagram: "https://www.instagram.com/jovempannatal",
@@ -146,6 +157,7 @@ export const stations: Station[] = [
     logoUrl: "https://jpimg.com.br/uploads/2024/02/avatar-news-natal-rgb-500x500.png",
     instagramHandle: "@jovempannewsnatal",
     instagramFollowers: 35000,
+    category: 'commercial',
     social: {
       website: "https://jovempan.com.br",
       instagram: "https://www.instagram.com/jovempannewsnatal",
@@ -160,10 +172,35 @@ export const stations: Station[] = [
     logoUrl: "https://104fmprazeremouvir.com.br/assets/img/logo/logo-white.png",
     instagramHandle: "@siga104fm",
     instagramFollowers: 18000,
+    category: 'commercial',
     social: {
       website: "https://104fmprazeremouvir.com.br",
       instagram: "https://www.instagram.com/siga104fm",
       facebook: "https://www.facebook.com/104fmnatal",
     },
   },
+  // Religious stations (hidden by default)
+  {
+    id: "nordeste925",
+    name: "FM NORDESTE EVANGÉLICA",
+    frequency: "92,5 MHz",
+    streamUrl: "https://radio.midiaserverbr.com:9988/",
+    logoUrl: "",
+    category: 'religious',
+    social: {},
+  },
+  // State stations (hidden by default)
+  {
+    id: "marinhafm",
+    name: "MARINHA FM",
+    frequency: "100,1 MHz",
+    streamUrl: "https://stm0.inovativa.net/listen/radiomarinha/",
+    logoUrl: "",
+    category: 'state',
+    social: {},
+  },
 ];
+
+export function getDefaultVisibleStations(): string[] {
+  return stations.filter(s => s.category === 'commercial').map(s => s.id);
+}
