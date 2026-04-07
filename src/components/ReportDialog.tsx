@@ -547,151 +547,177 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           </div>
         )}
 
-        {/* Hourly numeric table - Audiência por Horário */}
-        {viewMode === "blend" && blendView === "horario" && displayBlendData.length > 0 && (
-          <div className="rounded-lg bg-secondary/30 p-4 overflow-x-auto">
-            <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-primary" />
-              Audiência por Horário
-              {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
-            </p>
-            <table className="w-full text-[10px] border-collapse">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-muted-foreground font-medium py-1.5 pr-2 sticky left-0 bg-secondary/30 min-w-[100px]">Emissora</th>
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-1 min-w-[32px]">
-                      {String(h).padStart(2, "0")}h
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {blendStations.map((st, idx) => {
-                  const globalIdx = stations.findIndex(s => s.id === st.id);
-                  const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
-                  return (
-                    <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
-                      <td className="py-1.5 pr-2 sticky left-0 bg-secondary/30">
+        {/* Blend: everything in one ref for full PNG capture */}
+        {viewMode === "blend" && (
+          <div ref={blendChartRef} className="space-y-4">
+            {/* Controls */}
+            <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                  Comparativo — Emissoras Selecionadas
+                  {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">×{simulatorFactor} simulado</span>}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                  onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  PNG
+                </Button>
+              </div>
+
+              {/* Sub-mode toggle */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground font-medium">Visualizar:</span>
+                <Button
+                  size="sm"
+                  variant={blendView === "horario" ? "default" : "outline"}
+                  className={`text-[11px] h-7 px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+                  onClick={() => setBlendView("horario")}
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  Por Hora (Hoje)
+                </Button>
+                <Button
+                  size="sm"
+                  variant={blendView === "dia" ? "default" : "outline"}
+                  className={`text-[11px] h-7 px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+                  onClick={() => setBlendView("dia")}
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Por Dia
+                </Button>
+              </div>
+
+              {/* Station legend with checkboxes */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
+                {stations.map((st, i) => (
+                  <label key={st.id} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={blendVisibleStations.has(st.id)}
+                      onCheckedChange={() => toggleBlendStation(st.id)}
+                    />
+                    <div
+                      className="w-3 h-[3px] rounded-full shrink-0"
+                      style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
+                    />
+                    <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
+                  </label>
+                ))}
+              </div>
+
+              {/* Chart */}
+              {displayBlendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={displayBlendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
+                    <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
+                    <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+                      labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
+                      formatter={(value: number, name: string) => {
+                        const st = stations.find(s => s.id === name);
+                        return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
+                      }}
+                      itemSorter={(item: any) => -(item.value || 0)}
+                    />
+                    {blendStations.map((st) => {
+                      const globalIdx = stations.findIndex(s => s.id === st.id);
+                      return (
+                        <Line
+                          key={st.id}
+                          type="monotone"
+                          dataKey={st.id}
+                          name={st.id}
+                          stroke={STATION_COLORS[globalIdx % STATION_COLORS.length]}
+                          strokeWidth={2.5}
+                          dot={false}
+                          connectNulls
+                          strokeOpacity={0.9}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                  Carregando dados comparativos...
+                </div>
+              )}
+            </div>
+
+            {/* Hourly numeric table */}
+            {blendView === "horario" && displayBlendData.length > 0 && (
+              <div className="rounded-lg bg-secondary/30 p-4 overflow-x-auto">
+                <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  Audiência por Horário
+                  {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
+                </p>
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-muted-foreground font-medium py-1.5 pr-2 sticky left-0 bg-secondary/30 min-w-[100px]">Emissora</th>
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-1 min-w-[32px]">
+                          {String(h).padStart(2, "0")}h
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blendStations.map((st, idx) => {
+                      const globalIdx = stations.findIndex(s => s.id === st.id);
+                      const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
+                      return (
+                        <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
+                          <td className="py-1.5 pr-2 sticky left-0 bg-secondary/30">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground font-mono">{idx + 1}°</span>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                              <span className="text-foreground font-medium truncate max-w-[80px]">{st.name}</span>
+                            </div>
+                          </td>
+                          {Array.from({ length: 24 }, (_, h) => {
+                            const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                            const val = row?.[st.id];
+                            return (
+                              <td key={h} className="text-center py-1.5 px-1 font-mono tabular-nums">
+                                <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
+                                  {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
+                                </span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                    {/* Média Simulado FM row */}
+                    <tr className="border-t-2 border-primary/40 bg-primary/5">
+                      <td className="py-2 pr-2 sticky left-0 bg-primary/5">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-muted-foreground font-mono">{idx + 1}°</span>
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                          <span className="text-foreground font-medium truncate max-w-[80px]">{st.name}</span>
+                          <Zap className="h-3 w-3 text-primary shrink-0" />
+                          <span className="text-primary font-bold text-[10px]">Média {simulatorEnabled ? 'Simulado' : 'Geral'} FM</span>
                         </div>
                       </td>
                       {Array.from({ length: 24 }, (_, h) => {
                         const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                        const val = row?.[st.id];
+                        const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
                         return (
-                          <td key={h} className="text-center py-1.5 px-1 font-mono tabular-nums">
-                            <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
-                              {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
+                          <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
+                            <span className={avg != null ? "text-primary" : "text-muted-foreground/40"}>
+                              {avg != null ? avg.toLocaleString("pt-BR") : "–"}
                             </span>
                           </td>
                         );
                       })}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {viewMode === "blend" && (
-          <div ref={blendChartRef} className="rounded-lg bg-secondary/30 p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                Comparativo — Emissoras Selecionadas
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-                onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
-              >
-                <Download className="h-3 w-3 mr-1" />
-                PNG
-              </Button>
-            </div>
-
-            {/* Sub-mode toggle */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground font-medium">Visualizar:</span>
-              <Button
-                size="sm"
-                variant={blendView === "horario" ? "default" : "outline"}
-                className={`text-[11px] h-7 px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
-                onClick={() => setBlendView("horario")}
-              >
-                <Clock className="h-3 w-3 mr-1" />
-                Por Hora (Hoje)
-              </Button>
-              <Button
-                size="sm"
-                variant={blendView === "dia" ? "default" : "outline"}
-                className={`text-[11px] h-7 px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
-                onClick={() => setBlendView("dia")}
-              >
-                <Calendar className="h-3 w-3 mr-1" />
-                Por Dia
-              </Button>
-            </div>
-
-            {/* Station legend with checkboxes */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
-              {stations.map((st, i) => (
-                <label key={st.id} className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={blendVisibleStations.has(st.id)}
-                    onCheckedChange={() => toggleBlendStation(st.id)}
-                  />
-                  <div
-                    className="w-3 h-[3px] rounded-full shrink-0"
-                    style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
-                  />
-                  <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Chart */}
-            {displayBlendData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={displayBlendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
-                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
-                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
-                    labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
-                    formatter={(value: number, name: string) => {
-                      const st = stations.find(s => s.id === name);
-                      return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
-                    }}
-                    itemSorter={(item: any) => -(item.value || 0)}
-                  />
-                  {blendStations.map((st) => {
-                    const globalIdx = stations.findIndex(s => s.id === st.id);
-                    return (
-                      <Line
-                        key={st.id}
-                        type="monotone"
-                        dataKey={st.id}
-                        name={st.id}
-                        stroke={STATION_COLORS[globalIdx % STATION_COLORS.length]}
-                        strokeWidth={2.5}
-                        dot={false}
-                        connectNulls
-                        strokeOpacity={0.9}
-                      />
-                    );
-                  })}
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                Carregando dados comparativos...
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
