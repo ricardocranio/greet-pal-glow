@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Validate the stream URL
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(streamUrl);
@@ -35,7 +34,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Only allow whitelisted hosts
   if (!ALLOWED_HOSTS.includes(parsedUrl.hostname)) {
     return new Response(JSON.stringify({ error: "Host not allowed" }), {
       status: 403,
@@ -43,7 +41,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Only proxy http URLs
   if (parsedUrl.protocol !== "http:") {
     return new Response(JSON.stringify({ error: "Only http streams need proxying" }), {
       status: 400,
@@ -52,15 +49,27 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log(`Proxying stream: ${streamUrl}`);
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     const upstream = await fetch(streamUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; RadioMonitor/1.0)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "*/*",
         "Icy-MetaData": "0",
       },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeout);
+
+    console.log(`Upstream status: ${upstream.status}, content-type: ${upstream.headers.get("content-type")}`);
+
     if (!upstream.ok || !upstream.body) {
-      return new Response(JSON.stringify({ error: "Upstream failed" }), {
+      console.error(`Upstream failed: status=${upstream.status}`);
+      return new Response(JSON.stringify({ error: "Upstream unavailable", status: upstream.status }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -74,11 +83,11 @@ Deno.serve(async (req) => {
         ...corsHeaders,
         "Content-Type": contentType,
         "Cache-Control": "no-cache, no-store",
-        "Transfer-Encoding": "chunked",
       },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Proxy error" }), {
+    console.error(`Proxy error: ${err.message}`);
+    return new Response(JSON.stringify({ error: "Proxy error", detail: err.message }), {
       status: 502,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
