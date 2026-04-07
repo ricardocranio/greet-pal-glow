@@ -338,10 +338,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }
 
     const snapsWithMinute = todaySnaps.map((snap) => {
-      const d = new Date(snap.recorded_at);
-      const brasiliaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-      const b = new Date(brasiliaStr);
-      return { ...snap, snapMinute: b.getHours() * 60 + b.getMinutes() };
+      const utcMs = new Date(snap.recorded_at).getTime();
+      const b = new Date(utcMs - 3 * 60 * 60 * 1000);
+      return { ...snap, snapMinute: b.getUTCHours() * 60 + b.getUTCMinutes() };
     });
 
     for (const slot of slots) {
