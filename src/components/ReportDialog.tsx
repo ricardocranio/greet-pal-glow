@@ -299,12 +299,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     };
 
     return {
-      peakValue: peakSnap.listeners,
+      peakValue: Math.round(peakSnap.listeners * factor),
       peakTimeStr: formatTime(peakSnap),
-      minValue: minSnap.listeners,
+      minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
     };
-  }, [allSnapshots, status]);
+  }, [allSnapshots, status, factor]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
