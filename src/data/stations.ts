@@ -43,7 +43,7 @@ export const stations: Station[] = [
     id: "97fm",
     name: "97 FM NATAL",
     frequency: "97,9 MHz",
-    streamUrl: "https://azevedo.jmvstream.com/",
+    streamUrl: "https://azevedo.jmvstream.com/stream",
     logoUrl: "https://97fmnatal.com.br/images/logo.png",
     instagramHandle: "@97fmnatal",
     instagramFollowers: 185000,
