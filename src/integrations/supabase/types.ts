@@ -50,6 +50,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_averages: {
+        Row: {
+          avg_listeners: number
+          created_at: string
+          date: string
+          id: string
+          peak_hour: number | null
+          peak_listeners: number
+          station_id: string
+          total_snapshots: number
+        }
+        Insert: {
+          avg_listeners?: number
+          created_at?: string
+          date: string
+          id?: string
+          peak_hour?: number | null
+          peak_listeners?: number
+          station_id: string
+          total_snapshots?: number
+        }
+        Update: {
+          avg_listeners?: number
+          created_at?: string
+          date?: string
+          id?: string
+          peak_hour?: number | null
+          peak_listeners?: number
+          station_id?: string
+          total_snapshots?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
