@@ -22,6 +22,10 @@ const STREAMS: StreamConfig[] = [
   { id: "jpnatal",   url: "https://pannatal.jmvstream.com",             type: "shoutcast" },
   { id: "jpnews",    url: "https://s02.maxcast.com.br:8082",            type: "shoutcast" },
   { id: "104fm",     url: "https://radios.braviahost.com.br:8000",      type: "shoutcast" },
+  // Religious
+  { id: "nordeste925", url: "https://radio.midiaserverbr.com:9988",     type: "shoutcast" },
+  // State
+  { id: "marinhafm",   url: "https://stm0.inovativa.net/listen/radiomarinha", type: "icecast" },
 ];
 
 interface StreamResult {
@@ -89,7 +93,6 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
     const data = JSON.parse(text);
     const source = data.icestats?.source;
     if (!source) return null;
-    // If multiple sources, pick the one with most listeners (the active stream)
     const sources = Array.isArray(source) ? source : [source];
     const s = sources.reduce((best: any, cur: any) => 
       (cur.listeners ?? 0) > (best.listeners ?? 0) ? cur : best
@@ -98,13 +101,10 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
   } catch { return null; }
 }
 
-// Parse Icecast status2.xsl CSV format:
-// Line format: /mount,connections,stream_name,listeners,description,currently_playing,stream_url
 function parseIcecastStatus2(text: string): Partial<StreamResult> | null {
   try {
     const lines = text.split('\n').filter(l => l.startsWith('/'));
     if (lines.length === 0) return null;
-    // Pick the mount with most listeners
     let best: Partial<StreamResult> | null = null;
     let bestListeners = -1;
     for (const line of lines) {
@@ -113,13 +113,7 @@ function parseIcecastStatus2(text: string): Partial<StreamResult> | null {
         const listeners = parseInt(parts[3]) || 0;
         if (listeners > bestListeners) {
           bestListeners = listeners;
-          best = {
-            online: true,
-            listeners,
-            peakListeners: 0,
-            title: (parts[2] || '').trim(),
-            bitrate: 0,
-          };
+          best = { online: true, listeners, peakListeners: 0, title: (parts[2] || '').trim(), bitrate: 0 };
         }
       }
     }
@@ -169,7 +163,6 @@ async function saveSnapshots(statuses: StreamResult[]) {
     // At 23:55-23:59, trigger daily average calculation for today
     if (hour === 23 && minute >= 55) {
       try {
-        // Calculate for today (current date in Brasília)
         const brasiliaStr = brasiliaTime.toISOString().split('T')[0];
         await fetch(`${supabaseUrl}/functions/v1/calculate-daily-averages?date=${brasiliaStr}`, {
           method: 'POST',

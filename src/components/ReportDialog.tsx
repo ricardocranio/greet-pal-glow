@@ -13,6 +13,7 @@ import {
 import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { stations } from "@/data/stations";
 import { toPng } from "html-to-image";
@@ -21,6 +22,7 @@ interface Props {
   status: StationStatus | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  visibleStations?: Set<string>;
 }
 
 type ViewMode = "realtime" | "horario" | "dia" | "mes" | "blend";
@@ -30,7 +32,7 @@ type BlendView = "horario" | "dia";
 const STATION_COLORS = [
   "hsl(160 84% 44%)", "hsl(210 90% 55%)", "hsl(340 75% 55%)", "hsl(45 90% 50%)",
   "hsl(280 70% 55%)", "hsl(20 85% 55%)", "hsl(180 60% 45%)", "hsl(120 50% 45%)",
-  "hsl(0 70% 55%)", "hsl(240 60% 60%)",
+  "hsl(0 70% 55%)", "hsl(240 60% 60%)", "hsl(30 80% 50%)", "hsl(200 70% 50%)",
 ];
 
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -43,7 +45,14 @@ interface SnapshotRow {
   recorded_at: string;
 }
 
-export function ReportDialog({ status, open, onOpenChange }: Props) {
+function getDateTimeStamp(): string {
+  const now = new Date();
+  const date = now.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const time = now.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+  return `${date} às ${time} (Brasília)`;
+}
+
+export function ReportDialog({ status, open, onOpenChange, visibleStations }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
   const [zoomInterval, setZoomInterval] = useState<ZoomInterval>(5);
   const [hourlyData, setHourlyData] = useState<{ time: string; listeners: number }[]>([]);
@@ -52,13 +61,41 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
+  const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
+
+  // Sync blend visible with parent visible
+  useEffect(() => {
+    if (visibleStations) {
+      setBlendVisibleStations(new Set(visibleStations));
+    }
+  }, [visibleStations]);
+
+  const toggleBlendStation = useCallback((id: string) => {
+    setBlendVisibleStations(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const handleSavePng = useCallback(async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
     if (!ref.current) return;
     try {
+      // Add temporary date/time watermark
+      const stamp = document.createElement('div');
+      stamp.style.cssText = 'position:absolute;bottom:8px;right:12px;font-size:11px;color:rgba(255,255,255,0.7);font-family:monospace;z-index:10;background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:4px;';
+      stamp.textContent = getDateTimeStamp();
+      ref.current.style.position = 'relative';
+      ref.current.appendChild(stamp);
+
       const dataUrl = await toPng(ref.current, { backgroundColor: '#0f1729', pixelRatio: 2 });
+      
+      // Remove watermark
+      ref.current.removeChild(stamp);
+
       const link = document.createElement('a');
       link.download = `${filename}_${formatBrasiliaDateInput()}.png`;
       link.href = dataUrl;
@@ -67,6 +104,11 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       console.error('Erro ao salvar PNG:', err);
     }
   }, []);
+
+  // Blend stations filtered
+  const blendStations = useMemo(() => {
+    return stations.filter(s => blendVisibleStations.has(s.id));
+  }, [blendVisibleStations]);
 
   // Fetch blend data (all stations) when blend mode is active
   useEffect(() => {
@@ -94,7 +136,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       if (allData.length === 0) { setBlendData([]); return; }
 
       if (blendView === "horario") {
-        // Today only, hourly, all stations
         const todayStr = formatBrasiliaDateInput();
         const todayData = allData.filter(s => formatBrasiliaDateInput(new Date(s.recorded_at)) === todayStr);
         const hourMap = new Map<number, Map<string, number[]>>();
@@ -115,7 +156,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
         });
         setBlendData(rows);
       } else {
-        // Day of week, all stations
         const dayMap = new Map<number, Map<string, number[]>>();
         allData.forEach(s => {
           const dt = new Date(new Date(s.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -142,6 +182,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
   }, [open, viewMode, blendView]);
 
   useEffect(() => {
+    if (!open || !status) return;
 
     async function fetchAll() {
       const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -178,13 +219,11 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         setAllSnapshots(data);
 
-        // Filter TODAY's snapshots for hourly view
         const todayStr = formatBrasiliaDateInput();
         const todayData = data.filter(
           (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
         );
 
-        // Hourly: TODAY only, all 24 hours (including madrugada)
         const todayHourMap = new Map<number, number[]>();
         todayData.forEach((snap) => {
           const h = snap.hour;
@@ -198,7 +237,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
         });
 
-        // Daily/Monthly: use all 90-day data
         const dayMap = new Map<number, number[]>();
         const monthMap = new Map<string, { sum: number; count: number }>();
 
@@ -233,7 +271,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       });
   }, [open, status]);
 
-  // Compute peak and min from today's snapshots
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
@@ -266,7 +303,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
     };
   }, [allSnapshots, status]);
 
-  // Real-time chart: today's snapshots for this station, grouped by N-minute intervals
   const realtimeData = useMemo(() => {
     if (!status) return [];
     const todayStr = formatBrasiliaDateInput();
@@ -286,7 +322,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
       slots.push({ time: label, minuteOfDay: m });
     }
 
-    // Pre-compute brasilia minutes for each snapshot
     const snapsWithMinute = todaySnaps.map((snap) => {
       const d = new Date(snap.recorded_at);
       const brasiliaStr = d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
@@ -312,7 +347,6 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
     const bNow = new Date(brasiliaStr);
     const currentMinute = bNow.getHours() * 60 + bNow.getMinutes();
 
-    // Only return slots up to current time that have data
     return slots.filter((slot) => {
       if (slot.minuteOfDay > currentMinute + intervalMin) return false;
       return slot.listeners !== undefined;
@@ -369,61 +403,26 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
 
         {/* View mode tabs */}
         <div className="flex gap-1 bg-secondary/30 rounded-lg p-1 mb-3">
-          <button
-            onClick={() => setViewMode("realtime")}
-            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
-              viewMode === "realtime"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Activity className="h-3 w-3" />
-            Tempo Real
-          </button>
-          <button
-            onClick={() => setViewMode("horario")}
-            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
-              viewMode === "horario"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Clock className="h-3 w-3" />
-            Horário
-          </button>
-          <button
-            onClick={() => setViewMode("dia")}
-            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
-              viewMode === "dia"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Calendar className="h-3 w-3" />
-            Dia
-          </button>
-          <button
-            onClick={() => setViewMode("mes")}
-            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
-              viewMode === "mes"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CalendarDays className="h-3 w-3" />
-            Mês
-          </button>
-          <button
-            onClick={() => setViewMode("blend")}
-            className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
-              viewMode === "blend"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Layers className="h-3 w-3" />
-            Blend
-          </button>
+          {([
+            { id: "realtime" as ViewMode, label: "Tempo Real", icon: Activity },
+            { id: "horario" as ViewMode, label: "Horário", icon: Clock },
+            { id: "dia" as ViewMode, label: "Dia", icon: Calendar },
+            { id: "mes" as ViewMode, label: "Mês", icon: CalendarDays },
+            { id: "blend" as ViewMode, label: "Blend", icon: Layers },
+          ]).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setViewMode(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
+                viewMode === tab.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="h-3 w-3" />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Real-time chart */}
@@ -470,40 +469,12 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
                 <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                   <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                   <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                    interval={Math.max(Math.floor(60 / zoomInterval) - 1, 0)}
-                    tickLine={false}
-                    axisLine={{ stroke: "hsl(var(--border))" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={40}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 8,
-                      fontSize: 11,
-                    }}
-                    labelStyle={{ fontWeight: 700, marginBottom: 4 }}
-                    formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]}
-                  />
+                  <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(60 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
+                  <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={40} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
                   <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
                   <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                  <Line
-                    type="monotone"
-                    dataKey="listeners"
-                    name="Conexões"
-                    stroke="hsl(160 84% 44%)"
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls
-                  />
+                  <Line type="monotone" dataKey="listeners" name="Conexões" stroke="hsl(160 84% 44%)" strokeWidth={2} dot={false} connectNulls />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -532,34 +503,10 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                <XAxis
-                  dataKey="time"
-                  tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(220 18% 12%)",
-                    border: "1px solid hsl(220 14% 18%)",
-                    borderRadius: "8px",
-                    color: "hsl(210 20% 92%)",
-                    fontSize: 12,
-                  }}
-                  labelStyle={{ color: "hsl(210 20% 92%)" }}
-                />
-                <Bar
-                  dataKey="listeners"
-                  name="Conexões"
-                  fill="hsl(160 84% 44%)"
-                  radius={[4, 4, 0, 0]}
-                />
+                <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 12 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
+                <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -570,7 +517,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
           <div ref={blendChartRef} className="rounded-lg bg-secondary/30 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                Comparativo — Todas as Emissoras
+                Comparativo — Emissoras Selecionadas
               </p>
               <Button
                 size="sm"
@@ -589,9 +536,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
               <Button
                 size="sm"
                 variant={blendView === "horario" ? "default" : "outline"}
-                className={`text-[11px] h-7 px-3 ${
-                  blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
-                }`}
+                className={`text-[11px] h-7 px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
                 onClick={() => setBlendView("horario")}
               >
                 <Clock className="h-3 w-3 mr-1" />
@@ -600,9 +545,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
               <Button
                 size="sm"
                 variant={blendView === "dia" ? "default" : "outline"}
-                className={`text-[11px] h-7 px-3 ${
-                  blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"
-                }`}
+                className={`text-[11px] h-7 px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
                 onClick={() => setBlendView("dia")}
               >
                 <Calendar className="h-3 w-3 mr-1" />
@@ -610,17 +553,20 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
               </Button>
             </div>
 
-            {/* Station legend - grid layout */}
+            {/* Station legend with checkboxes */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
               {stations.map((st, i) => (
-                <div key={st.id} className="flex items-center gap-2">
+                <label key={st.id} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={blendVisibleStations.has(st.id)}
+                    onCheckedChange={() => toggleBlendStation(st.id)}
+                  />
                   <div
                     className="w-3 h-[3px] rounded-full shrink-0"
                     style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
                   />
                   <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono ml-auto shrink-0">{st.frequency}</span>
-                </div>
+                </label>
               ))}
             </div>
 
@@ -629,29 +575,10 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={blendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }}
-                    axisLine={{ stroke: "hsl(var(--border))" }}
-                    tickLine={false}
-                    interval={blendView === "horario" ? 2 : 0}
-                  />
-                  <YAxis
-                    tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={42}
-                  />
+                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
+                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(220 18% 10%)",
-                      border: "1px solid hsl(220 14% 22%)",
-                      borderRadius: "10px",
-                      color: "hsl(210 20% 92%)",
-                      fontSize: 12,
-                      padding: "10px 14px",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                    }}
+                    contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
                     labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
                     formatter={(value: number, name: string) => {
                       const st = stations.find(s => s.id === name);
@@ -659,19 +586,22 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
                     }}
                     itemSorter={(item: any) => -(item.value || 0)}
                   />
-                  {stations.map((st, i) => (
-                    <Line
-                      key={st.id}
-                      type="monotone"
-                      dataKey={st.id}
-                      name={st.id}
-                      stroke={STATION_COLORS[i % STATION_COLORS.length]}
-                      strokeWidth={2.5}
-                      dot={false}
-                      connectNulls
-                      strokeOpacity={0.9}
-                    />
-                  ))}
+                  {blendStations.map((st) => {
+                    const globalIdx = stations.findIndex(s => s.id === st.id);
+                    return (
+                      <Line
+                        key={st.id}
+                        type="monotone"
+                        dataKey={st.id}
+                        name={st.id}
+                        stroke={STATION_COLORS[globalIdx % STATION_COLORS.length]}
+                        strokeWidth={2.5}
+                        dot={false}
+                        connectNulls
+                        strokeOpacity={0.9}
+                      />
+                    );
+                  })}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -683,7 +613,7 @@ export function ReportDialog({ status, open, onOpenChange }: Props) {
         )}
 
         <p className="text-[11px] text-muted-foreground text-center mt-2">
-          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : viewMode === "blend" ? "Comparativo de todas as emissoras" : "Dados reais • Média dos últimos 90 dias"}
+          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : viewMode === "blend" ? "Comparativo de emissoras selecionadas" : "Dados reais • Média dos últimos 90 dias"}
         </p>
       </DialogContent>
     </Dialog>

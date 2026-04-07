@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { stations, Station } from "@/data/stations";
+import { stations, Station, getDefaultVisibleStations } from "@/data/stations";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface StationStatus {
@@ -39,6 +39,13 @@ export function useStationMonitor() {
     }))
   );
 
+  // Filter controls
+  const [visibleStations, setVisibleStations] = useState<Set<string>>(() => new Set(getDefaultVisibleStations()));
+  const [showReligious, setShowReligious] = useState(false);
+  const [showState, setShowState] = useState(false);
+  const [simulatorEnabled, setSimulatorEnabled] = useState(false);
+  const [simulatorFactor, setSimulatorFactor] = useState(75);
+
   const fetchRealData = useCallback(async () => {
     try {
       const { data, error } = await supabase.functions.invoke('stream-status');
@@ -58,7 +65,6 @@ export function useStationMonitor() {
           const now = new Date();
           const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-          // Update history (keep last 24 entries = ~2 hours at 5min intervals)
           const newHistory = [
             ...s.history,
             { time: timeStr, listeners: real.listeners },
@@ -66,8 +72,6 @@ export function useStationMonitor() {
 
           const newPeak = real.listeners > s.peakListeners ? real.listeners : s.peakListeners;
           const newPeakTime = real.listeners > s.peakListeners ? timeStr : s.peakTime;
-
-          // Also use server-reported peak if higher
           const serverPeak = real.peakListeners > newPeak ? real.peakListeners : newPeak;
 
           return {
@@ -89,12 +93,70 @@ export function useStationMonitor() {
     }
   }, []);
 
-  // Initial fetch + interval every 30 seconds
   useEffect(() => {
     fetchRealData();
     const interval = setInterval(fetchRealData, 30000);
     return () => clearInterval(interval);
   }, [fetchRealData]);
 
-  return { statuses, refresh: fetchRealData };
+  // Filtered statuses based on visibility
+  const filteredStatuses = statuses.filter(s => {
+    if (s.station.category === 'religious' && !showReligious) return false;
+    if (s.station.category === 'state' && !showState) return false;
+    return visibleStations.has(s.station.id);
+  });
+
+  // Apply simulator
+  const displayStatuses = simulatorEnabled
+    ? filteredStatuses.map(s => ({
+        ...s,
+        listeners: Math.round(s.listeners * simulatorFactor),
+        peakListeners: Math.round(s.peakListeners * simulatorFactor),
+        history: s.history.map(h => ({ ...h, listeners: Math.round(h.listeners * simulatorFactor) })),
+      }))
+    : filteredStatuses;
+
+  const toggleStation = useCallback((id: string) => {
+    setVisibleStations(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  return {
+    statuses: displayStatuses,
+    allStatuses: statuses,
+    refresh: fetchRealData,
+    visibleStations,
+    toggleStation,
+    showReligious,
+    setShowReligious: (v: boolean) => {
+      setShowReligious(v);
+      // Auto-toggle visibility for religious stations
+      setVisibleStations(prev => {
+        const next = new Set(prev);
+        stations.filter(s => s.category === 'religious').forEach(s => {
+          if (v) next.add(s.id); else next.delete(s.id);
+        });
+        return next;
+      });
+    },
+    showState,
+    setShowState: (v: boolean) => {
+      setShowState(v);
+      setVisibleStations(prev => {
+        const next = new Set(prev);
+        stations.filter(s => s.category === 'state').forEach(s => {
+          if (v) next.add(s.id); else next.delete(s.id);
+        });
+        return next;
+      });
+    },
+    simulatorEnabled,
+    setSimulatorEnabled,
+    simulatorFactor,
+    setSimulatorFactor,
+  };
 }
