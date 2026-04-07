@@ -530,7 +530,57 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           </div>
         )}
 
-        {/* Blend chart - all stations overlaid */}
+        {/* Hourly numeric table - Audiência por Horário */}
+        {viewMode === "blend" && blendView === "horario" && displayBlendData.length > 0 && (
+          <div className="rounded-lg bg-secondary/30 p-4 overflow-x-auto">
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              Audiência por Horário
+              {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
+            </p>
+            <table className="w-full text-[10px] border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left text-muted-foreground font-medium py-1.5 pr-2 sticky left-0 bg-secondary/30 min-w-[100px]">Emissora</th>
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-1 min-w-[32px]">
+                      {String(h).padStart(2, "0")}h
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {blendStations.map((st, idx) => {
+                  const globalIdx = stations.findIndex(s => s.id === st.id);
+                  const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
+                  return (
+                    <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
+                      <td className="py-1.5 pr-2 sticky left-0 bg-secondary/30">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground font-mono">{idx + 1}°</span>
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                          <span className="text-foreground font-medium truncate max-w-[80px]">{st.name}</span>
+                        </div>
+                      </td>
+                      {Array.from({ length: 24 }, (_, h) => {
+                        const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                        const val = row?.[st.id];
+                        return (
+                          <td key={h} className="text-center py-1.5 px-1 font-mono tabular-nums">
+                            <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
+                              {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {viewMode === "blend" && (
           <div ref={blendChartRef} className="rounded-lg bg-secondary/30 p-4 space-y-4">
             <div className="flex items-center justify-between">
