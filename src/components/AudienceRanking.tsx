@@ -23,8 +23,13 @@ export function AudienceRanking({ statuses }: Props) {
   const [snapshots, setSnapshots] = useState<SnapshotData[]>([]);
 
   useEffect(() => {
-    async function fetchAll() {
-      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    async function fetchToday() {
+      // Get today's date in Brasília timezone
+      const now = new Date();
+      const brasiliaStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const startOfDay = `${brasiliaStr}T00:00:00-03:00`;
+      const endOfDay = `${brasiliaStr}T23:59:59-03:00`;
+
       const allData: SnapshotData[] = [];
       let from = 0;
       const pageSize = 1000;
@@ -32,7 +37,8 @@ export function AudienceRanking({ statuses }: Props) {
         const { data } = await supabase
           .from("audience_snapshots")
           .select("station_id, listeners, hour, recorded_at")
-          .gte("recorded_at", cutoff)
+          .gte("recorded_at", startOfDay)
+          .lte("recorded_at", endOfDay)
           .order("recorded_at", { ascending: true })
           .range(from, from + pageSize - 1);
         if (!data || data.length === 0) break;
@@ -42,7 +48,10 @@ export function AudienceRanking({ statuses }: Props) {
       }
       setSnapshots(allData);
     }
-    fetchAll();
+    fetchToday();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchToday, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Pre-index snapshots by station_id for fast lookups
