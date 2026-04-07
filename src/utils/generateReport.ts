@@ -64,7 +64,29 @@ const calcVar = (a: number, b: number) => {
   return `${Number(pct) > 0 ? '+' : ''}${pct}%`;
 };
 
-export function generateAudienceReport(statuses: StationStatus[], snapshots: SnapshotRow[] = []) {
+export async function generateAudienceReport(statuses: StationStatus[], snapshots: SnapshotRow[] = []) {
+  // Fetch daily averages for monthly report
+  let dailyAvgs: DailyAvgRow[] = [];
+  try {
+    const allData: DailyAvgRow[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data } = await supabase
+        .from('daily_averages')
+        .select('station_id, date, avg_listeners, peak_listeners, peak_hour, total_snapshots')
+        .order('date', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (!data || data.length === 0) break;
+      allData.push(...(data as DailyAvgRow[]));
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    dailyAvgs = allData;
+  } catch (e) {
+    console.error('Failed to fetch daily averages:', e);
+  }
+
   const wb = XLSX.utils.book_new();
   const quarters = getQuarterLabels();
   const sorted = [...statuses].sort((a, b) => b.listeners - a.listeners);
