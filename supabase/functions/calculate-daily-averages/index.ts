@@ -15,16 +15,14 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Calculate for yesterday (Brasília timezone UTC-3)
+    // Default: calculate for today (Brasília timezone UTC-3)
     const now = new Date();
     const brasilia = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-    const yesterday = new Date(brasilia);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
+    const todayStr = brasilia.toISOString().split('T')[0];
 
-    // Also allow a custom date via query param
+    // Allow a custom date via query param
     const url = new URL(req.url);
-    const targetDate = url.searchParams.get('date') || dateStr;
+    const targetDate = url.searchParams.get('date') || todayStr;
 
     // Fetch all snapshots for the target date
     const startOfDay = `${targetDate}T00:00:00-03:00`;

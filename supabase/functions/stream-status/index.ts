@@ -166,10 +166,12 @@ async function saveSnapshots(statuses: StreamResult[]) {
       await supabase.from('audience_snapshots').insert(rows);
     }
 
-    // At midnight (00:00-00:05), trigger daily average calculation for yesterday
-    if (hour === 0 && minute < 5) {
+    // At 23:55-23:59, trigger daily average calculation for today
+    if (hour === 23 && minute >= 55) {
       try {
-        await fetch(`${supabaseUrl}/functions/v1/calculate-daily-averages`, {
+        // Calculate for today (current date in Brasília)
+        const brasiliaStr = brasiliaTime.toISOString().split('T')[0];
+        await fetch(`${supabaseUrl}/functions/v1/calculate-daily-averages?date=${brasiliaStr}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
         });
