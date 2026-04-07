@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { formatBrasiliaDateInput, getBrasiliaDay, getBrasiliaHour, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SnapshotRow {
   station_id: string;
@@ -8,6 +9,15 @@ interface SnapshotRow {
   peak_listeners: number;
   hour: number;
   recorded_at: string;
+}
+
+interface DailyAvgRow {
+  station_id: string;
+  date: string;
+  avg_listeners: number;
+  peak_listeners: number;
+  peak_hour: number;
+  total_snapshots: number;
 }
 
 function getQuarterLabels(): { label: string; shortLabel: string }[] {
@@ -54,7 +64,29 @@ const calcVar = (a: number, b: number) => {
   return `${Number(pct) > 0 ? '+' : ''}${pct}%`;
 };
 
-export function generateAudienceReport(statuses: StationStatus[], snapshots: SnapshotRow[] = []) {
+export async function generateAudienceReport(statuses: StationStatus[], snapshots: SnapshotRow[] = []) {
+  // Fetch daily averages for monthly report
+  let dailyAvgs: DailyAvgRow[] = [];
+  try {
+    const allData: DailyAvgRow[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data } = await supabase
+        .from('daily_averages')
+        .select('station_id, date, avg_listeners, peak_listeners, peak_hour, total_snapshots')
+        .order('date', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (!data || data.length === 0) break;
+      allData.push(...(data as DailyAvgRow[]));
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    dailyAvgs = allData;
+  } catch (e) {
+    console.error('Failed to fetch daily averages:', e);
+  }
+
   const wb = XLSX.utils.book_new();
   const quarters = getQuarterLabels();
   const sorted = [...statuses].sort((a, b) => b.listeners - a.listeners);
@@ -170,6 +202,53 @@ export function generateAudienceReport(statuses: StationStatus[], snapshots: Sna
   const wsDays = XLSX.utils.aoa_to_sheet(dayRows);
   wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsDays, "Audiência por Dia");
+
+  // ===== ABA 4: RESUMO MENSAL (from daily_averages table) =====
+  if (dailyAvgs.length > 0) {
+    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    // Group by station + month
+    const monthlyMap = new Map<string, Map<string, { sum: number; count: number; peak: number }>>();
+    const allMonths = new Set<string>();
+
+    for (const row of dailyAvgs) {
+      const d = new Date(row.date + 'T12:00:00');
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = `${monthNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+      allMonths.add(monthKey);
+
+      if (!monthlyMap.has(row.station_id)) monthlyMap.set(row.station_id, new Map());
+      const stMap = monthlyMap.get(row.station_id)!;
+      if (!stMap.has(monthKey)) stMap.set(monthKey, { sum: 0, count: 0, peak: 0 });
+      const entry = stMap.get(monthKey)!;
+      entry.sum += row.avg_listeners;
+      entry.count += 1;
+      entry.peak = Math.max(entry.peak, row.peak_listeners);
+    }
+
+    const sortedMonths = Array.from(allMonths).sort();
+    const monthLabels = sortedMonths.map(mk => {
+      const [y, m] = mk.split('-');
+      return `${monthNames[parseInt(m) - 1]}/${y.slice(2)}`;
+    });
+
+    const monthRows: (string | number | null)[][] = [];
+    monthRows.push(["RESUMO MENSAL - NATAL/RN", ...monthLabels.flatMap(ml => [`Média ${ml}`, `Pico ${ml}`])]);
+
+    sorted.forEach(s => {
+      const row: (string | number)[] = [s.station.name];
+      const stMap = monthlyMap.get(s.station.id);
+      sortedMonths.forEach(mk => {
+        const entry = stMap?.get(mk);
+        row.push(entry ? Math.round(entry.sum / entry.count) : 0);
+        row.push(entry ? entry.peak : 0);
+      });
+      monthRows.push(row);
+    });
+
+    const wsMonthly = XLSX.utils.aoa_to_sheet(monthRows);
+    wsMonthly["!cols"] = [{ wch: 30 }, ...sortedMonths.flatMap(() => [{ wch: 12 }, { wch: 10 }])];
+    XLSX.utils.book_append_sheet(wb, wsMonthly, "Resumo Mensal");
+  }
 
   // Download
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });

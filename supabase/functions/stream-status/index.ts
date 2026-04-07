@@ -146,11 +146,9 @@ async function saveSnapshots(statuses: StreamResult[]) {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const now = new Date();
-    // Use Brasília timezone (UTC-3) for hour calculation
     const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
     const hour = brasiliaTime.getHours();
-
-    // Save all hours (24h continuous monitoring)
+    const minute = brasiliaTime.getMinutes();
 
     const rows = statuses
       .filter(s => s.online)
@@ -166,6 +164,18 @@ async function saveSnapshots(statuses: StreamResult[]) {
 
     if (rows.length > 0) {
       await supabase.from('audience_snapshots').insert(rows);
+    }
+
+    // At midnight (00:00-00:05), trigger daily average calculation for yesterday
+    if (hour === 0 && minute < 5) {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/calculate-daily-averages`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        console.error('Failed to trigger daily averages:', e);
+      }
     }
 
     // Clean up data older than 90 days

@@ -103,7 +103,7 @@ function IndexContent() {
         toast.error('Erro ao buscar dados históricos');
       }
 
-      generateAudienceReport(statuses, snapshots ?? []);
+      await generateAudienceReport(statuses, snapshots ?? []);
       toast.success('Relatório gerado com sucesso!');
     } catch (err) {
       console.error(err);
