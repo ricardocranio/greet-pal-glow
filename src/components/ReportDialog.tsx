@@ -116,9 +116,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Fetch blend data (all stations) when blend mode is active
   useEffect(() => {
     if (!open || viewMode !== "blend") return;
+    let cancelled = false;
 
     async function fetchBlendData() {
-      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      // For "horario" only need today's data; for "dia" need 90 days
+      const cutoff = blendView === "horario"
+        ? formatBrasiliaDateInput() + "T00:00:00"
+        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
       const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
       let from = 0;
       const pageSize = 1000;
@@ -136,13 +141,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         from += pageSize;
       }
 
+      if (cancelled) return;
       if (allData.length === 0) { setBlendData([]); return; }
 
       if (blendView === "horario") {
-        const todayStr = formatBrasiliaDateInput();
-        const todayData = allData.filter(s => formatBrasiliaDateInput(new Date(s.recorded_at)) === todayStr);
         const hourMap = new Map<number, Map<string, number[]>>();
-        todayData.forEach(s => {
+        allData.forEach(s => {
           if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
           const stMap = hourMap.get(s.hour)!;
           if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
@@ -157,14 +161,19 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        setBlendData(rows);
+        if (!cancelled) setBlendData(rows);
       } else {
         const dayMap = new Map<number, Map<string, number[]>>();
         allData.forEach(s => {
-          const dt = new Date(new Date(s.recorded_at).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-          const d = dt.getDay();
-          if (!dayMap.has(d)) dayMap.set(d, new Map());
-          const stMap = dayMap.get(d)!;
+          // Use hour-based day extraction instead of expensive toLocaleString
+          const d = new Date(s.recorded_at);
+          // Brasília is UTC-3
+          const utcMs = d.getTime();
+          const brasiliaMs = utcMs - 3 * 60 * 60 * 1000;
+          const brasiliaDate = new Date(brasiliaMs);
+          const dayOfWeek = brasiliaDate.getUTCDay();
+          if (!dayMap.has(dayOfWeek)) dayMap.set(dayOfWeek, new Map());
+          const stMap = dayMap.get(dayOfWeek)!;
           if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
           stMap.get(s.station_id)!.push(s.listeners);
         });
@@ -177,11 +186,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        setBlendData(rows);
+        if (!cancelled) setBlendData(rows);
       }
     }
 
     fetchBlendData();
+    return () => { cancelled = true; };
   }, [open, viewMode, blendView]);
 
   useEffect(() => {
