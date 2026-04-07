@@ -23,6 +23,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   visibleStations?: Set<string>;
+  simulatorEnabled?: boolean;
+  simulatorFactor?: number;
 }
 
 type ViewMode = "realtime" | "horario" | "dia" | "mes" | "blend";
@@ -52,7 +54,8 @@ function getDateTimeStamp(): string {
   return `${date} às ${time} (Brasília)`;
 }
 
-export function ReportDialog({ status, open, onOpenChange, visibleStations }: Props) {
+export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
+  const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
   const [zoomInterval, setZoomInterval] = useState<ZoomInterval>(5);
   const [hourlyData, setHourlyData] = useState<{ time: string; listeners: number }[]>([]);
@@ -296,12 +299,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations }: Pr
     };
 
     return {
-      peakValue: peakSnap.listeners,
+      peakValue: Math.round(peakSnap.listeners * factor),
       peakTimeStr: formatTime(peakSnap),
-      minValue: minSnap.listeners,
+      minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
     };
-  }, [allSnapshots, status]);
+  }, [allSnapshots, status, factor]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
@@ -338,7 +341,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations }: Pr
       );
 
       if (matching.length > 0) {
-        slot.listeners = Math.round(matching.reduce((sum, s) => sum + s.listeners, 0) / matching.length);
+        slot.listeners = Math.round(matching.reduce((sum, s) => sum + s.listeners, 0) / matching.length * factor);
       }
     }
 
@@ -351,12 +354,26 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations }: Pr
       if (slot.minuteOfDay > currentMinute + intervalMin) return false;
       return slot.listeners !== undefined;
     });
-  }, [allSnapshots, zoomInterval, status]);
+  }, [allSnapshots, zoomInterval, status, factor]);
 
   if (!status) return null;
   const { station, listeners } = status;
 
-  const chartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
+  const rawChartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
+  const chartData = factor !== 1
+    ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
+    : rawChartData;
+
+  // Apply factor to blend data
+  const displayBlendData = factor !== 1
+    ? blendData.map(row => {
+        const newRow: Record<string, any> = { time: row.time };
+        stations.forEach(st => {
+          newRow[st.id] = row[st.id] != null ? Math.round(row[st.id] * factor) : null;
+        });
+        return newRow;
+      })
+    : blendData;
   const dayName = DAY_SHORT[getBrasiliaDay()];
 
   return (
@@ -375,6 +392,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations }: Pr
               <span>{station.name}</span>
               <span className="block text-sm font-mono text-muted-foreground font-normal">
                 {station.frequency}
+                {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">×{simulatorFactor} simulado</span>}
               </span>
             </div>
           </DialogTitle>
@@ -571,9 +589,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations }: Pr
             </div>
 
             {/* Chart */}
-            {blendData.length > 0 ? (
+            {displayBlendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={blendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
+                <LineChart data={displayBlendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
                   <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
                   <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
