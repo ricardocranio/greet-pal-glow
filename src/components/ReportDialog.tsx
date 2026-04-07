@@ -408,25 +408,32 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           </DialogTitle>
         </DialogHeader>
 
-        {/* Key metrics */}
-        <div className="grid grid-cols-2 gap-3 my-4">
-          <div className="rounded-lg bg-secondary/50 p-3 text-center">
-            <Users className="h-4 w-4 mx-auto mb-1 text-primary" />
-            <p className="text-[11px] text-muted-foreground uppercase">Conexões Agora</p>
-            <p className="font-mono font-bold text-foreground">{listeners.toLocaleString("pt-BR")}</p>
-          </div>
-          <div className="rounded-lg bg-secondary/50 p-3 text-center">
-            <TrendingUp className="h-4 w-4 mx-auto mb-1 text-accent" />
-            <p className="text-[11px] text-muted-foreground uppercase">Pico Hoje</p>
-            <p className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</p>
-            <p className="text-[10px] text-muted-foreground font-mono">às {todayStats.peakTimeStr}</p>
-          </div>
-          <div className="rounded-lg bg-secondary/50 p-3 text-center">
-            <TrendingDown className="h-4 w-4 mx-auto mb-1 text-orange-400" />
-            <p className="text-[11px] text-muted-foreground uppercase">Menor Hoje</p>
-            <p className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</p>
-            <p className="text-[10px] text-muted-foreground font-mono">às {todayStats.minTimeStr}</p>
-          </div>
+        {/* Compact metrics table */}
+        <div className="rounded-lg bg-secondary/30 overflow-hidden my-3">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="border-b border-border/50">
+                <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase">Emissora</th>
+                <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Agora</th>
+                <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Pico</th>
+                <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Menor</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-1.5 px-2 text-foreground font-medium">{station.name}</td>
+                <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground">{listeners.toLocaleString("pt-BR")}</td>
+                <td className="py-1.5 px-2 text-center">
+                  <span className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
+                  <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.peakTimeStr}</span>
+                </td>
+                <td className="py-1.5 px-2 text-center">
+                  <span className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</span>
+                  <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.minTimeStr}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         {/* View mode tabs */}
