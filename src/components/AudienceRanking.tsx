@@ -67,7 +67,7 @@ export function AudienceRanking({ statuses }: Props) {
   const hourlyData = useMemo(() => {
     return statuses.map((s) => {
       const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
-      const hourData = Array.from({ length: 16 }, (_, i) => i + 7).map((h) => {
+      const hourData = Array.from({ length: 24 }, (_, i) => i).map((h) => {
         const hourSnaps = stationSnaps.filter((snap) => snap.hour === h);
         if (hourSnaps.length === 0) {
           const currentHour = getBrasiliaHour();
@@ -76,9 +76,13 @@ export function AudienceRanking({ statuses }: Props) {
         const avg = Math.round(hourSnaps.reduce((sum, snap) => sum + snap.listeners, 0) / hourSnaps.length);
         return { hour: h, avg, count: hourSnaps.length };
       });
+      const hoursWithData = hourData.filter((hd) => hd.avg > 0);
+      const dailyAvg = hoursWithData.length > 0
+        ? Math.round(hoursWithData.reduce((sum, hd) => sum + hd.avg, 0) / hoursWithData.length)
+        : 0;
       const total = hourData.reduce((sum, hd) => sum + hd.avg, 0);
-      return { station: s.station, hourData, total };
-    }).sort((a, b) => b.total - a.total);
+      return { station: s.station, hourData, total, dailyAvg };
+    }).sort((a, b) => b.dailyAvg - a.dailyAvg);
   }, [statuses, snapshotsByStation]);
 
 
