@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { formatBrasiliaDateInput, getBrasiliaDay, getBrasiliaHour, getBrasiliaMonthIndex, getBrasiliaYear } from "@/lib/brasiliaTime";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SnapshotRow {
   station_id: string;
@@ -8,6 +9,15 @@ interface SnapshotRow {
   peak_listeners: number;
   hour: number;
   recorded_at: string;
+}
+
+interface DailyAvgRow {
+  station_id: string;
+  date: string;
+  avg_listeners: number;
+  peak_listeners: number;
+  peak_hour: number;
+  total_snapshots: number;
 }
 
 function getQuarterLabels(): { label: string; shortLabel: string }[] {
