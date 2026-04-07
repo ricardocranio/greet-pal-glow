@@ -203,6 +203,53 @@ export async function generateAudienceReport(statuses: StationStatus[], snapshot
   wsDays["!cols"] = [{ wch: 30 }, ...dayNames.map(() => ({ wch: 12 })), { wch: 10, hidden: true }];
   XLSX.utils.book_append_sheet(wb, wsDays, "Audiência por Dia");
 
+  // ===== ABA 4: RESUMO MENSAL (from daily_averages table) =====
+  if (dailyAvgs.length > 0) {
+    const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    // Group by station + month
+    const monthlyMap = new Map<string, Map<string, { sum: number; count: number; peak: number }>>();
+    const allMonths = new Set<string>();
+
+    for (const row of dailyAvgs) {
+      const d = new Date(row.date + 'T12:00:00');
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = `${monthNames[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+      allMonths.add(monthKey);
+
+      if (!monthlyMap.has(row.station_id)) monthlyMap.set(row.station_id, new Map());
+      const stMap = monthlyMap.get(row.station_id)!;
+      if (!stMap.has(monthKey)) stMap.set(monthKey, { sum: 0, count: 0, peak: 0 });
+      const entry = stMap.get(monthKey)!;
+      entry.sum += row.avg_listeners;
+      entry.count += 1;
+      entry.peak = Math.max(entry.peak, row.peak_listeners);
+    }
+
+    const sortedMonths = Array.from(allMonths).sort();
+    const monthLabels = sortedMonths.map(mk => {
+      const [y, m] = mk.split('-');
+      return `${monthNames[parseInt(m) - 1]}/${y.slice(2)}`;
+    });
+
+    const monthRows: (string | number | null)[][] = [];
+    monthRows.push(["RESUMO MENSAL - NATAL/RN", ...monthLabels.flatMap(ml => [`Média ${ml}`, `Pico ${ml}`])]);
+
+    sorted.forEach(s => {
+      const row: (string | number)[] = [s.station.name];
+      const stMap = monthlyMap.get(s.station.id);
+      sortedMonths.forEach(mk => {
+        const entry = stMap?.get(mk);
+        row.push(entry ? Math.round(entry.sum / entry.count) : 0);
+        row.push(entry ? entry.peak : 0);
+      });
+      monthRows.push(row);
+    });
+
+    const wsMonthly = XLSX.utils.aoa_to_sheet(monthRows);
+    wsMonthly["!cols"] = [{ wch: 30 }, ...sortedMonths.flatMap(() => [{ wch: 12 }, { wch: 10 }])];
+    XLSX.utils.book_append_sheet(wb, wsMonthly, "Resumo Mensal");
+  }
+
   // Download
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
