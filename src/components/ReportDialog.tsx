@@ -23,6 +23,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   visibleStations?: Set<string>;
+  simulatorEnabled?: boolean;
+  simulatorFactor?: number;
 }
 
 type ViewMode = "realtime" | "horario" | "dia" | "mes" | "blend";

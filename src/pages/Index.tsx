@@ -299,6 +299,8 @@ function IndexContent() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         visibleStations={visibleStations}
+        simulatorEnabled={simulatorEnabled}
+        simulatorFactor={simulatorFactor}
       />
     </div>
   );
