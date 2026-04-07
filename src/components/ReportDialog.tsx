@@ -359,7 +359,21 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   if (!status) return null;
   const { station, listeners } = status;
 
-  const chartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
+  const rawChartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
+  const chartData = factor !== 1
+    ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
+    : rawChartData;
+
+  // Apply factor to blend data
+  const displayBlendData = factor !== 1
+    ? blendData.map(row => {
+        const newRow: Record<string, any> = { time: row.time };
+        stations.forEach(st => {
+          newRow[st.id] = row[st.id] != null ? Math.round(row[st.id] * factor) : null;
+        });
+        return newRow;
+      })
+    : blendData;
   const dayName = DAY_SHORT[getBrasiliaDay()];
 
   return (
