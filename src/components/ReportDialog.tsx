@@ -341,7 +341,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       );
 
       if (matching.length > 0) {
-        slot.listeners = Math.round(matching.reduce((sum, s) => sum + s.listeners, 0) / matching.length);
+        slot.listeners = Math.round(matching.reduce((sum, s) => sum + s.listeners, 0) / matching.length * factor);
       }
     }
 
@@ -354,7 +354,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       if (slot.minuteOfDay > currentMinute + intervalMin) return false;
       return slot.listeners !== undefined;
     });
-  }, [allSnapshots, zoomInterval, status]);
+  }, [allSnapshots, zoomInterval, status, factor]);
 
   if (!status) return null;
   const { station, listeners } = status;
