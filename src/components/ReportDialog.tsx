@@ -94,7 +94,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       ref.current.style.position = 'relative';
       ref.current.appendChild(stamp);
 
-      const dataUrl = await toPng(ref.current, { backgroundColor: '#0f1729', pixelRatio: 2 });
+      const dataUrl = await toPng(ref.current, { backgroundColor: '#0f1729', pixelRatio: 3 });
       
       // Remove watermark
       ref.current.removeChild(stamp);
