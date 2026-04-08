@@ -388,7 +388,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[95vw]">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-3 text-foreground">
             <img
@@ -504,7 +504,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                   <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                   <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                  <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(60 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
+                  <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
                   <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={40} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
                   <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
@@ -538,7 +538,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
                 <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
                 <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 12 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
                 <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
