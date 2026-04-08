@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Radio, Lock, User, Eye, EyeOff } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+
 import { toast } from "sonner";
 
 interface LoginGateProps {
@@ -31,11 +31,20 @@ export function LoginGate({ children }: LoginGateProps) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-login", {
-        body: { username: username.trim(), password: password.trim() },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+        }
+      );
+      const data = await response.json();
 
-      if (error || !data?.success) {
+      if (!response.ok || !data?.success) {
         toast.error(data?.error || "Credenciais inválidas");
         return;
       }
