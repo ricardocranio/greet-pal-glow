@@ -388,7 +388,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[95vw]">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-3 text-foreground">
             <img
