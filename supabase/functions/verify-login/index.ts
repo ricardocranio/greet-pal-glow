@@ -13,10 +13,14 @@ serve(async (req) => {
   try {
     const { username, password } = await req.json();
 
-    const validUser = "ricardo";
-    const validPass = "13501619";
+    const validUsers = [
+      { username: "ricardo", password: "13501619" },
+      { username: "ricardo2", password: "teste" },
+    ];
 
-    if (username === validUser && password === validPass) {
+    const match = validUsers.find(u => u.username === username && u.password === password);
+
+    if (match) {
       const token = crypto.randomUUID();
       return new Response(JSON.stringify({ success: true, token }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
