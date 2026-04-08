@@ -695,8 +695,29 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         </tr>
                       );
                     })}
+                    {/* Streaming (real) average row */}
+                    <tr className="border-t-2 border-accent/40 bg-accent/5">
+                      <td className="py-2 pr-2 sticky left-0 bg-accent/5">
+                        <div className="flex items-center gap-1.5">
+                          <Activity className="h-3 w-3 text-accent shrink-0" />
+                          <span className="text-accent font-bold text-[10px]">Streaming</span>
+                        </div>
+                      </td>
+                      {Array.from({ length: 24 }, (_, h) => {
+                        const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                        const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                        return (
+                          <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
+                            <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
+                              {avg != null ? avg.toLocaleString("pt-BR") : "–"}
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
                     {/* Média Simulado FM row */}
-                    <tr className="border-t-2 border-primary/40 bg-primary/5">
+                    <tr className="bg-primary/5">
                       <td className="py-2 pr-2 sticky left-0 bg-primary/5">
                         <div className="flex items-center gap-1.5">
                           <Zap className="h-3 w-3 text-primary shrink-0" />
