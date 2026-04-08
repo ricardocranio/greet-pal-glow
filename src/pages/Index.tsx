@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap } from "lucide-react";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
@@ -267,6 +267,18 @@ function IndexContent() {
             >
               <RefreshCw className="h-4 w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Atualizar</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                sessionStorage.removeItem("auth_token");
+                window.location.reload();
+              }}
+              className="border-border text-destructive hover:text-destructive hover:bg-destructive/10"
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
