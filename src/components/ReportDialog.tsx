@@ -635,31 +635,33 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           </DialogHeader>
 
           {/* Compact metrics table */}
-          <div className="rounded-lg bg-secondary/30 overflow-hidden my-3">
-            <table className="w-full text-[11px]">
-              <thead>
-                <tr className="border-b border-border/50">
-                  <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase">Emissora</th>
-                  <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Agora</th>
-                  <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Pico</th>
-                  <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Menor</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="py-1.5 px-2 text-foreground font-medium">{station.name}</td>
-                  <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground">{listeners.toLocaleString("pt-BR")}</td>
-                  <td className="py-1.5 px-2 text-center">
-                    <span className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
-                    <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.peakTimeStr}</span>
-                  </td>
-                  <td className="py-1.5 px-2 text-center">
-                    <span className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</span>
-                    <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.minTimeStr}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="rounded-lg bg-secondary/30 overflow-hidden my-2 sm:my-3">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px] sm:text-[11px]">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Emissora</th>
+                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Agora</th>
+                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Pico</th>
+                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Menor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-1.5 px-2 text-foreground font-medium truncate max-w-[120px]">{station.name}</td>
+                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap">{listeners.toLocaleString("pt-BR")}</td>
+                    <td className="py-1.5 px-2 text-center whitespace-nowrap">
+                      <span className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
+                      <span className="text-[9px] text-muted-foreground ml-1 hidden sm:inline">às {todayStats.peakTimeStr}</span>
+                    </td>
+                    <td className="py-1.5 px-2 text-center whitespace-nowrap">
+                      <span className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</span>
+                      <span className="text-[9px] text-muted-foreground ml-1 hidden sm:inline">às {todayStats.minTimeStr}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* View mode tabs */}
