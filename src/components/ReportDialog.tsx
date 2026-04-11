@@ -598,8 +598,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   };
 
   const dialogContentClass = isFullscreen
-    ? "sm:max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-0 overflow-y-auto pr-8"
-    : "sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[95vw] pr-8";
+    ? "sm:max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-0 overflow-y-auto px-3 sm:px-6 pr-8 sm:pr-10"
+    : "sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[98vw] sm:w-[95vw] px-3 sm:px-6 pr-8 sm:pr-10";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
