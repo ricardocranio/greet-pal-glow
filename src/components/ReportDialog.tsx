@@ -732,12 +732,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
               </div>
 
               {realtimeData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={isFullscreen ? 400 : 220}>
-                  <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 180}>
+                  <LineChart data={realtimeData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
                     <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                     <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                    <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
-                    <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={40} />
+                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
+                    <YAxis tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={35} />
                     <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
                     <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
                     <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
@@ -745,7 +745,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
+                <div className="flex items-center justify-center h-[180px] sm:h-[220px] text-muted-foreground text-sm">
                   Aguardando dados de hoje...
                 </div>
               )}
