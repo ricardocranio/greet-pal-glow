@@ -978,10 +978,10 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           return (
                             <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
                               <td className="py-1 sm:py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm">
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
                                   <span className="text-muted-foreground font-mono text-[8px] sm:text-[10px]">{idx + 1}°</span>
-                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                  <span className="text-foreground font-medium truncate max-w-[50px] sm:max-w-[80px] text-[8px] sm:text-[10px]">{st.name}</span>
+                                  <img src={st.logoUrl} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
+                                  <span className="text-foreground font-medium text-[8px] sm:text-[10px]">{st.name}</span>
                                 </div>
                               </td>
                               {Array.from({ length: 24 }, (_, h) => {
