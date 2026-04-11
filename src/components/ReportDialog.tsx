@@ -691,12 +691,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
           {/* Real-time chart */}
           {viewMode === "realtime" && (
-            <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-2 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
                   Audiência em Tempo Real — {dayName}
                 </p>
-                <div className="flex items-center gap-1.5" data-export-hide="true">
+                <div className="flex items-center gap-1.5 flex-wrap" data-export-hide="true">
                   <Button
                     size="sm"
                     variant="outline"
