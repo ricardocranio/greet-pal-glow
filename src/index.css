@@ -69,3 +69,29 @@
     font-family: 'JetBrains Mono', monospace;
   }
 }
+
+/* PDF Light mode override for export */
+.pdf-light-mode,
+.pdf-light-mode * {
+  color: #1a1a2e !important;
+}
+.pdf-light-mode .text-muted-foreground,
+.pdf-light-mode .text-muted-foreground\/40 {
+  color: #6b7280 !important;
+}
+.pdf-light-mode .text-accent {
+  color: #d97706 !important;
+}
+.pdf-light-mode .text-primary {
+  color: #059669 !important;
+}
+.pdf-light-mode .bg-secondary\/30,
+.pdf-light-mode .bg-accent\/5,
+.pdf-light-mode .bg-primary\/5 {
+  background-color: #f3f4f6 !important;
+}
+.pdf-light-mode .border-border,
+.pdf-light-mode .border-border\/50,
+.pdf-light-mode .border-border\/30 {
+  border-color: #e5e7eb !important;
+}
