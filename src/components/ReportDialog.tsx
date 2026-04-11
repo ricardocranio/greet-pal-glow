@@ -69,7 +69,7 @@ function calcAvg(arr: number[]): number {
 export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
   const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const [zoomInterval, setZoomInterval] = useState<ZoomInterval>(5);
   const [hourlyData, setHourlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
