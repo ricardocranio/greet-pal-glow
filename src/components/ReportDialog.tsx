@@ -824,12 +824,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 </div>
               )}
 
-              <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 200}>
-                <BarChart data={chartData}>
+              <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
+                <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
-                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 12 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
+                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
+                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={35} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
                   <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
