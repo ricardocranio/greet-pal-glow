@@ -943,129 +943,130 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
               {/* Hourly numeric table */}
               {blendView === "horario" && displayBlendData.length > 0 && (
-                <div className="rounded-lg bg-secondary/30 p-4 overflow-x-auto">
-                  <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <div className="rounded-lg bg-secondary/30 p-2 sm:p-4">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5 px-2 sm:px-0">
                     <Clock className="h-3.5 w-3.5 text-primary" />
                     Audiência por Horário
                     {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
                   </p>
-                  <table className="w-full text-[10px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left text-muted-foreground font-medium py-1.5 pr-2 sticky left-0 bg-secondary/30 min-w-[100px]">Emissora</th>
-                        {Array.from({ length: 24 }, (_, h) => (
-                          <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-1 min-w-[32px]">
-                            {String(h).padStart(2, "0")}h
-                          </th>
-                        ))}
-                        <th className="text-center text-accent font-bold py-1.5 px-1 min-w-[40px] border-l border-accent/30">Média</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {blendStations.map((st, idx) => {
-                        const globalIdx = stations.findIndex(s => s.id === st.id);
-                        const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
-                        // Individual average per station
-                        const stationVals = Array.from({ length: 24 }, (_, h) => {
-                          const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                          return row?.[st.id];
-                        }).filter((v): v is number => v != null && v > 0);
-                        const stationAvg = calcAvg(stationVals);
-                        
-                        return (
-                          <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
-                            <td className="py-1.5 pr-2 sticky left-0 bg-secondary/30">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-muted-foreground font-mono">{idx + 1}°</span>
-                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                <span className="text-foreground font-medium truncate max-w-[80px]">{st.name}</span>
-                              </div>
-                            </td>
-                            {Array.from({ length: 24 }, (_, h) => {
-                              const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                              const val = row?.[st.id];
-                              return (
-                                <td key={h} className="text-center py-1.5 px-1 font-mono tabular-nums">
-                                  <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
-                                    {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
-                                  </span>
-                                </td>
-                              );
-                            })}
-                            <td className="text-center py-1.5 px-1 font-mono tabular-nums font-bold border-l border-accent/30">
-                              <span className={stationAvg > 0 ? "text-accent" : "text-muted-foreground/40"}>
-                                {stationAvg > 0 ? stationAvg.toLocaleString("pt-BR") : "–"}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {/* Streaming (real) average row */}
-                      <tr className="border-t-2 border-accent/40 bg-accent/5">
-                        <td className="py-2 pr-2 sticky left-0 bg-accent/5">
-                          <div className="flex items-center gap-1.5">
-                            <Activity className="h-3 w-3 text-accent shrink-0" />
-                            <span className="text-accent font-bold text-[10px]">Streaming</span>
-                          </div>
-                        </td>
-                        {Array.from({ length: 24 }, (_, h) => {
-                          const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                          const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                  <div className="overflow-x-auto -mx-2 sm:mx-0 scrollbar-thin">
+                    <table className="w-full text-[9px] sm:text-[10px] border-collapse min-w-[700px]">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[70px] sm:min-w-[100px]">Emissora</th>
+                          {Array.from({ length: 24 }, (_, h) => (
+                            <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 min-w-[26px] sm:min-w-[32px]">
+                              {String(h).padStart(2, "0")}h
+                            </th>
+                          ))}
+                          <th className="text-center text-accent font-bold py-1.5 px-0.5 sm:px-1 min-w-[36px] sm:min-w-[40px] border-l border-accent/30">Média</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {blendStations.map((st, idx) => {
+                          const globalIdx = stations.findIndex(s => s.id === st.id);
+                          const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
+                          const stationVals = Array.from({ length: 24 }, (_, h) => {
+                            const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                            return row?.[st.id];
+                          }).filter((v): v is number => v != null && v > 0);
+                          const stationAvg = calcAvg(stationVals);
+                          
                           return (
-                            <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
-                              <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
-                                {avg != null ? avg.toLocaleString("pt-BR") : "–"}
-                              </span>
-                            </td>
+                            <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
+                              <td className="py-1 sm:py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-muted-foreground font-mono text-[8px] sm:text-[10px]">{idx + 1}°</span>
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                  <span className="text-foreground font-medium truncate max-w-[50px] sm:max-w-[80px] text-[8px] sm:text-[10px]">{st.name}</span>
+                                </div>
+                              </td>
+                              {Array.from({ length: 24 }, (_, h) => {
+                                const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                                const val = row?.[st.id];
+                                return (
+                                  <td key={h} className="text-center py-1 sm:py-1.5 px-0.5 sm:px-1 font-mono tabular-nums">
+                                    <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
+                                      {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
+                                    </span>
+                                  </td>
+                                );
+                              })}
+                              <td className="text-center py-1 sm:py-1.5 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
+                                <span className={stationAvg > 0 ? "text-accent" : "text-muted-foreground/40"}>
+                                  {stationAvg > 0 ? stationAvg.toLocaleString("pt-BR") : "–"}
+                                </span>
+                              </td>
+                            </tr>
                           );
                         })}
-                        <td className="text-center py-2 px-1 font-mono tabular-nums font-bold border-l border-accent/30">
-                          {(() => {
-                            const allVals = Array.from({ length: 24 }, (_, h) => {
-                              const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                              const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                              return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                            }).filter((v): v is number => v != null);
-                            const avg = calcAvg(allVals);
-                            return <span className={avg > 0 ? "text-accent" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
-                          })()}
-                        </td>
-                      </tr>
-                      {/* Média Simulado FM row */}
-                      <tr className="bg-primary/5">
-                        <td className="py-2 pr-2 sticky left-0 bg-primary/5">
-                          <div className="flex items-center gap-1.5">
-                            <Zap className="h-3 w-3 text-primary shrink-0" />
-                            <span className="text-primary font-bold text-[10px]">Média {simulatorEnabled ? 'Simulado' : 'Geral'} FM</span>
-                          </div>
-                        </td>
-                        {Array.from({ length: 24 }, (_, h) => {
-                          const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                          const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                          return (
-                            <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
-                              <span className={avg != null ? "text-primary" : "text-muted-foreground/40"}>
-                                {avg != null ? avg.toLocaleString("pt-BR") : "–"}
-                              </span>
-                            </td>
-                          );
-                        })}
-                        <td className="text-center py-2 px-1 font-mono tabular-nums font-bold border-l border-accent/30">
-                          {(() => {
-                            const allVals = Array.from({ length: 24 }, (_, h) => {
-                              const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                              const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                              return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                            }).filter((v): v is number => v != null);
-                            const avg = calcAvg(allVals);
-                            return <span className={avg > 0 ? "text-primary" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
-                          })()}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        {/* Streaming (real) average row */}
+                        <tr className="border-t-2 border-accent/40 bg-accent/5">
+                          <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-accent/5 backdrop-blur-sm">
+                            <div className="flex items-center gap-1">
+                              <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-accent shrink-0" />
+                              <span className="text-accent font-bold text-[8px] sm:text-[10px]">Streaming</span>
+                            </div>
+                          </td>
+                          {Array.from({ length: 24 }, (_, h) => {
+                            const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                            const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                            const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                            return (
+                              <td key={h} className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold">
+                                <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
+                                  {avg != null ? avg.toLocaleString("pt-BR") : "–"}
+                                </span>
+                              </td>
+                            );
+                          })}
+                          <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
+                            {(() => {
+                              const allVals = Array.from({ length: 24 }, (_, h) => {
+                                const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                                const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                                return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                              }).filter((v): v is number => v != null);
+                              const avg = calcAvg(allVals);
+                              return <span className={avg > 0 ? "text-accent" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
+                            })()}
+                          </td>
+                        </tr>
+                        {/* Média Simulado FM row */}
+                        <tr className="bg-primary/5">
+                          <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-primary/5 backdrop-blur-sm">
+                            <div className="flex items-center gap-1">
+                              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary shrink-0" />
+                              <span className="text-primary font-bold text-[8px] sm:text-[10px]">Média {simulatorEnabled ? 'Simulado' : 'Geral'} FM</span>
+                            </div>
+                          </td>
+                          {Array.from({ length: 24 }, (_, h) => {
+                            const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                            const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                            const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                            return (
+                              <td key={h} className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold">
+                                <span className={avg != null ? "text-primary" : "text-muted-foreground/40"}>
+                                  {avg != null ? avg.toLocaleString("pt-BR") : "–"}
+                                </span>
+                              </td>
+                            );
+                          })}
+                          <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
+                            {(() => {
+                              const allVals = Array.from({ length: 24 }, (_, h) => {
+                                const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                                const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                                return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                              }).filter((v): v is number => v != null);
+                              const avg = calcAvg(allVals);
+                              return <span className={avg > 0 ? "text-primary" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
+                            })()}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
