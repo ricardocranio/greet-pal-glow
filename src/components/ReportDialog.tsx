@@ -761,9 +761,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
           {/* Historical charts (horário, dia, mês) */}
           {(viewMode === "horario" || viewMode === "dia" || viewMode === "mes") && (
-            <div className="rounded-lg bg-secondary/30 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <div className="rounded-lg bg-secondary/30 p-2 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
                   {viewMode === "horario"
                     ? `Audiência por Horário — ${horarioFilter === "dia" ? (selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Hoje") : horarioFilter === "seg-sex" ? "Seg-Sex" : horarioFilter === "sab-dom" ? "Sáb-Dom" : "Geral"}`
                     : viewMode === "dia"
