@@ -953,7 +953,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
                   </p>
                   <div className="overflow-x-auto -mx-2 sm:mx-0 scrollbar-thin">
-                    <table className="w-full text-[9px] sm:text-[10px] border-collapse min-w-[700px]">
+                    <table className="w-full text-[9px] sm:text-[10px] border-collapse min-w-[800px]">
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[90px] sm:min-w-[120px]">Emissora</th>
