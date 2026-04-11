@@ -95,3 +95,11 @@
 .pdf-light-mode .border-border\/30 {
   border-color: #e5e7eb !important;
 }
+.pdf-light-mode .bg-secondary\/95,
+.pdf-light-mode .bg-accent\/5,
+.pdf-light-mode .bg-primary\/5 {
+  background-color: #f9fafb !important;
+}
+.pdf-light-mode .bg-secondary\/30 {
+  background-color: #f3f4f6 !important;
+}
