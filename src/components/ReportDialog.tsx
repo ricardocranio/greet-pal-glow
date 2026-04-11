@@ -905,8 +905,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
                 {/* Chart */}
                 {displayBlendData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={isFullscreen ? 450 : 300}>
-                    <LineChart data={displayBlendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
+                  <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 220}>
+                    <LineChart data={displayBlendData} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
                       <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
                       <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
