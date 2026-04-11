@@ -10,13 +10,18 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ReferenceLine, ReferenceArea,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download, Zap } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download, Zap, Maximize2, Minimize2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { stations } from "@/data/stations";
 import { toPng } from "html-to-image";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Props {
   status: StationStatus | null;
@@ -30,6 +35,7 @@ interface Props {
 type ViewMode = "realtime" | "horario" | "dia" | "mes" | "blend";
 type ZoomInterval = 3 | 5;
 type BlendView = "horario" | "dia";
+type HorarioFilter = "dia" | "seg-sex" | "sab-dom" | "geral";
 
 const STATION_COLORS = [
   "hsl(160 84% 44%)", "hsl(210 90% 55%)", "hsl(340 75% 55%)", "hsl(45 90% 50%)",
@@ -54,9 +60,16 @@ function getDateTimeStamp(): string {
   return `${date} às ${time} (Brasília)`;
 }
 
+// Compute average for an array of numbers
+function calcAvg(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+}
+
 export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
   const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoomInterval, setZoomInterval] = useState<ZoomInterval>(5);
   const [hourlyData, setHourlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
@@ -65,8 +78,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
+  const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isExporting, setIsExporting] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Sync blend visible with parent visible
   useEffect(() => {
@@ -87,7 +104,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const handleSavePng = useCallback(async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
     if (!ref.current) return;
     try {
-      // Add temporary date/time watermark
       const stamp = document.createElement('div');
       stamp.style.cssText = 'position:absolute;bottom:8px;right:12px;font-size:11px;color:rgba(255,255,255,0.7);font-family:monospace;z-index:10;background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:4px;';
       stamp.textContent = getDateTimeStamp();
@@ -96,7 +112,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
       const dataUrl = await toPng(ref.current, { backgroundColor: '#0f1729', pixelRatio: 3 });
       
-      // Remove watermark
       ref.current.removeChild(stamp);
 
       const link = document.createElement('a');
@@ -108,18 +123,72 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }
   }, []);
 
-  // Blend stations filtered
-  const blendStations = useMemo(() => {
-    return stations.filter(s => blendVisibleStations.has(s.id));
-  }, [blendVisibleStations]);
+  // PDF export (light or dark)
+  const handleExportPdf = useCallback(async (mode: 'light' | 'dark') => {
+    if (!contentRef.current) return;
+    setIsExporting(true);
+    
+    try {
+      // Wait a tick for export class to apply (hides buttons)
+      await new Promise(r => setTimeout(r, 100));
 
-  // Fetch blend data (all stations) when blend mode is active
+      const bgColor = mode === 'light' ? '#ffffff' : '#0f1729';
+      const el = contentRef.current;
+      
+      // Temporarily apply light mode styles if needed
+      if (mode === 'light') {
+        el.classList.add('pdf-light-mode');
+      }
+
+      const dataUrl = await toPng(el, {
+        backgroundColor: bgColor,
+        pixelRatio: 3,
+        filter: (node) => {
+          // Hide export buttons and checkbox panels
+          if (node instanceof HTMLElement) {
+            if (node.dataset.exportHide === 'true') return false;
+          }
+          return true;
+        },
+      });
+
+      if (mode === 'light') {
+        el.classList.remove('pdf-light-mode');
+      }
+
+      // Create PDF-like download (PNG with high quality)
+      const link = document.createElement('a');
+      const modeLabel = mode === 'light' ? 'W' : 'B';
+      link.download = `relatorio_${viewMode}_PDF-${modeLabel}_${formatBrasiliaDateInput()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao exportar:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [viewMode]);
+
+  // Blend stations filtered & sorted by audience
+  const blendStations = useMemo(() => {
+    const filtered = stations.filter(s => blendVisibleStations.has(s.id));
+    // Sort by total audience (sum of values in blend data)
+    if (blendData.length > 0) {
+      return filtered.sort((a, b) => {
+        const sumA = blendData.reduce((sum, row) => sum + (row[a.id] ?? 0), 0);
+        const sumB = blendData.reduce((sum, row) => sum + (row[b.id] ?? 0), 0);
+        return sumB - sumA;
+      });
+    }
+    return filtered;
+  }, [blendVisibleStations, blendData]);
+
+  // Fetch blend data
   useEffect(() => {
     if (!open || viewMode !== "blend") return;
     let cancelled = false;
 
     async function fetchBlendData() {
-      // For "horario" only need today's data; for "dia" need 90 days
       const cutoff = blendView === "horario"
         ? formatBrasiliaDateInput() + "T00:00:00"
         : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -165,9 +234,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       } else {
         const dayMap = new Map<number, Map<string, number[]>>();
         allData.forEach(s => {
-          // Use hour-based day extraction instead of expensive toLocaleString
           const d = new Date(s.recorded_at);
-          // Brasília is UTC-3
           const utcMs = d.getTime();
           const brasiliaMs = utcMs - 3 * 60 * 60 * 1000;
           const brasiliaDate = new Date(brasiliaMs);
@@ -254,7 +321,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         const monthMap = new Map<string, { sum: number; count: number }>();
 
         data.forEach((snap) => {
-          // Fast Brasília conversion (UTC-3) instead of expensive toLocaleString
           const utcMs = new Date(snap.recorded_at).getTime();
           const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
           const d = brasiliaDate.getUTCDay();
@@ -285,6 +351,48 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         setMonthlyData(mData);
       });
   }, [open, status]);
+
+  // Filtered hourly data based on horarioFilter
+  const filteredHourlyData = useMemo(() => {
+    if (viewMode !== "horario" || allSnapshots.length === 0) return hourlyData;
+
+    let filteredSnaps = allSnapshots;
+
+    if (horarioFilter === "dia") {
+      // Specific date
+      const dateStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+      filteredSnaps = allSnapshots.filter(
+        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === dateStr
+      );
+    } else if (horarioFilter === "seg-sex") {
+      filteredSnaps = allSnapshots.filter((snap) => {
+        const utcMs = new Date(snap.recorded_at).getTime();
+        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+        const dow = brasiliaDate.getUTCDay();
+        return dow >= 1 && dow <= 5;
+      });
+    } else if (horarioFilter === "sab-dom") {
+      filteredSnaps = allSnapshots.filter((snap) => {
+        const utcMs = new Date(snap.recorded_at).getTime();
+        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+        const dow = brasiliaDate.getUTCDay();
+        return dow === 0 || dow === 6;
+      });
+    }
+    // "geral" = all snapshots
+
+    const hourMap = new Map<number, number[]>();
+    filteredSnaps.forEach((snap) => {
+      if (!hourMap.has(snap.hour)) hourMap.set(snap.hour, []);
+      hourMap.get(snap.hour)!.push(snap.listeners);
+    });
+
+    return Array.from({ length: 24 }, (_, h) => {
+      const vals = hourMap.get(h) || [];
+      const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
+    });
+  }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData]);
 
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
@@ -369,7 +477,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   if (!status) return null;
   const { station, listeners } = status;
 
-  const rawChartData = viewMode === "horario" ? hourlyData : viewMode === "dia" ? dailyData : monthlyData;
+  const rawChartData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : monthlyData;
   const chartData = factor !== 1
     ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
     : rawChartData;
@@ -386,367 +494,548 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     : blendData;
   const dayName = DAY_SHORT[getBrasiliaDay()];
 
+  // Streaming & Simulado averages for single-station views
+  const streamingAvg = chartData.length > 0 ? calcAvg(chartData.filter(d => d.listeners > 0).map(d => d.listeners)) : 0;
+  const simuladoAvg = simulatorEnabled && factor !== 1 ? streamingAvg : 0;
+
+  // PDF export buttons component
+  const PdfExportButtons = ({ className = "" }: { className?: string }) => (
+    <div data-export-hide="true" className={cn("flex items-center gap-1.5", className)}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+        onClick={() => handleExportPdf('light')}
+        disabled={isExporting}
+      >
+        <FileText className="h-3 w-3 mr-1" />
+        PDF-W
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+        onClick={() => handleExportPdf('dark')}
+        disabled={isExporting}
+      >
+        <FileText className="h-3 w-3 mr-1" />
+        PDF-B
+      </Button>
+    </div>
+  );
+
+  // Comparativo rows for single-station charts
+  const ComparativoInfo = () => {
+    if (viewMode === "blend") return null;
+    const rawData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : viewMode === "mes" ? monthlyData : [];
+    const rawAvg = rawData.length > 0 ? calcAvg(rawData.filter(d => d.listeners > 0).map(d => d.listeners)) : 0;
+    const simAvg = simulatorEnabled && factor !== 1 ? Math.round(rawAvg * factor) : 0;
+    
+    if (rawAvg === 0) return null;
+
+    return (
+      <div className="mt-3 rounded-lg bg-secondary/30 p-3">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Comparativo</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-3.5 w-3.5 text-accent shrink-0" />
+            <div>
+              <p className="text-[10px] text-muted-foreground">Streaming</p>
+              <p className="font-mono font-bold text-accent text-sm">{rawAvg.toLocaleString("pt-BR")}</p>
+            </div>
+          </div>
+          {simulatorEnabled && (
+            <div className="flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Média Simulado FM</p>
+                <p className="font-mono font-bold text-primary text-sm">{simAvg.toLocaleString("pt-BR")}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const dialogContentClass = isFullscreen
+    ? "sm:max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-0 overflow-y-auto pr-8"
+    : "sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[95vw] pr-8";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[95vw] pr-8">
-        <DialogHeader>
-          <DialogTitle className="font-display flex items-center gap-3 text-foreground">
-            <img
-              src={station.logoUrl}
-              alt={station.name}
-              className="h-10 w-10 object-contain rounded-lg bg-secondary p-1"
-              width={40}
-              height={40}
-            />
-            <div>
-              <span>{station.name}</span>
-              <span className="block text-sm font-mono text-muted-foreground font-normal">
-                {station.frequency}
-                {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">×{simulatorFactor} simulado</span>}
-              </span>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Compact metrics table */}
-        <div className="rounded-lg bg-secondary/30 overflow-hidden my-3">
-          <table className="w-full text-[11px]">
-            <thead>
-              <tr className="border-b border-border/50">
-                <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase">Emissora</th>
-                <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Agora</th>
-                <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Pico</th>
-                <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Menor</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="py-1.5 px-2 text-foreground font-medium">{station.name}</td>
-                <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground">{listeners.toLocaleString("pt-BR")}</td>
-                <td className="py-1.5 px-2 text-center">
-                  <span className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
-                  <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.peakTimeStr}</span>
-                </td>
-                <td className="py-1.5 px-2 text-center">
-                  <span className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</span>
-                  <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.minTimeStr}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* View mode tabs */}
-        <div className="flex gap-1 bg-secondary/30 rounded-lg p-1 mb-3">
-          {([
-            { id: "realtime" as ViewMode, label: "Tempo Real", icon: Activity },
-            { id: "horario" as ViewMode, label: "Horário", icon: Clock },
-            { id: "dia" as ViewMode, label: "Dia", icon: Calendar },
-            { id: "mes" as ViewMode, label: "Mês", icon: CalendarDays },
-            { id: "blend" as ViewMode, label: "Blend", icon: Layers },
-          ]).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setViewMode(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
-                viewMode === tab.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <tab.icon className="h-3 w-3" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Real-time chart */}
-        {viewMode === "realtime" && (
-          <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                Audiência em Tempo Real — {dayName}
-              </p>
+      <DialogContent className={cn(dialogContentClass, "bg-card border-border")}>
+        <div ref={contentRef}>
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-3 text-foreground">
+              <img
+                src={station.logoUrl}
+                alt={station.name}
+                className="h-10 w-10 object-contain rounded-lg bg-secondary p-1"
+                width={40}
+                height={40}
+              />
+              <div className="flex-1">
+                <span>{station.name}</span>
+                <span className="block text-sm font-mono text-muted-foreground font-normal">
+                  {station.frequency}
+                  {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">×{simulatorFactor} simulado</span>}
+                </span>
+              </div>
+              {/* Fullscreen toggle */}
               <Button
+                data-export-hide="true"
                 size="sm"
                 variant="outline"
-                className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-                onClick={() => handleSavePng(realtimeChartRef, `tempo_real_${station.name.replace(/\s+/g, '_')}`)}
+                className="border-border text-muted-foreground hover:text-foreground"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={isFullscreen ? "Modo Pop-up" : "Tela Cheia"}
               >
-                <Download className="h-3 w-3 mr-1" />
-                PNG
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
-            </div>
+            </DialogTitle>
+          </DialogHeader>
 
-            {/* Zoom selector */}
-            <div className="flex items-center gap-2 mb-3">
-              <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">Intervalo:</span>
-              {([5, 3] as ZoomInterval[]).map((interval) => (
-                <Button
-                  key={interval}
-                  size="sm"
-                  variant={zoomInterval === interval ? "default" : "outline"}
-                  className={`text-[10px] h-6 px-2 ${
-                    zoomInterval === interval
-                      ? "bg-primary text-primary-foreground"
-                      : "border-border text-muted-foreground"
-                  }`}
-                  onClick={() => setZoomInterval(interval)}
-                >
-                  {interval} min
-                </Button>
-              ))}
-            </div>
-
-            {realtimeData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                  <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
-                  <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
-                  <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
-                  <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                  <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
-                  <Line type="monotone" dataKey="listeners" name="Conexões" stroke="hsl(160 84% 44%)" strokeWidth={2} dot={false} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
-                Aguardando dados de hoje...
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 mt-2 justify-center">
-              <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" />
-              <span className="text-[10px] text-muted-foreground">🌙 Madrugada (22h–05h)</span>
-            </div>
+          {/* Compact metrics table */}
+          <div className="rounded-lg bg-secondary/30 overflow-hidden my-3">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase">Emissora</th>
+                  <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Agora</th>
+                  <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Pico</th>
+                  <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase">Menor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="py-1.5 px-2 text-foreground font-medium">{station.name}</td>
+                  <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground">{listeners.toLocaleString("pt-BR")}</td>
+                  <td className="py-1.5 px-2 text-center">
+                    <span className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
+                    <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.peakTimeStr}</span>
+                  </td>
+                  <td className="py-1.5 px-2 text-center">
+                    <span className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</span>
+                    <span className="text-[9px] text-muted-foreground ml-1">às {todayStats.minTimeStr}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        )}
 
-        {/* Historical charts */}
-        {(viewMode === "horario" || viewMode === "dia" || viewMode === "mes") && (
-          <div className="rounded-lg bg-secondary/30 p-4">
-            <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
-              {viewMode === "horario"
-                ? "Audiência por Horário — Hoje (00h - 23h)"
-                : viewMode === "dia"
-                ? "Audiência por Dia da Semana"
-                : "Audiência Média por Mês"}
-            </p>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
-                <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 12 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
-                <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* View mode tabs */}
+          <div className="flex gap-1 bg-secondary/30 rounded-lg p-1 mb-3" data-export-hide="false">
+            {([
+              { id: "realtime" as ViewMode, label: "Tempo Real", icon: Activity },
+              { id: "horario" as ViewMode, label: "Horário", icon: Clock },
+              { id: "dia" as ViewMode, label: "Dia", icon: Calendar },
+              { id: "mes" as ViewMode, label: "Mês", icon: CalendarDays },
+              { id: "blend" as ViewMode, label: "Blend", icon: Layers },
+            ]).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setViewMode(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
+                  viewMode === tab.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <tab.icon className="h-3 w-3" />
+                {tab.label}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Blend: everything in one ref for full PNG capture */}
-        {viewMode === "blend" && (
-          <div ref={blendChartRef} className="space-y-4">
-            {/* Controls */}
-            <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                  Comparativo — Emissoras Selecionadas
-                  {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">×{simulatorFactor} simulado</span>}
+          {/* Real-time chart */}
+          {viewMode === "realtime" && (
+            <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Audiência em Tempo Real — {dayName}
                 </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-                  onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  PNG
-                </Button>
+                <div className="flex items-center gap-1.5" data-export-hide="true">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                    onClick={() => handleSavePng(realtimeChartRef, `tempo_real_${station.name.replace(/\s+/g, '_')}`)}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    PNG
+                  </Button>
+                  <PdfExportButtons />
+                </div>
               </div>
 
-              {/* Sub-mode toggle */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground font-medium">Visualizar:</span>
-                <Button
-                  size="sm"
-                  variant={blendView === "horario" ? "default" : "outline"}
-                  className={`text-[11px] h-7 px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
-                  onClick={() => setBlendView("horario")}
-                >
-                  <Clock className="h-3 w-3 mr-1" />
-                  Por Hora (Hoje)
-                </Button>
-                <Button
-                  size="sm"
-                  variant={blendView === "dia" ? "default" : "outline"}
-                  className={`text-[11px] h-7 px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
-                  onClick={() => setBlendView("dia")}
-                >
-                  <Calendar className="h-3 w-3 mr-1" />
-                  Por Dia
-                </Button>
-              </div>
-
-              {/* Station legend with checkboxes */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
-                {stations.map((st, i) => (
-                  <label key={st.id} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={blendVisibleStations.has(st.id)}
-                      onCheckedChange={() => toggleBlendStation(st.id)}
-                    />
-                    <div
-                      className="w-3 h-[3px] rounded-full shrink-0"
-                      style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
-                    />
-                    <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
-                  </label>
+              {/* Zoom selector */}
+              <div className="flex items-center gap-2 mb-3" data-export-hide="true">
+                <ZoomIn className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground">Intervalo:</span>
+                {([5, 3] as ZoomInterval[]).map((interval) => (
+                  <Button
+                    key={interval}
+                    size="sm"
+                    variant={zoomInterval === interval ? "default" : "outline"}
+                    className={`text-[10px] h-6 px-2 ${
+                      zoomInterval === interval
+                        ? "bg-primary text-primary-foreground"
+                        : "border-border text-muted-foreground"
+                    }`}
+                    onClick={() => setZoomInterval(interval)}
+                  >
+                    {interval} min
+                  </Button>
                 ))}
               </div>
 
-              {/* Chart */}
-              {displayBlendData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={displayBlendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
-                    <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
-                    <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
-                      labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
-                      formatter={(value: number, name: string) => {
-                        const st = stations.find(s => s.id === name);
-                        return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
-                      }}
-                      itemSorter={(item: any) => -(item.value || 0)}
-                    />
-                    {blendStations.map((st) => {
-                      const globalIdx = stations.findIndex(s => s.id === st.id);
-                      return (
-                        <Line
-                          key={st.id}
-                          type="monotone"
-                          dataKey={st.id}
-                          name={st.id}
-                          stroke={STATION_COLORS[globalIdx % STATION_COLORS.length]}
-                          strokeWidth={2.5}
-                          dot={false}
-                          connectNulls
-                          strokeOpacity={0.9}
-                        />
-                      );
-                    })}
+              {realtimeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={isFullscreen ? 400 : 220}>
+                  <LineChart data={realtimeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
+                    <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
+                    <XAxis dataKey="time" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
+                    <YAxis tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={40} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
+                    <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                    <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                    <Line type="monotone" dataKey="listeners" name="Conexões" stroke="hsl(160 84% 44%)" strokeWidth={2} dot={false} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                  Carregando dados comparativos...
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
+                  Aguardando dados de hoje...
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mt-2 justify-center">
+                <div className="w-3 h-3 rounded-sm bg-primary/20 border border-primary/30" />
+                <span className="text-[10px] text-muted-foreground">🌙 Madrugada (22h–05h)</span>
+              </div>
+
+              <ComparativoInfo />
+            </div>
+          )}
+
+          {/* Historical charts (horário, dia, mês) */}
+          {(viewMode === "horario" || viewMode === "dia" || viewMode === "mes") && (
+            <div className="rounded-lg bg-secondary/30 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  {viewMode === "horario"
+                    ? `Audiência por Horário — ${horarioFilter === "dia" ? (selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Hoje") : horarioFilter === "seg-sex" ? "Seg-Sex" : horarioFilter === "sab-dom" ? "Sáb-Dom" : "Geral"}`
+                    : viewMode === "dia"
+                    ? "Audiência por Dia da Semana"
+                    : "Audiência Média por Mês"}
+                </p>
+                <PdfExportButtons />
+              </div>
+
+              {/* Horário filter controls */}
+              {viewMode === "horario" && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-3" data-export-hide="true">
+                  {([
+                    { id: "dia" as HorarioFilter, label: "Dia" },
+                    { id: "seg-sex" as HorarioFilter, label: "Seg-Sex" },
+                    { id: "sab-dom" as HorarioFilter, label: "Sáb-Dom" },
+                    { id: "geral" as HorarioFilter, label: "Geral" },
+                  ]).map(f => (
+                    <Button
+                      key={f.id}
+                      size="sm"
+                      variant={horarioFilter === f.id ? "default" : "outline"}
+                      className={`text-[10px] h-6 px-2.5 ${
+                        horarioFilter === f.id
+                          ? "bg-primary text-primary-foreground"
+                          : "border-border text-muted-foreground"
+                      }`}
+                      onClick={() => setHorarioFilter(f.id)}
+                    >
+                      {f.label}
+                    </Button>
+                  ))}
+
+                  {horarioFilter === "dia" && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[10px] h-6 px-2.5 border-border text-muted-foreground"
+                        >
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {selectedDate ? format(selectedDate, "dd/MM") : "Selecionar"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
+                        <CalendarPicker
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                          disabled={(date) => date > new Date()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              )}
+
+              <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 200}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
+                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
+                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 12 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
+                  <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+
+              <ComparativoInfo />
+            </div>
+          )}
+
+          {/* Blend: everything in one ref for full PNG capture */}
+          {viewMode === "blend" && (
+            <div ref={blendChartRef} className="space-y-4">
+              {/* Controls */}
+              <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                    Comparativo — Emissoras Selecionadas
+                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">×{simulatorFactor} simulado</span>}
+                  </p>
+                  <div className="flex items-center gap-1.5" data-export-hide="true">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+                      onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      PNG
+                    </Button>
+                    <PdfExportButtons />
+                  </div>
+                </div>
+
+                {/* Sub-mode toggle */}
+                <div className="flex items-center gap-2" data-export-hide="true">
+                  <span className="text-[11px] text-muted-foreground font-medium">Visualizar:</span>
+                  <Button
+                    size="sm"
+                    variant={blendView === "horario" ? "default" : "outline"}
+                    className={`text-[11px] h-7 px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+                    onClick={() => setBlendView("horario")}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    Por Hora (Hoje)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={blendView === "dia" ? "default" : "outline"}
+                    className={`text-[11px] h-7 px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+                    onClick={() => setBlendView("dia")}
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Por Dia
+                  </Button>
+                </div>
+
+                {/* Station legend with checkboxes - hidden in export */}
+                <div data-export-hide="true" className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
+                  {stations.map((st, i) => (
+                    <label key={st.id} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={blendVisibleStations.has(st.id)}
+                        onCheckedChange={() => toggleBlendStation(st.id)}
+                      />
+                      <div
+                        className="w-3 h-[3px] rounded-full shrink-0"
+                        style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
+                      />
+                      <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Chart */}
+                {displayBlendData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={isFullscreen ? 450 : 300}>
+                    <LineChart data={displayBlendData} margin={{ top: 10, right: 10, left: -5, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
+                      <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
+                      <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+                        labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
+                        formatter={(value: number, name: string) => {
+                          const st = stations.find(s => s.id === name);
+                          return [value?.toLocaleString("pt-BR") ?? "—", st?.name ?? name];
+                        }}
+                        itemSorter={(item: any) => -(item.value || 0)}
+                      />
+                      {blendStations.map((st) => {
+                        const globalIdx = stations.findIndex(s => s.id === st.id);
+                        return (
+                          <Line
+                            key={st.id}
+                            type="monotone"
+                            dataKey={st.id}
+                            name={st.id}
+                            stroke={STATION_COLORS[globalIdx % STATION_COLORS.length]}
+                            strokeWidth={2.5}
+                            dot={false}
+                            connectNulls
+                            strokeOpacity={0.9}
+                          />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                    Carregando dados comparativos...
+                  </div>
+                )}
+              </div>
+
+              {/* Hourly numeric table */}
+              {blendView === "horario" && displayBlendData.length > 0 && (
+                <div className="rounded-lg bg-secondary/30 p-4 overflow-x-auto">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-primary" />
+                    Audiência por Horário
+                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
+                  </p>
+                  <table className="w-full text-[10px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left text-muted-foreground font-medium py-1.5 pr-2 sticky left-0 bg-secondary/30 min-w-[100px]">Emissora</th>
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-1 min-w-[32px]">
+                            {String(h).padStart(2, "0")}h
+                          </th>
+                        ))}
+                        <th className="text-center text-accent font-bold py-1.5 px-1 min-w-[40px] border-l border-accent/30">Média</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {blendStations.map((st, idx) => {
+                        const globalIdx = stations.findIndex(s => s.id === st.id);
+                        const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
+                        // Individual average per station
+                        const stationVals = Array.from({ length: 24 }, (_, h) => {
+                          const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                          return row?.[st.id];
+                        }).filter((v): v is number => v != null && v > 0);
+                        const stationAvg = calcAvg(stationVals);
+                        
+                        return (
+                          <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
+                            <td className="py-1.5 pr-2 sticky left-0 bg-secondary/30">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground font-mono">{idx + 1}°</span>
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                <span className="text-foreground font-medium truncate max-w-[80px]">{st.name}</span>
+                              </div>
+                            </td>
+                            {Array.from({ length: 24 }, (_, h) => {
+                              const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                              const val = row?.[st.id];
+                              return (
+                                <td key={h} className="text-center py-1.5 px-1 font-mono tabular-nums">
+                                  <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
+                                    {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
+                                  </span>
+                                </td>
+                              );
+                            })}
+                            <td className="text-center py-1.5 px-1 font-mono tabular-nums font-bold border-l border-accent/30">
+                              <span className={stationAvg > 0 ? "text-accent" : "text-muted-foreground/40"}>
+                                {stationAvg > 0 ? stationAvg.toLocaleString("pt-BR") : "–"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {/* Streaming (real) average row */}
+                      <tr className="border-t-2 border-accent/40 bg-accent/5">
+                        <td className="py-2 pr-2 sticky left-0 bg-accent/5">
+                          <div className="flex items-center gap-1.5">
+                            <Activity className="h-3 w-3 text-accent shrink-0" />
+                            <span className="text-accent font-bold text-[10px]">Streaming</span>
+                          </div>
+                        </td>
+                        {Array.from({ length: 24 }, (_, h) => {
+                          const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                          const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                          return (
+                            <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
+                              <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
+                                {avg != null ? avg.toLocaleString("pt-BR") : "–"}
+                              </span>
+                            </td>
+                          );
+                        })}
+                        <td className="text-center py-2 px-1 font-mono tabular-nums font-bold border-l border-accent/30">
+                          {(() => {
+                            const allVals = Array.from({ length: 24 }, (_, h) => {
+                              const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                              const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                              return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                            }).filter((v): v is number => v != null);
+                            const avg = calcAvg(allVals);
+                            return <span className={avg > 0 ? "text-accent" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
+                          })()}
+                        </td>
+                      </tr>
+                      {/* Média Simulado FM row */}
+                      <tr className="bg-primary/5">
+                        <td className="py-2 pr-2 sticky left-0 bg-primary/5">
+                          <div className="flex items-center gap-1.5">
+                            <Zap className="h-3 w-3 text-primary shrink-0" />
+                            <span className="text-primary font-bold text-[10px]">Média {simulatorEnabled ? 'Simulado' : 'Geral'} FM</span>
+                          </div>
+                        </td>
+                        {Array.from({ length: 24 }, (_, h) => {
+                          const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                          const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                          return (
+                            <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
+                              <span className={avg != null ? "text-primary" : "text-muted-foreground/40"}>
+                                {avg != null ? avg.toLocaleString("pt-BR") : "–"}
+                              </span>
+                            </td>
+                          );
+                        })}
+                        <td className="text-center py-2 px-1 font-mono tabular-nums font-bold border-l border-accent/30">
+                          {(() => {
+                            const allVals = Array.from({ length: 24 }, (_, h) => {
+                              const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
+                              const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
+                              return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+                            }).filter((v): v is number => v != null);
+                            const avg = calcAvg(allVals);
+                            return <span className={avg > 0 ? "text-primary" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
+                          })()}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
+          )}
 
-            {/* Hourly numeric table */}
-            {blendView === "horario" && displayBlendData.length > 0 && (
-              <div className="rounded-lg bg-secondary/30 p-4 overflow-x-auto">
-                <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
-                  Audiência por Horário
-                  {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
-                </p>
-                <table className="w-full text-[10px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left text-muted-foreground font-medium py-1.5 pr-2 sticky left-0 bg-secondary/30 min-w-[100px]">Emissora</th>
-                      {Array.from({ length: 24 }, (_, h) => (
-                        <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-1 min-w-[32px]">
-                          {String(h).padStart(2, "0")}h
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {blendStations.map((st, idx) => {
-                      const globalIdx = stations.findIndex(s => s.id === st.id);
-                      const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
-                      return (
-                        <tr key={st.id} className="border-b border-border/30 hover:bg-secondary/50 transition-colors">
-                          <td className="py-1.5 pr-2 sticky left-0 bg-secondary/30">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-muted-foreground font-mono">{idx + 1}°</span>
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                              <span className="text-foreground font-medium truncate max-w-[80px]">{st.name}</span>
-                            </div>
-                          </td>
-                          {Array.from({ length: 24 }, (_, h) => {
-                            const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                            const val = row?.[st.id];
-                            return (
-                              <td key={h} className="text-center py-1.5 px-1 font-mono tabular-nums">
-                                <span className={val != null && val > 0 ? "text-foreground" : "text-muted-foreground/40"}>
-                                  {val != null && val > 0 ? val.toLocaleString("pt-BR") : "–"}
-                                </span>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                    {/* Streaming (real) average row */}
-                    <tr className="border-t-2 border-accent/40 bg-accent/5">
-                      <td className="py-2 pr-2 sticky left-0 bg-accent/5">
-                        <div className="flex items-center gap-1.5">
-                          <Activity className="h-3 w-3 text-accent shrink-0" />
-                          <span className="text-accent font-bold text-[10px]">Streaming</span>
-                        </div>
-                      </td>
-                      {Array.from({ length: 24 }, (_, h) => {
-                        const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                        const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                        return (
-                          <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
-                            <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
-                              {avg != null ? avg.toLocaleString("pt-BR") : "–"}
-                            </span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    {/* Média Simulado FM row */}
-                    <tr className="bg-primary/5">
-                      <td className="py-2 pr-2 sticky left-0 bg-primary/5">
-                        <div className="flex items-center gap-1.5">
-                          <Zap className="h-3 w-3 text-primary shrink-0" />
-                          <span className="text-primary font-bold text-[10px]">Média {simulatorEnabled ? 'Simulado' : 'Geral'} FM</span>
-                        </div>
-                      </td>
-                      {Array.from({ length: 24 }, (_, h) => {
-                        const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                        const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                        return (
-                          <td key={h} className="text-center py-2 px-1 font-mono tabular-nums font-bold">
-                            <span className={avg != null ? "text-primary" : "text-muted-foreground/40"}>
-                              {avg != null ? avg.toLocaleString("pt-BR") : "–"}
-                            </span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="text-[11px] text-muted-foreground text-center mt-2">
-          {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : viewMode === "blend" ? "Comparativo de emissoras selecionadas" : "Dados reais • Média dos últimos 90 dias"}
-        </p>
+          <p className="text-[11px] text-muted-foreground text-center mt-2">
+            {viewMode === "realtime" ? "Dados de hoje • Atualização a cada 30s" : viewMode === "blend" ? "Comparativo de emissoras selecionadas" : "Dados reais • Média dos últimos 90 dias"}
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );
