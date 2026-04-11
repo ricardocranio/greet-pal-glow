@@ -573,22 +573,22 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     if (rawAvg === 0) return null;
 
     return (
-      <div className="mt-3 rounded-lg bg-secondary/30 p-3">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Comparativo</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2">
-            <Activity className="h-3.5 w-3.5 text-accent shrink-0" />
+      <div className="mt-2 sm:mt-3 rounded-lg bg-secondary/30 p-2 sm:p-3">
+        <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5 sm:mb-2">Comparativo</p>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent shrink-0" />
             <div>
-              <p className="text-[10px] text-muted-foreground">Streaming</p>
-              <p className="font-mono font-bold text-accent text-sm">{rawAvg.toLocaleString("pt-BR")}</p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Streaming</p>
+              <p className="font-mono font-bold text-accent text-xs sm:text-sm">{rawAvg.toLocaleString("pt-BR")}</p>
             </div>
           </div>
           {simulatorEnabled && (
-            <div className="flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
               <div>
-                <p className="text-[10px] text-muted-foreground">Média Simulado FM</p>
-                <p className="font-mono font-bold text-primary text-sm">{simAvg.toLocaleString("pt-BR")}</p>
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Simulado FM</p>
+                <p className="font-mono font-bold text-primary text-xs sm:text-sm">{simAvg.toLocaleString("pt-BR")}</p>
               </div>
             </div>
           )}
