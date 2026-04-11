@@ -665,25 +665,26 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           </div>
 
           {/* View mode tabs */}
-          <div className="flex gap-1 bg-secondary/30 rounded-lg p-1 mb-3" data-export-hide="false">
+          <div className="flex gap-1 bg-secondary/30 rounded-lg p-1 mb-2 sm:mb-3 overflow-x-auto" data-export-hide="false">
             {([
-              { id: "realtime" as ViewMode, label: "Tempo Real", icon: Activity },
-              { id: "horario" as ViewMode, label: "Horário", icon: Clock },
-              { id: "dia" as ViewMode, label: "Dia", icon: Calendar },
-              { id: "mes" as ViewMode, label: "Mês", icon: CalendarDays },
-              { id: "blend" as ViewMode, label: "Blend", icon: Layers },
+              { id: "realtime" as ViewMode, label: "Tempo Real", shortLabel: "Real", icon: Activity },
+              { id: "horario" as ViewMode, label: "Horário", shortLabel: "Hora", icon: Clock },
+              { id: "dia" as ViewMode, label: "Dia", shortLabel: "Dia", icon: Calendar },
+              { id: "mes" as ViewMode, label: "Mês", shortLabel: "Mês", icon: CalendarDays },
+              { id: "blend" as ViewMode, label: "Blend", shortLabel: "Blend", icon: Layers },
             ]).map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setViewMode(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1 text-[10px] font-medium py-2 rounded-md transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1 text-[9px] sm:text-[10px] font-medium py-1.5 sm:py-2 px-1.5 sm:px-2 rounded-md transition-colors whitespace-nowrap min-w-0 ${
                   viewMode === tab.id
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <tab.icon className="h-3 w-3" />
-                {tab.label}
+                <tab.icon className="h-3 w-3 shrink-0" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
               </button>
             ))}
           </div>
