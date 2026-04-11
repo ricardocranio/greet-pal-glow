@@ -127,34 +127,31 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const handleExportPdf = useCallback(async (mode: 'light' | 'dark') => {
     if (!contentRef.current) return;
     setIsExporting(true);
+    const el = contentRef.current;
     
     try {
       // Wait a tick for export class to apply (hides buttons)
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
 
       const bgColor = mode === 'light' ? '#ffffff' : '#0f1729';
-      const el = contentRef.current;
       
       // Temporarily apply light mode styles if needed
       if (mode === 'light') {
         el.classList.add('pdf-light-mode');
+        // Wait for styles to apply
+        await new Promise(r => setTimeout(r, 100));
       }
 
       const dataUrl = await toPng(el, {
         backgroundColor: bgColor,
         pixelRatio: 3,
         filter: (node) => {
-          // Hide export buttons and checkbox panels
           if (node instanceof HTMLElement) {
             if (node.dataset.exportHide === 'true') return false;
           }
           return true;
         },
       });
-
-      if (mode === 'light') {
-        el.classList.remove('pdf-light-mode');
-      }
 
       // Create PDF-like download (PNG with high quality)
       const link = document.createElement('a');
@@ -165,6 +162,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     } catch (err) {
       console.error('Erro ao exportar:', err);
     } finally {
+      // Always remove light mode class to restore original state
+      el.classList.remove('pdf-light-mode');
       setIsExporting(false);
     }
   }, [viewMode]);
