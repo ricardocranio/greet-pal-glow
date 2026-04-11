@@ -607,13 +607,18 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         <div ref={contentRef}>
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2 sm:gap-3 text-foreground">
-              <img
-                src={station.logoUrl}
-                alt={station.name}
-                className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
-                width={40}
-                height={40}
-              />
+              {station.logoUrl ? (
+                <img
+                  src={station.logoUrl}
+                  alt={station.name}
+                  className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
+                  width={40}
+                  height={40}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <span className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-secondary flex items-center justify-center text-xs text-muted-foreground font-bold">FM</span>
+              )}
               <div className="flex-1 min-w-0">
                 <span className="text-sm sm:text-base block truncate">{station.name}</span>
                 <span className="block text-xs sm:text-sm font-mono text-muted-foreground font-normal">
@@ -956,9 +961,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     <table className="w-full text-[9px] sm:text-[10px] border-collapse min-w-[800px]">
                       <thead>
                         <tr className="border-b border-border">
-                          <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[90px] sm:min-w-[120px]">Emissora</th>
+                          <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[100px] sm:min-w-[140px]">Emissora</th>
                           {Array.from({ length: 24 }, (_, h) => (
-                            <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 min-w-[28px] sm:min-w-[32px]" style={{ whiteSpace: 'nowrap' }}>
+                            <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 whitespace-nowrap" style={{ minWidth: '30px' }}>
                               {`${String(h).padStart(2, "0")}h`}
                             </th>
                           ))}
@@ -980,7 +985,11 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <td className="py-1 sm:py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm">
                                 <div className="flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
                                   <span className="text-muted-foreground font-mono text-[8px] sm:text-[10px]">{idx + 1}°</span>
-                                  <img src={st.logoUrl} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
+                                  {st.logoUrl ? (
+                                    <img src={st.logoUrl} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
+                                  ) : (
+                                    <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded bg-muted flex items-center justify-center text-[6px] text-muted-foreground shrink-0">FM</span>
+                                  )}
                                   <span className="text-foreground font-medium text-[8px] sm:text-[10px]">{st.name}</span>
                                 </div>
                               </td>
