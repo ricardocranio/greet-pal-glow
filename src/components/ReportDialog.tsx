@@ -958,7 +958,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         <tr className="border-b border-border">
                           <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[70px] sm:min-w-[100px]">Emissora</th>
                           {Array.from({ length: 24 }, (_, h) => (
-                            <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 min-w-[26px] sm:min-w-[32px]">
+                            <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 min-w-[26px] sm:min-w-[32px] whitespace-nowrap">
                               {String(h).padStart(2, "0")}h
                             </th>
                           ))}
