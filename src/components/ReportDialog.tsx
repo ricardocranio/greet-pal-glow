@@ -606,27 +606,26 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       <DialogContent className={cn(dialogContentClass, "bg-card border-border")}>
         <div ref={contentRef}>
           <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-3 text-foreground">
+            <DialogTitle className="font-display flex items-center gap-2 sm:gap-3 text-foreground">
               <img
                 src={station.logoUrl}
                 alt={station.name}
-                className="h-10 w-10 object-contain rounded-lg bg-secondary p-1"
+                className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
                 width={40}
                 height={40}
               />
-              <div className="flex-1">
-                <span>{station.name}</span>
-                <span className="block text-sm font-mono text-muted-foreground font-normal">
+              <div className="flex-1 min-w-0">
+                <span className="text-sm sm:text-base block truncate">{station.name}</span>
+                <span className="block text-xs sm:text-sm font-mono text-muted-foreground font-normal">
                   {station.frequency}
                   {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">×{simulatorFactor} simulado</span>}
                 </span>
               </div>
-              {/* Fullscreen toggle */}
               <Button
                 data-export-hide="true"
                 size="sm"
                 variant="outline"
-                className="border-border text-muted-foreground hover:text-foreground"
+                className="border-border text-muted-foreground hover:text-foreground shrink-0"
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 title={isFullscreen ? "Modo Pop-up" : "Tela Cheia"}
               >
