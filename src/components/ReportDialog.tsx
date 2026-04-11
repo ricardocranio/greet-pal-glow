@@ -842,13 +842,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           {viewMode === "blend" && (
             <div ref={blendChartRef} className="space-y-4">
               {/* Controls */}
-              <div className="rounded-lg bg-secondary/30 p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                    Comparativo — Emissoras Selecionadas
-                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">×{simulatorFactor} simulado</span>}
+              <div className="rounded-lg bg-secondary/30 p-2 sm:p-4 space-y-3 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <p className="text-[10px] sm:text-xs font-semibold text-foreground uppercase tracking-wide">
+                    Comparativo — Emissoras
+                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">×{simulatorFactor}</span>}
                   </p>
-                  <div className="flex items-center gap-1.5" data-export-hide="true">
+                  <div className="flex items-center gap-1.5 flex-wrap" data-export-hide="true">
                     <Button
                       size="sm"
                       variant="outline"
@@ -863,41 +863,42 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 </div>
 
                 {/* Sub-mode toggle */}
-                <div className="flex items-center gap-2" data-export-hide="true">
-                  <span className="text-[11px] text-muted-foreground font-medium">Visualizar:</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap" data-export-hide="true">
+                  <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium">Visualizar:</span>
                   <Button
                     size="sm"
                     variant={blendView === "horario" ? "default" : "outline"}
-                    className={`text-[11px] h-7 px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+                    className={`text-[10px] sm:text-[11px] h-6 sm:h-7 px-2 sm:px-3 ${blendView === "horario" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
                     onClick={() => setBlendView("horario")}
                   >
                     <Clock className="h-3 w-3 mr-1" />
-                    Por Hora (Hoje)
+                    Hora
                   </Button>
                   <Button
                     size="sm"
                     variant={blendView === "dia" ? "default" : "outline"}
-                    className={`text-[11px] h-7 px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+                    className={`text-[10px] sm:text-[11px] h-6 sm:h-7 px-2 sm:px-3 ${blendView === "dia" ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
                     onClick={() => setBlendView("dia")}
                   >
                     <Calendar className="h-3 w-3 mr-1" />
-                    Por Dia
+                    Dia
                   </Button>
                 </div>
 
-                {/* Station legend with checkboxes - hidden in export */}
-                <div data-export-hide="true" className="grid grid-cols-2 gap-x-4 gap-y-1.5 px-1">
+                {/* Station legend with checkboxes */}
+                <div data-export-hide="true" className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 px-1">
                   {stations.map((st, i) => (
-                    <label key={st.id} className="flex items-center gap-2 cursor-pointer">
+                    <label key={st.id} className="flex items-center gap-1.5 cursor-pointer">
                       <Checkbox
                         checked={blendVisibleStations.has(st.id)}
                         onCheckedChange={() => toggleBlendStation(st.id)}
+                        className="h-3.5 w-3.5"
                       />
                       <div
-                        className="w-3 h-[3px] rounded-full shrink-0"
+                        className="w-2.5 h-[3px] rounded-full shrink-0"
                         style={{ backgroundColor: STATION_COLORS[i % STATION_COLORS.length] }}
                       />
-                      <span className="text-[11px] text-foreground font-medium truncate">{st.name}</span>
+                      <span className="text-[10px] sm:text-[11px] text-foreground font-medium truncate">{st.name}</span>
                     </label>
                   ))}
                 </div>
