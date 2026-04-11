@@ -607,13 +607,18 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         <div ref={contentRef}>
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2 sm:gap-3 text-foreground">
-              <img
-                src={station.logoUrl}
-                alt={station.name}
-                className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
-                width={40}
-                height={40}
-              />
+              {station.logoUrl ? (
+                <img
+                  src={station.logoUrl}
+                  alt={station.name}
+                  className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
+                  width={40}
+                  height={40}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <span className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-secondary flex items-center justify-center text-xs text-muted-foreground font-bold">FM</span>
+              )}
               <div className="flex-1 min-w-0">
                 <span className="text-sm sm:text-base block truncate">{station.name}</span>
                 <span className="block text-xs sm:text-sm font-mono text-muted-foreground font-normal">

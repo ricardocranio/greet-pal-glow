@@ -57,17 +57,21 @@ export function StationCard({ status, onReport }: Props) {
       {/* Station info */}
       <div className="flex items-start gap-3 mb-3">
         <div className="relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
-          <img
-            src={station.logoUrl}
-            alt={station.name}
-            className="h-10 w-10 object-contain"
-            loading="lazy"
-            width={40}
-            height={40}
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
+          {station.logoUrl ? (
+            <img
+              src={station.logoUrl}
+              alt={station.name}
+              className="h-10 w-10 object-contain"
+              loading="lazy"
+              width={40}
+              height={40}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <span className="text-sm font-bold text-muted-foreground">FM</span>
+          )}
         </div>
         <div className="flex-1">
           <h3 className="font-display font-bold text-foreground leading-tight text-sm">
