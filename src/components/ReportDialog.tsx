@@ -101,9 +101,42 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
   }, []);
 
+  // Helper: convert cross-origin images to data URLs to avoid CORS tainting
+  const inlineImages = useCallback(async (container: HTMLElement) => {
+    const imgs = container.querySelectorAll('img');
+    const originals: { img: HTMLImageElement; src: string }[] = [];
+    await Promise.all(Array.from(imgs).map(async (img) => {
+      if (!img.src || img.src.startsWith('data:')) return;
+      originals.push({ img, src: img.src });
+      try {
+        const resp = await fetch(img.src, { mode: 'cors' });
+        const blob = await resp.blob();
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch {
+        // If CORS fails, replace with a colored placeholder
+        img.src = 'data:image/svg+xml,' + encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" rx="8" fill="#1e293b"/><text x="20" y="25" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">FM</text></svg>`
+        );
+      }
+    }));
+    return originals;
+  }, []);
+
+  const restoreImages = useCallback((originals: { img: HTMLImageElement; src: string }[]) => {
+    originals.forEach(({ img, src }) => { img.src = src; });
+  }, []);
+
   const handleSavePng = useCallback(async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
     if (!ref.current) return;
+    let originals: { img: HTMLImageElement; src: string }[] = [];
     try {
+      originals = await inlineImages(ref.current);
+
       const stamp = document.createElement('div');
       stamp.style.cssText = 'position:absolute;bottom:8px;right:12px;font-size:11px;color:rgba(255,255,255,0.7);font-family:monospace;z-index:10;background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:4px;';
       stamp.textContent = getDateTimeStamp();
@@ -120,16 +153,22 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       link.click();
     } catch (err) {
       console.error('Erro ao salvar PNG:', err);
+    } finally {
+      restoreImages(originals);
     }
-  }, []);
+  }, [inlineImages, restoreImages]);
 
   // PDF export (light or dark)
   const handleExportPdf = useCallback(async (mode: 'light' | 'dark') => {
     if (!contentRef.current) return;
     setIsExporting(true);
     const el = contentRef.current;
+    let originals: { img: HTMLImageElement; src: string }[] = [];
     
     try {
+      // Inline images to avoid CORS issues
+      originals = await inlineImages(el);
+
       // Wait a tick for export class to apply (hides buttons)
       await new Promise(r => setTimeout(r, 150));
 
@@ -162,11 +201,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     } catch (err) {
       console.error('Erro ao exportar:', err);
     } finally {
-      // Always remove light mode class to restore original state
+      // Always remove light mode class and restore images
       el.classList.remove('pdf-light-mode');
+      restoreImages(originals);
       setIsExporting(false);
     }
-  }, [viewMode]);
+  }, [viewMode, inlineImages, restoreImages]);
 
   // Blend stations filtered & sorted by audience
   const blendStations = useMemo(() => {
