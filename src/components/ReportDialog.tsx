@@ -737,18 +737,22 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
               </div>
 
               {realtimeData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 180}>
-                  <LineChart data={realtimeData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                <div className="overflow-x-auto">
+                  <div className="min-w-[320px]">
+                    <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 180}>
+                      <LineChart data={realtimeData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
                     <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                     <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                     <XAxis dataKey="time" tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
-                    <YAxis tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={45} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
+                    <YAxis tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                     <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
                     <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
                     <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
                     <Line type="monotone" dataKey="listeners" name="Conexões" stroke="hsl(160 84% 44%)" strokeWidth={2} dot={false} connectNulls />
-                  </LineChart>
-                </ResponsiveContainer>
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-[180px] sm:h-[220px] text-muted-foreground text-sm">
                   Aguardando dados de hoje...
@@ -829,15 +833,19 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 </div>
               )}
 
-              <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
-                <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+              <div className="overflow-x-auto">
+                <div className="min-w-[320px]">
+                  <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
+                    <BarChart data={chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
                   <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
-                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={45} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
+                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
                   <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
               <ComparativoInfo />
             </div>
@@ -910,11 +918,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
                 {/* Chart */}
                 {displayBlendData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 220}>
-                    <LineChart data={displayBlendData} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[320px]">
+                      <ResponsiveContainer width="100%" height={isFullscreen ? 350 : 220}>
+                        <LineChart data={displayBlendData} margin={{ top: 10, right: 12, left: 8, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
                       <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
-                      <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={50} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
+                      <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={60} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                       <Tooltip
                         contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
                         labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
@@ -940,8 +950,10 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           />
                         );
                       })}
-                    </LineChart>
-                  </ResponsiveContainer>
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
                     Carregando dados comparativos...
