@@ -108,7 +108,7 @@ export function StationCard({ status, onReport }: Props) {
             <Users className="h-3.5 w-3.5" />
             <span className="text-[11px] uppercase tracking-wide">Conexões</span>
           </div>
-          <p className="font-mono font-bold text-lg text-foreground">
+          <p className="font-mono font-bold text-lg text-foreground tabular-nums whitespace-nowrap">
             {online ? listeners.toLocaleString("pt-BR") : "—"}
           </p>
         </div>
