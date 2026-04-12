@@ -262,7 +262,7 @@ export function AudienceRanking({ statuses }: Props) {
             Audiência por Horário
           </h2>
           <div className="overflow-x-auto">
-             <table className="w-full text-[11px]">
+             <table className="w-full min-w-[980px] text-[11px]">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
@@ -307,7 +307,7 @@ export function AudienceRanking({ statuses }: Props) {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-[11px]">
+              <table className="w-full min-w-[760px] text-[11px]">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-2 pr-2 font-semibold text-muted-foreground sticky left-0 bg-card">Emissora</th>
