@@ -167,7 +167,7 @@ function IndexContent() {
                 <span className="font-mono font-medium text-foreground">
                   {totalListeners.toLocaleString("pt-BR")}
                 </span> conexões
-                {simulatorEnabled && <span className="text-[9px] text-accent">(×{simulatorFactor})</span>}
+                {simulatorEnabled && <span className="text-[9px] text-accent">(Fi {simulatorFactor})</span>}
               </span>
             </div>
 
@@ -224,14 +224,14 @@ function IndexContent() {
                   <div className="border-t border-border pt-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <Zap className="h-3.5 w-3.5" /> Simular Audiência Rádio
+                        <Zap className="h-3.5 w-3.5" /> Fator de Interpolação
                       </span>
                       <Switch checked={simulatorEnabled} onCheckedChange={setSimulatorEnabled} />
                     </div>
                     {simulatorEnabled && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Fator: ×{simulatorFactor}</span>
+                          <span className="text-muted-foreground">Fator: Fi {simulatorFactor}</span>
                           <span className="text-[10px] text-muted-foreground">60-80</span>
                         </div>
                         <Slider
