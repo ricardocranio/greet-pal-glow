@@ -587,7 +587,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
             <div className="flex items-center gap-1.5 sm:gap-2">
               <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
               <div>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Simulado FM</p>
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Fi FM</p>
                 <p className="font-mono font-bold text-primary text-xs sm:text-sm">{simAvg.toLocaleString("pt-BR")}</p>
               </div>
             </div>
@@ -623,7 +623,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <span className="text-sm sm:text-base block truncate">{station.name}</span>
                 <span className="block text-xs sm:text-sm font-mono text-muted-foreground font-normal">
                   {station.frequency}
-                  {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">×{simulatorFactor} simulado</span>}
+                  {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">Fi {simulatorFactor}</span>}
                 </span>
               </div>
               <Button
@@ -742,7 +742,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     <ReferenceArea x1="00:00" x2="05:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                     <ReferenceArea x1="22:00" x2="23:55" fill="hsl(var(--primary))" fillOpacity={0.08} />
                     <XAxis dataKey="time" tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} interval={Math.max(Math.floor(120 / zoomInterval) - 1, 0)} tickLine={false} axisLine={{ stroke: "hsl(var(--border))" }} />
-                    <YAxis tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={35} />
+                    <YAxis tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={45} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                     <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }} labelStyle={{ fontWeight: 700, marginBottom: 4 }} formatter={(value: number) => [value?.toLocaleString("pt-BR") ?? "—", "Conexões"]} />
                     <ReferenceLine x="22:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
                     <ReferenceLine x="06:00" stroke="hsl(var(--primary))" strokeDasharray="3 3" strokeOpacity={0.5} />
@@ -833,7 +833,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <BarChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
                   <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
-                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={35} />
+                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={45} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
                   <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -851,7 +851,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <p className="text-[10px] sm:text-xs font-semibold text-foreground uppercase tracking-wide">
                     Comparativo — Emissoras
-                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">×{simulatorFactor}</span>}
+                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">Fi {simulatorFactor}</span>}
                   </p>
                   <div className="flex items-center gap-1.5 flex-wrap" data-export-hide="true">
                     <Button
@@ -914,7 +914,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     <LineChart data={displayBlendData} margin={{ top: 10, right: 5, left: -10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" vertical={false} />
                       <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={blendView === "horario" ? 2 : 0} />
-                      <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={42} />
+                      <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 10 }} axisLine={false} tickLine={false} width={50} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                       <Tooltip
                         contentStyle={{ backgroundColor: "hsl(220 18% 10%)", border: "1px solid hsl(220 14% 22%)", borderRadius: "10px", color: "hsl(210 20% 92%)", fontSize: 12, padding: "10px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
                         labelStyle={{ fontWeight: 700, marginBottom: 6, fontSize: 13 }}
@@ -955,7 +955,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                   <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5 px-2 sm:px-0">
                     <Clock className="h-3.5 w-3.5 text-primary" />
                     Audiência por Horário
-                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(×{simulatorFactor})</span>}
+                    {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(Fi {simulatorFactor})</span>}
                   </p>
                   <div className="overflow-x-auto -mx-2 sm:mx-0 scrollbar-thin">
                     <table className="w-full text-[9px] sm:text-[10px] border-collapse min-w-[800px]">
@@ -1044,12 +1044,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                             })()}
                           </td>
                         </tr>
-                        {/* Média Simulado FM row */}
+                        {/* Média Fi FM row */}
                         <tr className="bg-primary/5">
                           <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-primary/5 backdrop-blur-sm">
                             <div className="flex items-center gap-1">
                               <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary shrink-0" />
-                              <span className="text-primary font-bold text-[8px] sm:text-[10px]">Média {simulatorEnabled ? 'Simulado' : 'Geral'} FM</span>
+                              <span className="text-primary font-bold text-[8px] sm:text-[10px]">Média {simulatorEnabled ? 'Fi' : 'Geral'} FM</span>
                             </div>
                           </td>
                           {Array.from({ length: 24 }, (_, h) => {
