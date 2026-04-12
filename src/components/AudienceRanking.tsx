@@ -244,7 +244,7 @@ export function AudienceRanking({ statuses }: Props) {
                     <p className="text-[11px] font-mono text-muted-foreground">{s.station.frequency}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono font-bold text-sm text-foreground">{s.rankValue.toLocaleString("pt-BR")}</p>
+                    <p className="font-mono font-bold text-sm text-foreground tabular-nums whitespace-nowrap">{s.rankValue.toLocaleString("pt-BR")}</p>
                     <p className="text-[10px] text-muted-foreground uppercase">conexões</p>
                   </div>
                 </div>
@@ -279,11 +279,11 @@ export function AudienceRanking({ statuses }: Props) {
                   <tr key={row.station.id} className={`border-b border-border/50 ${idx < 3 ? "bg-secondary/30" : ""}`}>
                     {renderStationCell(row.station, idx)}
                     {row.hourData.map((hd) => (
-                      <td key={hd.hour} className={`text-center py-2 px-1 font-mono ${hd.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
+                      <td key={hd.hour} className={`text-center py-2 px-1 font-mono tabular-nums whitespace-nowrap ${hd.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
                         {hd.avg > 0 ? hd.avg.toLocaleString("pt-BR") : "—"}
                       </td>
                     ))}
-                    <td className="text-center py-2 px-1 font-mono font-bold text-accent">
+                    <td className="text-center py-2 px-1 font-mono font-bold text-accent tabular-nums whitespace-nowrap">
                       {row.dailyAvg > 0 ? row.dailyAvg.toLocaleString("pt-BR") : "—"}
                     </td>
                   </tr>
@@ -333,10 +333,10 @@ export function AudienceRanking({ statuses }: Props) {
                       {renderStationCell(row.station, idx)}
                       {row.months.map((m, mi) => (
                         <>
-                          <td key={`${mi}-avg`} className={`text-center py-2 px-1 font-mono ${m.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
+                          <td key={`${mi}-avg`} className={`text-center py-2 px-1 font-mono tabular-nums whitespace-nowrap ${m.avg > 0 ? "text-foreground" : "text-muted-foreground/40"}`}>
                             {m.avg > 0 ? m.avg.toLocaleString("pt-BR") : "—"}
                           </td>
-                          <td key={`${mi}-peak`} className={`text-center py-2 px-1 font-mono ${m.peak > 0 ? "text-accent" : "text-muted-foreground/40"}`}>
+                          <td key={`${mi}-peak`} className={`text-center py-2 px-1 font-mono tabular-nums whitespace-nowrap ${m.peak > 0 ? "text-accent" : "text-muted-foreground/40"}`}>
                             {m.peak > 0 ? m.peak.toLocaleString("pt-BR") : "—"}
                           </td>
                         </>

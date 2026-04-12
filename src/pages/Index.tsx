@@ -41,7 +41,7 @@ function BrasiliaClock() {
   return (
     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
       <Clock className="h-3.5 w-3.5 text-primary" />
-      <span className="font-mono font-medium text-foreground">{time}</span>
+      <span className="font-mono font-medium text-foreground tabular-nums whitespace-nowrap">{time}</span>
       <span className="text-[10px] uppercase">Brasília</span>
     </div>
   );
@@ -161,10 +161,10 @@ function IndexContent() {
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Activity className="h-4 w-4 text-online" />
-                <span className="font-mono font-medium text-foreground">{onlineCount}</span> online
+                <span className="font-mono font-medium text-foreground tabular-nums">{onlineCount}</span> online
               </span>
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="font-mono font-medium text-foreground">
+                <span className="font-mono font-medium text-foreground tabular-nums whitespace-nowrap">
                   {totalListeners.toLocaleString("pt-BR")}
                 </span> conexões
                 {simulatorEnabled && <span className="text-[9px] text-accent">(Fi {simulatorFactor})</span>}

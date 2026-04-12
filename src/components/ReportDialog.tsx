@@ -580,7 +580,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
             <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent shrink-0" />
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Streaming</p>
-              <p className="font-mono font-bold text-accent text-xs sm:text-sm">{rawAvg.toLocaleString("pt-BR")}</p>
+              <p className="font-mono font-bold text-accent text-xs sm:text-sm tabular-nums whitespace-nowrap">{rawAvg.toLocaleString("pt-BR")}</p>
             </div>
           </div>
           {simulatorEnabled && (
@@ -588,7 +588,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
               <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
               <div>
                 <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Fi FM</p>
-                <p className="font-mono font-bold text-primary text-xs sm:text-sm">{simAvg.toLocaleString("pt-BR")}</p>
+                <p className="font-mono font-bold text-primary text-xs sm:text-sm tabular-nums whitespace-nowrap">{simAvg.toLocaleString("pt-BR")}</p>
               </div>
             </div>
           )}
@@ -654,13 +654,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <tbody>
                   <tr>
                     <td className="py-1.5 px-2 text-foreground font-medium truncate max-w-[120px]">{station.name}</td>
-                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap">{listeners.toLocaleString("pt-BR")}</td>
+                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap tabular-nums">{listeners.toLocaleString("pt-BR")}</td>
                     <td className="py-1.5 px-2 text-center whitespace-nowrap">
-                      <span className="font-mono font-bold text-accent">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
+                      <span className="font-mono font-bold text-accent tabular-nums">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
                       <span className="text-[9px] text-muted-foreground ml-1 hidden sm:inline">às {todayStats.peakTimeStr}</span>
                     </td>
                     <td className="py-1.5 px-2 text-center whitespace-nowrap">
-                      <span className="font-mono font-bold text-orange-400">{todayStats.minValue.toLocaleString("pt-BR")}</span>
+                      <span className="font-mono font-bold text-destructive tabular-nums">{todayStats.minValue.toLocaleString("pt-BR")}</span>
                       <span className="text-[9px] text-muted-foreground ml-1 hidden sm:inline">às {todayStats.minTimeStr}</span>
                     </td>
                   </tr>
