@@ -566,32 +566,22 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Comparativo rows for single-station charts
   const ComparativoInfo = () => {
     if (viewMode === "blend") return null;
+    if (!simulatorEnabled || factor === 1) return null;
     const rawData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : viewMode === "mes" ? monthlyData : [];
     const rawAvg = rawData.length > 0 ? calcAvg(rawData.filter(d => d.listeners > 0).map(d => d.listeners)) : 0;
-    const simAvg = simulatorEnabled && factor !== 1 ? Math.round(rawAvg * factor) : 0;
+    const simAvg = Math.round(rawAvg * factor);
     
     if (rawAvg === 0) return null;
 
     return (
       <div className="mt-2 sm:mt-3 rounded-lg bg-secondary/30 p-2 sm:p-3">
         <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5 sm:mb-2">Comparativo</p>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent shrink-0" />
-            <div>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Streaming</p>
-              <p className="font-mono font-bold text-accent text-xs sm:text-sm tabular-nums whitespace-nowrap">{rawAvg.toLocaleString("pt-BR")}</p>
-            </div>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Fi FM</p>
+            <p className="font-mono font-bold text-primary text-xs sm:text-sm tabular-nums whitespace-nowrap">{simAvg.toLocaleString("pt-BR")}</p>
           </div>
-          {simulatorEnabled && (
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
-              <div>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Fi FM</p>
-                <p className="font-mono font-bold text-primary text-xs sm:text-sm tabular-nums whitespace-nowrap">{simAvg.toLocaleString("pt-BR")}</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -1024,38 +1014,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                             </tr>
                           );
                         })}
-                        {/* Streaming (real) average row */}
-                        <tr className="border-t-2 border-accent/40 bg-accent/5">
-                          <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-accent/5 backdrop-blur-sm">
-                            <div className="flex items-center gap-1">
-                              <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-accent shrink-0" />
-                              <span className="text-accent font-bold text-[8px] sm:text-[10px]">Streaming</span>
-                            </div>
-                          </td>
-                          {Array.from({ length: 24 }, (_, h) => {
-                            const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                            const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                            const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                            return (
-                              <td key={h} className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold">
-                                <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
-                                  {avg != null ? avg.toLocaleString("pt-BR") : "–"}
-                                </span>
-                              </td>
-                            );
-                          })}
-                          <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
-                            {(() => {
-                              const allVals = Array.from({ length: 24 }, (_, h) => {
-                                const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                                const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                                return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                              }).filter((v): v is number => v != null);
-                              const avg = calcAvg(allVals);
-                              return <span className={avg > 0 ? "text-accent" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
-                            })()}
-                          </td>
-                        </tr>
                         {/* Média Fi FM row */}
                         <tr className="bg-primary/5">
                           <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-primary/5 backdrop-blur-sm">
