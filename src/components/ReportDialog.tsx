@@ -80,6 +80,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
