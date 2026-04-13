@@ -79,6 +79,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
+  const [blendDate, setBlendDate] = useState<Date>(new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
