@@ -244,12 +244,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       const pageSize = 1000;
 
       while (true) {
-        const { data } = await supabase
+        let query = supabase
           .from("audience_snapshots")
           .select("station_id, listeners, hour, recorded_at")
           .gte("recorded_at", cutoff)
           .order("recorded_at", { ascending: true })
           .range(from, from + pageSize - 1);
+        if (upperBound) query = query.lte("recorded_at", upperBound);
+        const { data } = await query;
         if (!data || data.length === 0) break;
         allData.push(...data);
         if (data.length < pageSize) break;
