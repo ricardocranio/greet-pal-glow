@@ -997,7 +997,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                   </div>
                 </div>
 
-                {/* Sub-mode toggle */}
+                {/* Sub-mode toggle + date picker */}
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap" data-export-hide="true">
                   <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium">Visualizar:</span>
                   <Button
@@ -1018,6 +1018,59 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     <Calendar className="h-3 w-3 mr-1" />
                     Dia
                   </Button>
+
+                  {blendView === "horario" && (
+                    <>
+                      <span className="text-muted-foreground/50">|</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 sm:h-7 px-2 text-[10px] sm:text-[11px] border-border text-muted-foreground hover:text-foreground gap-1"
+                          >
+                            <CalendarDays className="h-3 w-3" />
+                            {format(blendDate, "dd/MM/yyyy")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-card border-border z-50" align="start">
+                          <CalendarPicker
+                            mode="single"
+                            selected={blendDate}
+                            onSelect={(d) => { if (d) setBlendDate(d); }}
+                            locale={ptBR}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                            disabled={(date) => date > new Date()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 sm:h-7 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const prev = new Date(blendDate);
+                          prev.setDate(prev.getDate() - 1);
+                          setBlendDate(prev);
+                        }}
+                      >
+                        ◀ Anterior
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 sm:h-7 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const next = new Date(blendDate);
+                          next.setDate(next.getDate() + 1);
+                          if (next <= new Date()) setBlendDate(next);
+                        }}
+                      >
+                        Próximo ▶
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {/* Station legend with checkboxes */}
