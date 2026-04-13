@@ -435,6 +435,74 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
   }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData]);
 
+  // Compare station: fetch snapshots
+  const [compareSnapshots, setCompareSnapshots] = useState<SnapshotRow[]>([]);
+  useEffect(() => {
+    if (!open || !compareStationId) { setCompareSnapshots([]); return; }
+    let cancelled = false;
+    async function fetchCompare() {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: SnapshotRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from("audience_snapshots")
+          .select("listeners, hour, recorded_at")
+          .eq("station_id", compareStationId)
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      if (!cancelled) setCompareSnapshots(allData);
+    }
+    fetchCompare();
+    return () => { cancelled = true; };
+  }, [open, compareStationId]);
+
+  // Compare station filtered hourly data
+  const compareHourlyData = useMemo(() => {
+    if (!compareStationId || compareSnapshots.length === 0) return null;
+
+    let filteredSnaps = compareSnapshots;
+    if (horarioFilter === "dia") {
+      const dateStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+      filteredSnaps = compareSnapshots.filter(
+        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === dateStr
+      );
+    } else if (horarioFilter === "seg-sex") {
+      filteredSnaps = compareSnapshots.filter((snap) => {
+        const utcMs = new Date(snap.recorded_at).getTime();
+        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+        const dow = brasiliaDate.getUTCDay();
+        return dow >= 1 && dow <= 5;
+      });
+    } else if (horarioFilter === "sab-dom") {
+      filteredSnaps = compareSnapshots.filter((snap) => {
+        const utcMs = new Date(snap.recorded_at).getTime();
+        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+        const dow = brasiliaDate.getUTCDay();
+        return dow === 0 || dow === 6;
+      });
+    }
+
+    const hourMap = new Map<number, number[]>();
+    filteredSnaps.forEach((snap) => {
+      if (!hourMap.has(snap.hour)) hourMap.set(snap.hour, []);
+      hourMap.get(snap.hour)!.push(snap.listeners);
+    });
+
+    return Array.from({ length: 24 }, (_, h) => {
+      const vals = hourMap.get(h) || [];
+      const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
+    });
+  }, [compareStationId, compareSnapshots, horarioFilter, selectedDate]);
+
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
