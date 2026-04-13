@@ -583,14 +583,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
   }, [allSnapshots, zoomInterval, status, factor]);
 
-  if (!status) return null;
-  const { station, listeners } = status;
-
-  const rawChartData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : monthlyData;
-  const chartData = factor !== 1
-    ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
-    : rawChartData;
-
   // Merge compare station data into chart for horário view
   const compareStation = compareStationId ? stations.find(s => s.id === compareStationId) : null;
   const mergedHorarioData = useMemo(() => {
@@ -604,6 +596,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       compare: compareHourlyData[i] ? (factor !== 1 ? Math.round(compareHourlyData[i].listeners * factor) : compareHourlyData[i].listeners) : 0,
     }));
   }, [viewMode, filteredHourlyData, compareHourlyData, compareStationId, factor]);
+
+  if (!status) return null;
+  const { station, listeners } = status;
+
+  const rawChartData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : monthlyData;
+  const chartData = factor !== 1
+    ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
+    : rawChartData;
 
   // Apply factor to blend data
   const displayBlendData = factor !== 1
