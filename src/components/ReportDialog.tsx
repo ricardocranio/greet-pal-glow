@@ -231,9 +231,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
+      const dateStr = formatBrasiliaDateInput(blendDate);
       const cutoff = blendView === "horario"
-        ? formatBrasiliaDateInput() + "T00:00:00"
+        ? dateStr + "T00:00:00-03:00"
         : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const upperBound = blendView === "horario"
+        ? dateStr + "T23:59:59-03:00"
+        : null;
 
       const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
       let from = 0;
