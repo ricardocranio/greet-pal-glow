@@ -79,6 +79,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
+  const [blendDate, setBlendDate] = useState<Date>(new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
@@ -230,21 +231,27 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
+      const dateStr = formatBrasiliaDateInput(blendDate);
       const cutoff = blendView === "horario"
-        ? formatBrasiliaDateInput() + "T00:00:00"
+        ? dateStr + "T00:00:00-03:00"
         : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const upperBound = blendView === "horario"
+        ? dateStr + "T23:59:59-03:00"
+        : null;
 
       const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
       let from = 0;
       const pageSize = 1000;
 
       while (true) {
-        const { data } = await supabase
+        let query = supabase
           .from("audience_snapshots")
           .select("station_id, listeners, hour, recorded_at")
           .gte("recorded_at", cutoff)
           .order("recorded_at", { ascending: true })
           .range(from, from + pageSize - 1);
+        if (upperBound) query = query.lte("recorded_at", upperBound);
+        const { data } = await query;
         if (!data || data.length === 0) break;
         allData.push(...data);
         if (data.length < pageSize) break;
@@ -300,7 +307,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
     fetchBlendData();
     return () => { cancelled = true; };
-  }, [open, viewMode, blendView]);
+  }, [open, viewMode, blendView, blendDate]);
 
   useEffect(() => {
     if (!open || !status) return;
@@ -990,7 +997,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                   </div>
                 </div>
 
-                {/* Sub-mode toggle */}
+                {/* Sub-mode toggle + date picker */}
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap" data-export-hide="true">
                   <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium">Visualizar:</span>
                   <Button
@@ -1011,6 +1018,59 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     <Calendar className="h-3 w-3 mr-1" />
                     Dia
                   </Button>
+
+                  {blendView === "horario" && (
+                    <>
+                      <span className="text-muted-foreground/50">|</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 sm:h-7 px-2 text-[10px] sm:text-[11px] border-border text-muted-foreground hover:text-foreground gap-1"
+                          >
+                            <CalendarDays className="h-3 w-3" />
+                            {format(blendDate, "dd/MM/yyyy")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-card border-border z-50" align="start">
+                          <CalendarPicker
+                            mode="single"
+                            selected={blendDate}
+                            onSelect={(d) => { if (d) setBlendDate(d); }}
+                            locale={ptBR}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                            disabled={(date) => date > new Date()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 sm:h-7 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const prev = new Date(blendDate);
+                          prev.setDate(prev.getDate() - 1);
+                          setBlendDate(prev);
+                        }}
+                      >
+                        ◀ Anterior
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 sm:h-7 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          const next = new Date(blendDate);
+                          next.setDate(next.getDate() + 1);
+                          if (next <= new Date()) setBlendDate(next);
+                        }}
+                      >
+                        Próximo ▶
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {/* Station legend with checkboxes */}
@@ -1081,7 +1141,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <div className="rounded-lg bg-secondary/30 p-2 sm:p-4">
                   <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5 px-2 sm:px-0">
                     <Clock className="h-3.5 w-3.5 text-primary" />
-                    Audiência por Horário
+                    Audiência por Horário — {format(blendDate, "dd/MM/yyyy")}
                     {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-1">(Fi {simulatorFactor})</span>}
                   </p>
                   <div className="overflow-x-auto -mx-2 sm:mx-0 scrollbar-thin">
