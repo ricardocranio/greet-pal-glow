@@ -591,6 +591,20 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
     : rawChartData;
 
+  // Merge compare station data into chart for horário view
+  const compareStation = compareStationId ? stations.find(s => s.id === compareStationId) : null;
+  const mergedHorarioData = useMemo(() => {
+    if (viewMode !== "horario" || !compareHourlyData || !compareStationId) return null;
+    const base = factor !== 1
+      ? filteredHourlyData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
+      : filteredHourlyData;
+    return base.map((d, i) => ({
+      time: d.time,
+      listeners: d.listeners,
+      compare: compareHourlyData[i] ? (factor !== 1 ? Math.round(compareHourlyData[i].listeners * factor) : compareHourlyData[i].listeners) : 0,
+    }));
+  }, [viewMode, filteredHourlyData, compareHourlyData, compareStationId, factor]);
+
   // Apply factor to blend data
   const displayBlendData = factor !== 1
     ? blendData.map(row => {
