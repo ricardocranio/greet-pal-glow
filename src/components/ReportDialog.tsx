@@ -10,7 +10,8 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ReferenceLine, ReferenceArea,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download, Zap, Maximize2, Minimize2, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Users, Calendar, CalendarDays, ZoomIn, Activity, Layers, Download, Zap, Maximize2, Minimize2, FileText, GitCompare } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -80,6 +81,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
@@ -433,6 +435,74 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
   }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData]);
 
+  // Compare station: fetch snapshots
+  const [compareSnapshots, setCompareSnapshots] = useState<SnapshotRow[]>([]);
+  useEffect(() => {
+    if (!open || !compareStationId) { setCompareSnapshots([]); return; }
+    let cancelled = false;
+    async function fetchCompare() {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: SnapshotRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from("audience_snapshots")
+          .select("listeners, hour, recorded_at")
+          .eq("station_id", compareStationId)
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      if (!cancelled) setCompareSnapshots(allData);
+    }
+    fetchCompare();
+    return () => { cancelled = true; };
+  }, [open, compareStationId]);
+
+  // Compare station filtered hourly data
+  const compareHourlyData = useMemo(() => {
+    if (!compareStationId || compareSnapshots.length === 0) return null;
+
+    let filteredSnaps = compareSnapshots;
+    if (horarioFilter === "dia") {
+      const dateStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+      filteredSnaps = compareSnapshots.filter(
+        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === dateStr
+      );
+    } else if (horarioFilter === "seg-sex") {
+      filteredSnaps = compareSnapshots.filter((snap) => {
+        const utcMs = new Date(snap.recorded_at).getTime();
+        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+        const dow = brasiliaDate.getUTCDay();
+        return dow >= 1 && dow <= 5;
+      });
+    } else if (horarioFilter === "sab-dom") {
+      filteredSnaps = compareSnapshots.filter((snap) => {
+        const utcMs = new Date(snap.recorded_at).getTime();
+        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+        const dow = brasiliaDate.getUTCDay();
+        return dow === 0 || dow === 6;
+      });
+    }
+
+    const hourMap = new Map<number, number[]>();
+    filteredSnaps.forEach((snap) => {
+      if (!hourMap.has(snap.hour)) hourMap.set(snap.hour, []);
+      hourMap.get(snap.hour)!.push(snap.listeners);
+    });
+
+    return Array.from({ length: 24 }, (_, h) => {
+      const vals = hourMap.get(h) || [];
+      const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
+    });
+  }, [compareStationId, compareSnapshots, horarioFilter, selectedDate]);
+
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
@@ -513,6 +583,20 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
   }, [allSnapshots, zoomInterval, status, factor]);
 
+  // Merge compare station data into chart for horário view
+  const compareStation = compareStationId ? stations.find(s => s.id === compareStationId) : null;
+  const mergedHorarioData = useMemo(() => {
+    if (viewMode !== "horario" || !compareHourlyData || !compareStationId) return null;
+    const base = factor !== 1
+      ? filteredHourlyData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
+      : filteredHourlyData;
+    return base.map((d, i) => ({
+      time: d.time,
+      listeners: d.listeners,
+      compare: compareHourlyData[i] ? (factor !== 1 ? Math.round(compareHourlyData[i].listeners * factor) : compareHourlyData[i].listeners) : 0,
+    }));
+  }, [viewMode, filteredHourlyData, compareHourlyData, compareStationId, factor]);
+
   if (!status) return null;
   const { station, listeners } = status;
 
@@ -566,32 +650,22 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Comparativo rows for single-station charts
   const ComparativoInfo = () => {
     if (viewMode === "blend") return null;
+    if (!simulatorEnabled || factor === 1) return null;
     const rawData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : viewMode === "mes" ? monthlyData : [];
     const rawAvg = rawData.length > 0 ? calcAvg(rawData.filter(d => d.listeners > 0).map(d => d.listeners)) : 0;
-    const simAvg = simulatorEnabled && factor !== 1 ? Math.round(rawAvg * factor) : 0;
+    const simAvg = Math.round(rawAvg * factor);
     
     if (rawAvg === 0) return null;
 
     return (
       <div className="mt-2 sm:mt-3 rounded-lg bg-secondary/30 p-2 sm:p-3">
         <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5 sm:mb-2">Comparativo</p>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-accent shrink-0" />
-            <div>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Streaming</p>
-              <p className="font-mono font-bold text-accent text-xs sm:text-sm tabular-nums whitespace-nowrap">{rawAvg.toLocaleString("pt-BR")}</p>
-            </div>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Fi FM</p>
+            <p className="font-mono font-bold text-primary text-xs sm:text-sm tabular-nums whitespace-nowrap">{simAvg.toLocaleString("pt-BR")}</p>
           </div>
-          {simulatorEnabled && (
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
-              <div>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground">Média Fi FM</p>
-                <p className="font-mono font-bold text-primary text-xs sm:text-sm tabular-nums whitespace-nowrap">{simAvg.toLocaleString("pt-BR")}</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -830,22 +904,63 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       </PopoverContent>
                     </Popover>
                   )}
+
+                  {/* Compare station selector */}
+                  <Select
+                    value={compareStationId ?? "none"}
+                    onValueChange={(v) => setCompareStationId(v === "none" ? null : v)}
+                  >
+                    <SelectTrigger className="h-6 w-auto min-w-[130px] text-[10px] border-border text-muted-foreground gap-1">
+                      <GitCompare className="h-3 w-3 shrink-0" />
+                      <SelectValue placeholder="Comparar..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="none" className="text-[11px]">Sem comparação</SelectItem>
+                      {stations.filter(s => s.id !== status?.station.id).map(s => (
+                        <SelectItem key={s.id} value={s.id} className="text-[11px]">{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
               <div className="overflow-x-auto">
                 <div className="min-w-[320px]">
                   <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
-                    <BarChart data={chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
+                    <BarChart data={viewMode === "horario" && mergedHorarioData ? mergedHorarioData : chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
                   <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
                   <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }} labelStyle={{ color: "hsl(210 20% 92%)" }} />
-                  <Bar dataKey="listeners" name="Conexões" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }}
+                    labelStyle={{ color: "hsl(210 20% 92%)" }}
+                    formatter={(value: number, name: string) => {
+                      const label = name === "compare" && compareStation ? compareStation.name : name === "listeners" && compareStation ? station.name : "Conexões";
+                      return [value?.toLocaleString("pt-BR") ?? "—", label];
+                    }}
+                  />
+                  <Bar dataKey="listeners" name="listeners" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
+                  {viewMode === "horario" && mergedHorarioData && (
+                    <Bar dataKey="compare" name="compare" fill="hsl(210 90% 55%)" radius={[4, 4, 0, 0]} />
+                  )}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
+
+              {/* Legend when comparing */}
+              {viewMode === "horario" && compareStation && (
+                <div className="flex items-center justify-center gap-4 mt-2" data-export-hide="false">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(160 84% 44%)" }} />
+                    <span className="text-[10px] text-muted-foreground">{station.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(210 90% 55%)" }} />
+                    <span className="text-[10px] text-muted-foreground">{compareStation.name}</span>
+                  </div>
+                </div>
+              )}
 
               <ComparativoInfo />
             </div>
@@ -1024,38 +1139,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                             </tr>
                           );
                         })}
-                        {/* Streaming (real) average row */}
-                        <tr className="border-t-2 border-accent/40 bg-accent/5">
-                          <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-accent/5 backdrop-blur-sm">
-                            <div className="flex items-center gap-1">
-                              <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-accent shrink-0" />
-                              <span className="text-accent font-bold text-[8px] sm:text-[10px]">Streaming</span>
-                            </div>
-                          </td>
-                          {Array.from({ length: 24 }, (_, h) => {
-                            const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                            const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                            const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                            return (
-                              <td key={h} className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold">
-                                <span className={avg != null ? "text-accent" : "text-muted-foreground/40"}>
-                                  {avg != null ? avg.toLocaleString("pt-BR") : "–"}
-                                </span>
-                              </td>
-                            );
-                          })}
-                          <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
-                            {(() => {
-                              const allVals = Array.from({ length: 24 }, (_, h) => {
-                                const row = blendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
-                                const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
-                                return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-                              }).filter((v): v is number => v != null);
-                              const avg = calcAvg(allVals);
-                              return <span className={avg > 0 ? "text-accent" : "text-muted-foreground/40"}>{avg > 0 ? avg.toLocaleString("pt-BR") : "–"}</span>;
-                            })()}
-                          </td>
-                        </tr>
                         {/* Média Fi FM row */}
                         <tr className="bg-primary/5">
                           <td className="py-1.5 sm:py-2 pr-1 sm:pr-2 sticky left-0 z-10 bg-primary/5 backdrop-blur-sm">
