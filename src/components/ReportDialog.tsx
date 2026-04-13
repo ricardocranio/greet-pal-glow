@@ -307,7 +307,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
     fetchBlendData();
     return () => { cancelled = true; };
-  }, [open, viewMode, blendView]);
+  }, [open, viewMode, blendView, blendDate]);
 
   useEffect(() => {
     if (!open || !status) return;
