@@ -514,9 +514,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     if (!status || allSnapshots.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
     }
-    const todayStr = formatBrasiliaDateInput();
+    const targetStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
     const todaySnaps = allSnapshots.filter(
-      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === targetStr
     );
     if (todaySnaps.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
