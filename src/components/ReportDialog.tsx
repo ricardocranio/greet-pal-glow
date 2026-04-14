@@ -540,7 +540,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
     };
-  }, [allSnapshots, status, factor]);
+  }, [allSnapshots, status, factor, selectedDate]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
