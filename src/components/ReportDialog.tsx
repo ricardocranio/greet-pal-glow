@@ -752,7 +752,31 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           </DialogHeader>
 
           {/* Compact metrics table */}
+          {(() => {
+            let periodLabel = "";
+            if (viewMode === "horario") {
+              if (horarioFilter === "seg-sex") periodLabel = "Seg–Sex";
+              else if (horarioFilter === "sab-dom") periodLabel = "Sáb–Dom";
+              else if (horarioFilter === "geral") periodLabel = "Geral";
+              else periodLabel = selectedDate ? format(selectedDate, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy");
+            } else {
+              periodLabel = selectedDate ? format(selectedDate, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy");
+            }
+            return null; // rendered below
+          })()}
           <div className="rounded-lg bg-secondary/30 overflow-hidden my-2 sm:my-3">
+            <div className="flex items-center justify-between px-2 pt-1.5">
+              <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Métricas</span>
+              <span className="text-[9px] sm:text-[10px] text-primary font-mono font-medium tabular-nums">
+                {viewMode === "horario"
+                  ? horarioFilter === "seg-sex" ? "Seg–Sex"
+                    : horarioFilter === "sab-dom" ? "Sáb–Dom"
+                    : horarioFilter === "geral" ? "Geral (90 dias)"
+                    : selectedDate ? format(selectedDate, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy")
+                  : selectedDate ? format(selectedDate, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy")
+                }
+              </span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[10px] sm:text-[11px]">
                 <thead>
