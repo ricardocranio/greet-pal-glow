@@ -137,6 +137,31 @@ export default function AdminPanel() {
     }
   };
 
+  const startEdit = (user: AppUser) => {
+    setEditingId(user.id);
+    setEditDisplayName(user.display_name || "");
+    setEditPassword("");
+    setEditRole(user.role);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const handleSaveEdit = async (userId: string) => {
+    const res = await callApi({
+      action: "edit",
+      user_id: userId,
+      display_name: editDisplayName.trim(),
+      password: editPassword.trim() || undefined,
+      role: editRole,
+    });
+    if (res.error) toast.error(res.error);
+    else {
+      toast.success("Usuário atualizado!");
+      setEditingId(null);
+      fetchUsers();
+    }
+  };
+
   if (userRole !== "admin") return null;
 
   return (
