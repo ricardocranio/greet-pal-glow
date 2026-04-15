@@ -67,6 +67,35 @@ function calcAvg(arr: number[]): number {
   return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 }
 
+// Fast parallel paginated fetch: fetches first page, then remaining pages in parallel
+async function fetchAllPages<T>(
+  queryBuilder: () => ReturnType<ReturnType<typeof supabase.from>['select']>,
+  pageSize = 5000
+): Promise<T[]> {
+  const { data: firstPage } = await (queryBuilder() as any).range(0, pageSize - 1);
+  if (!firstPage || firstPage.length === 0) return [];
+  if (firstPage.length < pageSize) return firstPage as T[];
+
+  // First page is full — fetch remaining pages in parallel
+  const results: T[] = [...firstPage];
+  let from = pageSize;
+  // Fetch up to 20 pages in parallel (100k rows max)
+  const promises: Promise<T[]>[] = [];
+  for (let i = 0; i < 20; i++) {
+    const offset = from + i * pageSize;
+    promises.push(
+      (queryBuilder() as any).range(offset, offset + pageSize - 1).then(({ data }: { data: T[] | null }) => data ?? [])
+    );
+  }
+  const pages = await Promise.all(promises);
+  for (const page of pages) {
+    if (page.length === 0) break;
+    results.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return results;
+}
+
 export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
   const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
