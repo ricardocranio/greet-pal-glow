@@ -29,20 +29,24 @@ serve(async (req) => {
       });
     }
 
-    // Handle login
-    const validUsers = [
-      { username: "ricardo", password: "13501619", role: "admin" },
-      { username: "ricardo2", password: "teste", role: "admin" },
-      { username: "FelintoF", password: "NatalNatal", role: "viewer" },
-      { username: "Wolsey98", password: "Natal98fm", role: "viewer" },
-      { username: "FmNordeste", password: "08562027", role: "viewer" },
-    ];
+    // Handle login - query app_users table
+    const { data: match, error: userError } = await supabase
+      .from("app_users")
+      .select("username, password, role, display_name, blocked")
+      .eq("username", username)
+      .eq("password", password)
+      .maybeSingle();
 
-    const match = validUsers.find(u => u.username === username && u.password === password);
-
-    if (!match) {
+    if (userError || !match) {
       return new Response(JSON.stringify({ success: false, error: "Credenciais inválidas" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (match.blocked) {
+      return new Response(JSON.stringify({ success: false, error: "Usuário bloqueado. Contate o administrador." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -75,7 +79,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       token: newToken, 
-      username: match.username,
+      username: match.display_name || match.username,
       role: match.role,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

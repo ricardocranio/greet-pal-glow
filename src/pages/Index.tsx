@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut, Users } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
@@ -104,6 +105,7 @@ function IndexContent() {
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
   const isAdmin = userRole === "admin";
   const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
+  const navigate = useNavigate();
 
   const onlineCount = statuses.filter((s) => s.online).length;
   const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
@@ -176,6 +178,19 @@ function IndexContent() {
                 {simulatorEnabled && <span className="text-[9px] text-accent">(Fi {simulatorFactor})</span>}
               </span>
             </div>
+
+            {/* Admin panel button */}
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/admin")}
+                className="border-border text-muted-foreground hover:text-foreground"
+                title="Gerenciar Usuários"
+              >
+                <Users className="h-4 w-4" />
+              </Button>
+            )}
 
             {/* Filter popover - admin only */}
             {isAdmin && (
