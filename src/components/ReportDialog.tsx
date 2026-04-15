@@ -84,6 +84,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [loadingMain, setLoadingMain] = useState(false);
+  const [loadingBlend, setLoadingBlend] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
