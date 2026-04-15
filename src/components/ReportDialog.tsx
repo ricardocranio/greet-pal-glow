@@ -514,17 +514,48 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     if (!status || allSnapshots.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
     }
-    const targetStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
-    const todaySnaps = allSnapshots.filter(
-      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === targetStr
-    );
-    if (todaySnaps.length === 0) {
+
+    let filteredSnaps: SnapshotRow[];
+
+    if (viewMode === "horario") {
+      if (horarioFilter === "dia") {
+        const targetStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+        filteredSnaps = allSnapshots.filter(
+          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === targetStr
+        );
+      } else if (horarioFilter === "seg-sex") {
+        filteredSnaps = allSnapshots.filter((snap) => {
+          const utcMs = new Date(snap.recorded_at).getTime();
+          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+          const dow = brasiliaDate.getUTCDay();
+          return dow >= 1 && dow <= 5;
+        });
+      } else if (horarioFilter === "sab-dom") {
+        filteredSnaps = allSnapshots.filter((snap) => {
+          const utcMs = new Date(snap.recorded_at).getTime();
+          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+          const dow = brasiliaDate.getUTCDay();
+          return dow === 0 || dow === 6;
+        });
+      } else {
+        // geral - all snapshots
+        filteredSnaps = allSnapshots;
+      }
+    } else {
+      // For other views, use selectedDate or today
+      const targetStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+      filteredSnaps = allSnapshots.filter(
+        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === targetStr
+      );
+    }
+
+    if (filteredSnaps.length === 0) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
     }
 
-    let peakSnap = todaySnaps[0];
-    let minSnap = todaySnaps[0];
-    for (const snap of todaySnaps) {
+    let peakSnap = filteredSnaps[0];
+    let minSnap = filteredSnaps[0];
+    for (const snap of filteredSnaps) {
       if (snap.listeners > peakSnap.listeners) peakSnap = snap;
       if (snap.listeners < minSnap.listeners) minSnap = snap;
     }
@@ -540,7 +571,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
     };
-  }, [allSnapshots, status, factor, selectedDate]);
+  }, [allSnapshots, status, factor, selectedDate, viewMode, horarioFilter]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
