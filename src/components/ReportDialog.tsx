@@ -867,6 +867,16 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
             ))}
           </div>
 
+          {/* Loading indicator */}
+          {((viewMode === "blend" && loadingBlend) || (viewMode !== "blend" && loadingMain)) && (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-muted-foreground">Carregando dados...</span>
+              </div>
+            </div>
+          )}
+
           {/* Real-time chart */}
           {viewMode === "realtime" && (
             <div ref={realtimeChartRef} className="rounded-lg bg-secondary/30 p-2 sm:p-4">
