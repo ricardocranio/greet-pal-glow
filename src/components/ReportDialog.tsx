@@ -118,6 +118,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  // Caches to avoid re-fetching
+  const blendCacheRef = useRef<Map<string, Record<string, any>[]>>(new Map());
+  const mainCacheRef = useRef<Map<string, { snapshots: SnapshotRow[]; hourly: { time: string; listeners: number }[]; daily: { time: string; listeners: number }[]; monthly: { time: string; listeners: number }[] }>>(new Map());
 
   // Sync blend visible with parent visible
   useEffect(() => {
@@ -262,6 +265,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
+      const cacheKey = `${blendView}_${formatBrasiliaDateInput(blendDate)}`;
+      const cached = blendCacheRef.current.get(cacheKey);
+      if (cached) {
+        setBlendData(cached);
+        return;
+      }
       setLoadingBlend(true);
       try {
       if (blendView === "horario") {
@@ -298,7 +307,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        if (!cancelled) setBlendData(rows);
+        if (!cancelled) { blendCacheRef.current.set(cacheKey, rows); setBlendData(rows); }
       } else {
         // Dia view: use pre-calculated daily_averages table (much faster!)
         const allData = await fetchAllPages<{ station_id: string; date: string; avg_listeners: number }>(
@@ -329,7 +338,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        if (!cancelled) setBlendData(rows);
+        if (!cancelled) { blendCacheRef.current.set(cacheKey, rows); setBlendData(rows); }
       }
       } finally {
         if (!cancelled) setLoadingBlend(false);
@@ -345,9 +354,17 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchAll() {
+      const stationId = status!.station.id;
+      const cached = mainCacheRef.current.get(stationId);
+      if (cached) {
+        setAllSnapshots(cached.snapshots);
+        setHourlyData(cached.hourly);
+        setDailyData(cached.daily);
+        setMonthlyData(cached.monthly);
+        return;
+      }
       setLoadingMain(true);
       try {
-      const stationId = status!.station.id;
 
       // 1) Snapshots: only last 30 days for realtime/horário
       const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -428,6 +445,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       setHourlyData(hData);
       setDailyData(dData);
       setMonthlyData(mData);
+      mainCacheRef.current.set(stationId, { snapshots: snapData, hourly: hData, daily: dData, monthly: mData });
       } finally {
         if (!cancelled) setLoadingMain(false);
       }
