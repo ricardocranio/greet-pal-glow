@@ -270,22 +270,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         const cutoff = dateStr + "T00:00:00-03:00";
         const upperBound = dateStr + "T23:59:59-03:00";
 
-        const allData: { station_id: string; listeners: number; hour: number }[] = [];
-        let from = 0;
-        const pageSize = 1000;
-        while (true) {
-          const { data } = await supabase
+        const allData = await fetchAllPages<{ station_id: string; listeners: number; hour: number }>(
+          () => supabase
             .from("audience_snapshots")
             .select("station_id, listeners, hour")
             .gte("recorded_at", cutoff)
             .lte("recorded_at", upperBound)
             .order("hour", { ascending: true })
-            .range(from, from + pageSize - 1);
-          if (!data || data.length === 0) break;
-          allData.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-        }
+        );
 
         if (cancelled) return;
         if (allData.length === 0) { setBlendData([]); return; }
@@ -309,20 +301,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         if (!cancelled) setBlendData(rows);
       } else {
         // Dia view: use pre-calculated daily_averages table (much faster!)
-        const allData: { station_id: string; date: string; avg_listeners: number }[] = [];
-        let from = 0;
-        const pageSize = 1000;
-        while (true) {
-          const { data } = await supabase
+        const allData = await fetchAllPages<{ station_id: string; date: string; avg_listeners: number }>(
+          () => supabase
             .from("daily_averages")
             .select("station_id, date, avg_listeners")
             .order("date", { ascending: true })
-            .range(from, from + pageSize - 1);
-          if (!data || data.length === 0) break;
-          allData.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-        }
+        );
 
         if (cancelled) return;
         if (allData.length === 0) { setBlendData([]); return; }
@@ -367,45 +351,23 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
       // 1) Snapshots: only last 30 days for realtime/horário
       const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const snapPromise = (async () => {
-        const allData: SnapshotRow[] = [];
-        let from = 0;
-        const pageSize = 1000;
-        while (true) {
-          const { data } = await supabase
-            .from("audience_snapshots")
-            .select("listeners, hour, recorded_at")
-            .eq("station_id", stationId)
-            .gte("recorded_at", cutoff30)
-            .order("recorded_at", { ascending: true })
-            .range(from, from + pageSize - 1);
-          if (!data || data.length === 0) break;
-          allData.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-        }
-        return allData;
-      })();
+      const snapPromise = fetchAllPages<SnapshotRow>(
+        () => supabase
+          .from("audience_snapshots")
+          .select("listeners, hour, recorded_at")
+          .eq("station_id", stationId)
+          .gte("recorded_at", cutoff30)
+          .order("recorded_at", { ascending: true })
+      );
 
       // 2) Daily averages from pre-calculated table
-      const dailyPromise = (async () => {
-        const allData: { date: string; avg_listeners: number }[] = [];
-        let from = 0;
-        const pageSize = 1000;
-        while (true) {
-          const { data } = await supabase
-            .from("daily_averages")
-            .select("date, avg_listeners")
-            .eq("station_id", stationId)
-            .order("date", { ascending: true })
-            .range(from, from + pageSize - 1);
-          if (!data || data.length === 0) break;
-          allData.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-        }
-        return allData;
-      })();
+      const dailyPromise = fetchAllPages<{ date: string; avg_listeners: number }>(
+        () => supabase
+          .from("daily_averages")
+          .select("date, avg_listeners")
+          .eq("station_id", stationId)
+          .order("date", { ascending: true })
+      );
 
       // 3) Monthly averages from pre-calculated table
       const monthlyPromise = supabase
@@ -524,22 +486,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
     async function fetchCompare() {
       const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      const allData: SnapshotRow[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      while (true) {
-        const { data } = await supabase
+      const allData = await fetchAllPages<SnapshotRow>(
+        () => supabase
           .from("audience_snapshots")
           .select("listeners, hour, recorded_at")
           .eq("station_id", compareStationId)
           .gte("recorded_at", cutoff)
           .order("recorded_at", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (!data || data.length === 0) break;
-        allData.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
+      );
       if (!cancelled) setCompareSnapshots(allData);
     }
     fetchCompare();
