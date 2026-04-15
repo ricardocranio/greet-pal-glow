@@ -318,6 +318,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         });
         if (!cancelled) setBlendData(rows);
       }
+      } finally {
+        if (!cancelled) setLoadingBlend(false);
+      }
     }
 
     fetchBlendData();
