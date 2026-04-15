@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, Shield, ShieldCheck, Eye, UserPlus, Ban, Trash2, LogOut as LogOutIcon, ArrowLeft, RefreshCw, Wifi } from "lucide-react";
+import { Users, Shield, ShieldCheck, Eye, UserPlus, Ban, Trash2, LogOut as LogOutIcon, ArrowLeft, RefreshCw, Wifi, Pencil, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
