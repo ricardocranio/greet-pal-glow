@@ -437,6 +437,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       setHourlyData(hData);
       setDailyData(dData);
       setMonthlyData(mData);
+      } finally {
+        if (!cancelled) setLoadingMain(false);
+      }
     }
 
     fetchAll();
