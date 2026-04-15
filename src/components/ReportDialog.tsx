@@ -599,11 +599,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       return d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
     };
 
+    const avg = filteredSnaps.reduce((s, snap) => s + snap.listeners, 0) / filteredSnaps.length;
+
     return {
       peakValue: Math.round(peakSnap.listeners * factor),
       peakTimeStr: formatTime(peakSnap),
       minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
+      avgValue: Math.round(avg * factor),
     };
   }, [allSnapshots, status, factor, selectedDate, viewMode, horarioFilter]);
 
@@ -804,7 +807,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <thead>
                   <tr className="border-b border-border/50">
                     <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Emissora</th>
-                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Agora</th>
+                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">{(!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput()) ? "Agora" : "Média"}</th>
                     <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Pico</th>
                     <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Menor</th>
                   </tr>
@@ -812,7 +815,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <tbody>
                   <tr>
                     <td className="py-1.5 px-2 text-foreground font-medium truncate max-w-[120px]">{station.name}</td>
-                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap tabular-nums">{listeners.toLocaleString("pt-BR")}</td>
+                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap tabular-nums">{(!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput()) ? listeners.toLocaleString("pt-BR") : todayStats.avgValue.toLocaleString("pt-BR")}</td>
                     <td className="py-1.5 px-2 text-center whitespace-nowrap">
                       <span className="font-mono font-bold text-accent tabular-nums">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
                       <span className="text-[9px] text-muted-foreground ml-1 hidden sm:inline">às {todayStats.peakTimeStr}</span>
