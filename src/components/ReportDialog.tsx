@@ -354,6 +354,15 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchAll() {
+      const stationId = status!.station.id;
+      const cached = mainCacheRef.current.get(stationId);
+      if (cached) {
+        setAllSnapshots(cached.snapshots);
+        setHourlyData(cached.hourly);
+        setDailyData(cached.daily);
+        setMonthlyData(cached.monthly);
+        return;
+      }
       setLoadingMain(true);
       try {
       const stationId = status!.station.id;
