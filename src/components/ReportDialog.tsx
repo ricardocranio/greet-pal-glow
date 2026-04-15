@@ -118,6 +118,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  // Caches to avoid re-fetching
+  const blendCacheRef = useRef<Map<string, Record<string, any>[]>>(new Map());
+  const mainCacheRef = useRef<Map<string, { snapshots: SnapshotRow[]; hourly: { time: string; listeners: number }[]; daily: { time: string; listeners: number }[]; monthly: { time: string; listeners: number }[] }>>(new Map());
 
   // Sync blend visible with parent visible
   useEffect(() => {
