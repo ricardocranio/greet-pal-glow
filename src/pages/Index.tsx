@@ -299,7 +299,6 @@ function IndexContent() {
             >
               <LogOut className="h-4 w-4" />
             </Button>
-            </Button>
           </div>
         </div>
       </header>
