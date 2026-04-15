@@ -157,6 +157,9 @@ function IndexContent() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Bem-vindo, <span className="text-foreground font-semibold">{sessionStorage.getItem("auth_username") || "Usuário"}</span>
+            </span>
             <BrasiliaClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -271,8 +274,24 @@ function IndexContent() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
+              onClick={async () => {
+                const token = sessionStorage.getItem("auth_token");
+                try {
+                  await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-login`,
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                      },
+                      body: JSON.stringify({ action: "logout", token }),
+                    }
+                  );
+                } catch {}
                 sessionStorage.removeItem("auth_token");
+                sessionStorage.removeItem("auth_username");
+                sessionStorage.removeItem("auth_role");
                 window.location.reload();
               }}
               className="border-border text-destructive hover:text-destructive hover:bg-destructive/10"
