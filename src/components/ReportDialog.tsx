@@ -311,93 +311,116 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   useEffect(() => {
     if (!open || !status) return;
+    let cancelled = false;
 
     async function fetchAll() {
-      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      const allData: SnapshotRow[] = [];
-      let from = 0;
-      const pageSize = 1000;
+      const stationId = status!.station.id;
 
-      while (true) {
-        const { data } = await supabase
-          .from("audience_snapshots")
-          .select("listeners, hour, recorded_at")
-          .eq("station_id", status!.station.id)
-          .gte("recorded_at", cutoff)
-          .order("recorded_at", { ascending: true })
-          .range(from, from + pageSize - 1);
+      // 1) Snapshots: only last 30 days for realtime/horário
+      const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const snapPromise = (async () => {
+        const allData: SnapshotRow[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data } = await supabase
+            .from("audience_snapshots")
+            .select("listeners, hour, recorded_at")
+            .eq("station_id", stationId)
+            .gte("recorded_at", cutoff30)
+            .order("recorded_at", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (!data || data.length === 0) break;
+          allData.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return allData;
+      })();
 
-        if (!data || data.length === 0) break;
-        allData.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
+      // 2) Daily averages from pre-calculated table
+      const dailyPromise = (async () => {
+        const allData: { date: string; avg_listeners: number }[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data } = await supabase
+            .from("daily_averages")
+            .select("date, avg_listeners")
+            .eq("station_id", stationId)
+            .order("date", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (!data || data.length === 0) break;
+          allData.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return allData;
+      })();
+
+      // 3) Monthly averages from pre-calculated table
+      const monthlyPromise = supabase
+        .from("monthly_averages")
+        .select("month, avg_listeners")
+        .eq("station_id", stationId)
+        .order("month", { ascending: true });
+
+      const [snapData, dailyRows, { data: monthlyRows }] = await Promise.all([snapPromise, dailyPromise, monthlyPromise]);
+      if (cancelled) return;
+
+      if (snapData.length === 0) {
+        setHourlyData(status!.history);
+        setDailyData([]);
+        setMonthlyData([]);
+        setAllSnapshots([]);
+        return;
       }
 
-      return allData;
+      setAllSnapshots(snapData);
+
+      // Hourly from today's snapshots
+      const todayStr = formatBrasiliaDateInput();
+      const todayData = snapData.filter(
+        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+      );
+      const todayHourMap = new Map<number, number[]>();
+      todayData.forEach((snap) => {
+        if (!todayHourMap.has(snap.hour)) todayHourMap.set(snap.hour, []);
+        todayHourMap.get(snap.hour)!.push(snap.listeners);
+      });
+      const hData = Array.from({ length: 24 }, (_, h) => {
+        const vals = todayHourMap.get(h) || [];
+        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+        return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
+      });
+
+      // Daily from pre-calculated table — group by day of week
+      const dayMap = new Map<number, number[]>();
+      dailyRows.forEach((row) => {
+        const d = new Date(row.date + "T12:00:00-03:00");
+        const dow = d.getDay();
+        if (!dayMap.has(dow)) dayMap.set(dow, []);
+        dayMap.get(dow)!.push(row.avg_listeners);
+      });
+      const dData = [0, 1, 2, 3, 4, 5, 6].map((d) => {
+        const vals = dayMap.get(d) || [];
+        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+        return { time: DAY_NAMES[d], listeners: avg };
+      });
+
+      // Monthly from pre-calculated table
+      const mData = (monthlyRows || []).map((row) => {
+        const mm = parseInt(row.month.split("-")[1], 10);
+        return { time: MONTH_NAMES[mm - 1], listeners: row.avg_listeners };
+      });
+
+      setHourlyData(hData);
+      setDailyData(dData);
+      setMonthlyData(mData);
     }
 
-    fetchAll().then((data) => {
-        if (!data || data.length === 0) {
-          setHourlyData(status.history);
-          setDailyData([]);
-          setMonthlyData([]);
-          setAllSnapshots([]);
-          return;
-        }
-
-        setAllSnapshots(data);
-
-        const todayStr = formatBrasiliaDateInput();
-        const todayData = data.filter(
-          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
-        );
-
-        const todayHourMap = new Map<number, number[]>();
-        todayData.forEach((snap) => {
-          const h = snap.hour;
-          if (!todayHourMap.has(h)) todayHourMap.set(h, []);
-          todayHourMap.get(h)!.push(snap.listeners);
-        });
-
-        const hData = Array.from({ length: 24 }, (_, i) => i).map((h) => {
-          const vals = todayHourMap.get(h) || [];
-          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-          return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-        });
-
-        const dayMap = new Map<number, number[]>();
-        const monthMap = new Map<string, { sum: number; count: number }>();
-
-        data.forEach((snap) => {
-          const utcMs = new Date(snap.recorded_at).getTime();
-          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-          const d = brasiliaDate.getUTCDay();
-          if (!dayMap.has(d)) dayMap.set(d, []);
-          dayMap.get(d)!.push(snap.listeners);
-
-          const mKey = `${brasiliaDate.getUTCFullYear()}-${String(brasiliaDate.getUTCMonth() + 1).padStart(2, "0")}`;
-          if (!monthMap.has(mKey)) monthMap.set(mKey, { sum: 0, count: 0 });
-          const m = monthMap.get(mKey)!;
-          m.sum += snap.listeners;
-          m.count += 1;
-        });
-
-        const dData = [0, 1, 2, 3, 4, 5, 6].map((d) => {
-          const vals = dayMap.get(d) || [];
-          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-          return { time: DAY_NAMES[d], listeners: avg };
-        });
-
-        const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-        const mData = sortedMonths.map(([key, { sum, count }]) => {
-          const [, mm] = key.split("-");
-          return { time: MONTH_NAMES[parseInt(mm, 10) - 1], listeners: Math.round(sum / count) };
-        });
-
-        setHourlyData(hData);
-        setDailyData(dData);
-        setMonthlyData(mData);
-      });
+    fetchAll();
+    return () => { cancelled = true; };
   }, [open, status]);
 
   // Filtered hourly data based on horarioFilter
