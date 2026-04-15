@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,27 +11,72 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
   try {
-    const { username, password } = await req.json();
+    const { username, password, action, token } = await req.json();
 
-    const validUsers = [
-      { username: "ricardo", password: "13501619" },
-      { username: "ricardo2", password: "teste" },
-      { username: "FelintoF", password: "NatalNatal" },
-      { username: "Wolsey98", password: "Natal98fm" },
-    ];
-
-    const match = validUsers.find(u => u.username === username && u.password === password);
-
-    if (match) {
-      const token = crypto.randomUUID();
-      return new Response(JSON.stringify({ success: true, token }), {
+    // Handle logout
+    if (action === "logout") {
+      if (token) {
+        await supabase.from("active_sessions").delete().eq("token", token);
+      }
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: false, error: "Credenciais inválidas" }), {
-      status: 401,
+    // Handle login
+    const validUsers = [
+      { username: "ricardo", password: "13501619", role: "admin" },
+      { username: "ricardo2", password: "teste", role: "admin" },
+      { username: "FelintoF", password: "NatalNatal", role: "admin" },
+      { username: "Wolsey98", password: "Natal98fm", role: "admin" },
+    ];
+
+    const match = validUsers.find(u => u.username === username && u.password === password);
+
+    if (!match) {
+      return new Response(JSON.stringify({ success: false, error: "Credenciais inválidas" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if user already has an active session
+    const { data: existing } = await supabase
+      .from("active_sessions")
+      .select("*")
+      .eq("username", match.username)
+      .maybeSingle();
+
+    if (existing) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: `Usuário "${match.username}" já está conectado em outro dispositivo. Faça logout primeiro.` 
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create new session
+    const newToken = crypto.randomUUID();
+    await supabase.from("active_sessions").insert({
+      username: match.username,
+      token: newToken,
+      role: match.role,
+    });
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      token: newToken, 
+      username: match.username,
+      role: match.role,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

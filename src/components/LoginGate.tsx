@@ -50,8 +50,10 @@ export function LoginGate({ children }: LoginGateProps) {
       }
 
       sessionStorage.setItem("auth_token", data.token);
+      sessionStorage.setItem("auth_username", data.username);
+      sessionStorage.setItem("auth_role", data.role);
       setAuthenticated(true);
-      toast.success("Bem-vindo, Ricardo!");
+      toast.success(`Bem-vindo, ${data.username}!`);
     } catch {
       toast.error("Erro ao conectar ao servidor");
     } finally {
