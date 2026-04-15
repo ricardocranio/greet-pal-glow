@@ -57,6 +57,12 @@ export default function AdminPanel() {
   const [newRole, setNewRole] = useState("viewer");
   const [adding, setAdding] = useState(false);
 
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editRole, setEditRole] = useState("viewer");
+
   const userRole = sessionStorage.getItem("auth_role");
 
   const fetchUsers = useCallback(async () => {
