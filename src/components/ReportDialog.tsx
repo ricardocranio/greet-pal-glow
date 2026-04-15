@@ -365,7 +365,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       }
       setLoadingMain(true);
       try {
-      const stationId = status!.station.id;
 
       // 1) Snapshots: only last 30 days for realtime/horário
       const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
