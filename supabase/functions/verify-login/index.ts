@@ -51,21 +51,26 @@ serve(async (req) => {
       });
     }
 
-    // Check if user already has an active session
-    const { data: existing } = await supabase
-      .from("active_sessions")
-      .select("*")
-      .eq("username", match.username)
-      .maybeSingle();
+    // Check if user already has an active session (admins bypass this)
+    if (match.role !== "admin") {
+      const { data: existing } = await supabase
+        .from("active_sessions")
+        .select("*")
+        .eq("username", match.username)
+        .maybeSingle();
 
-    if (existing) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: `Usuário "${match.username}" já está conectado em outro dispositivo. Faça logout primeiro.` 
-      }), {
-        status: 409,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (existing) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: `Usuário "${match.username}" já está conectado em outro dispositivo. Faça logout primeiro.` 
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // Admin: remove old sessions before creating new one
+      await supabase.from("active_sessions").delete().eq("username", match.username);
     }
 
     // Create new session
