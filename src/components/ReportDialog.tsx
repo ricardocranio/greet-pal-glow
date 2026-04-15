@@ -67,35 +67,6 @@ function calcAvg(arr: number[]): number {
   return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 }
 
-// Fast parallel paginated fetch: fetches first page, then remaining pages in parallel
-async function fetchAllPages<T>(
-  queryBuilder: () => ReturnType<ReturnType<typeof supabase.from>['select']>,
-  pageSize = 5000
-): Promise<T[]> {
-  const { data: firstPage } = await (queryBuilder() as any).range(0, pageSize - 1);
-  if (!firstPage || firstPage.length === 0) return [];
-  if (firstPage.length < pageSize) return firstPage as T[];
-
-  // First page is full — fetch remaining pages in parallel
-  const results: T[] = [...firstPage];
-  let from = pageSize;
-  // Fetch up to 20 pages in parallel (100k rows max)
-  const promises: Promise<T[]>[] = [];
-  for (let i = 0; i < 20; i++) {
-    const offset = from + i * pageSize;
-    promises.push(
-      (queryBuilder() as any).range(offset, offset + pageSize - 1).then(({ data }: { data: T[] | null }) => data ?? [])
-    );
-  }
-  const pages = await Promise.all(promises);
-  for (const page of pages) {
-    if (page.length === 0) break;
-    results.push(...page);
-    if (page.length < pageSize) break;
-  }
-  return results;
-}
-
 export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
   const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
@@ -113,14 +84,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [loadingMain, setLoadingMain] = useState(false);
-  const [loadingBlend, setLoadingBlend] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  // Caches to avoid re-fetching
-  const blendCacheRef = useRef<Map<string, Record<string, any>[]>>(new Map());
-  const mainCacheRef = useRef<Map<string, { snapshots: SnapshotRow[]; hourly: { time: string; listeners: number }[]; daily: { time: string; listeners: number }[]; monthly: { time: string; listeners: number }[] }>>(new Map());
 
   // Sync blend visible with parent visible
   useEffect(() => {
@@ -265,32 +231,37 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
-      const cacheKey = `${blendView}_${formatBrasiliaDateInput(blendDate)}`;
-      const cached = blendCacheRef.current.get(cacheKey);
-      if (cached) {
-        setBlendData(cached);
-        return;
+      const dateStr = formatBrasiliaDateInput(blendDate);
+      const cutoff = blendView === "horario"
+        ? dateStr + "T00:00:00-03:00"
+        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const upperBound = blendView === "horario"
+        ? dateStr + "T23:59:59-03:00"
+        : null;
+
+      const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        let query = supabase
+          .from("audience_snapshots")
+          .select("station_id, listeners, hour, recorded_at")
+          .gte("recorded_at", cutoff)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (upperBound) query = query.lte("recorded_at", upperBound);
+        const { data } = await query;
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
       }
-      setLoadingBlend(true);
-      try {
+
+      if (cancelled) return;
+      if (allData.length === 0) { setBlendData([]); return; }
+
       if (blendView === "horario") {
-        // Horário: fetch snapshots for the selected day only (small dataset)
-        const dateStr = formatBrasiliaDateInput(blendDate);
-        const cutoff = dateStr + "T00:00:00-03:00";
-        const upperBound = dateStr + "T23:59:59-03:00";
-
-        const allData = await fetchAllPages<{ station_id: string; listeners: number; hour: number }>(
-          () => supabase
-            .from("audience_snapshots")
-            .select("station_id, listeners, hour")
-            .gte("recorded_at", cutoff)
-            .lte("recorded_at", upperBound)
-            .order("hour", { ascending: true })
-        );
-
-        if (cancelled) return;
-        if (allData.length === 0) { setBlendData([]); return; }
-
         const hourMap = new Map<number, Map<string, number[]>>();
         allData.forEach(s => {
           if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
@@ -307,27 +278,19 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        if (!cancelled) { blendCacheRef.current.set(cacheKey, rows); setBlendData(rows); }
+        if (!cancelled) setBlendData(rows);
       } else {
-        // Dia view: use pre-calculated daily_averages table (much faster!)
-        const allData = await fetchAllPages<{ station_id: string; date: string; avg_listeners: number }>(
-          () => supabase
-            .from("daily_averages")
-            .select("station_id, date, avg_listeners")
-            .order("date", { ascending: true })
-        );
-
-        if (cancelled) return;
-        if (allData.length === 0) { setBlendData([]); return; }
-
         const dayMap = new Map<number, Map<string, number[]>>();
-        allData.forEach(row => {
-          const d = new Date(row.date + "T12:00:00-03:00");
-          const dayOfWeek = d.getDay();
+        allData.forEach(s => {
+          const d = new Date(s.recorded_at);
+          const utcMs = d.getTime();
+          const brasiliaMs = utcMs - 3 * 60 * 60 * 1000;
+          const brasiliaDate = new Date(brasiliaMs);
+          const dayOfWeek = brasiliaDate.getUTCDay();
           if (!dayMap.has(dayOfWeek)) dayMap.set(dayOfWeek, new Map());
           const stMap = dayMap.get(dayOfWeek)!;
-          if (!stMap.has(row.station_id)) stMap.set(row.station_id, []);
-          stMap.get(row.station_id)!.push(row.avg_listeners);
+          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
+          stMap.get(s.station_id)!.push(s.listeners);
         });
         const rows = [0, 1, 2, 3, 4, 5, 6].map(d => {
           const row: Record<string, any> = { time: DAY_NAMES[d] };
@@ -338,10 +301,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        if (!cancelled) { blendCacheRef.current.set(cacheKey, rows); setBlendData(rows); }
-      }
-      } finally {
-        if (!cancelled) setLoadingBlend(false);
+        if (!cancelled) setBlendData(rows);
       }
     }
 
@@ -351,108 +311,93 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   useEffect(() => {
     if (!open || !status) return;
-    let cancelled = false;
 
     async function fetchAll() {
-      const stationId = status!.station.id;
-      const cached = mainCacheRef.current.get(stationId);
-      if (cached) {
-        setAllSnapshots(cached.snapshots);
-        setHourlyData(cached.hourly);
-        setDailyData(cached.daily);
-        setMonthlyData(cached.monthly);
-        return;
-      }
-      setLoadingMain(true);
-      try {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const allData: SnapshotRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
 
-      // 1) Snapshots: only last 30 days for realtime/horário
-      const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const snapPromise = fetchAllPages<SnapshotRow>(
-        () => supabase
+      while (true) {
+        const { data } = await supabase
           .from("audience_snapshots")
           .select("listeners, hour, recorded_at")
-          .eq("station_id", stationId)
-          .gte("recorded_at", cutoff30)
+          .eq("station_id", status!.station.id)
+          .gte("recorded_at", cutoff)
           .order("recorded_at", { ascending: true })
-      );
+          .range(from, from + pageSize - 1);
 
-      // 2) Daily averages from pre-calculated table
-      const dailyPromise = fetchAllPages<{ date: string; avg_listeners: number }>(
-        () => supabase
-          .from("daily_averages")
-          .select("date, avg_listeners")
-          .eq("station_id", stationId)
-          .order("date", { ascending: true })
-      );
-
-      // 3) Monthly averages from pre-calculated table
-      const monthlyPromise = supabase
-        .from("monthly_averages")
-        .select("month, avg_listeners")
-        .eq("station_id", stationId)
-        .order("month", { ascending: true });
-
-      const [snapData, dailyRows, { data: monthlyRows }] = await Promise.all([snapPromise, dailyPromise, monthlyPromise]);
-      if (cancelled) return;
-
-      if (snapData.length === 0) {
-        setHourlyData(status!.history);
-        setDailyData([]);
-        setMonthlyData([]);
-        setAllSnapshots([]);
-        return;
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
       }
 
-      setAllSnapshots(snapData);
-
-      // Hourly from today's snapshots
-      const todayStr = formatBrasiliaDateInput();
-      const todayData = snapData.filter(
-        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
-      );
-      const todayHourMap = new Map<number, number[]>();
-      todayData.forEach((snap) => {
-        if (!todayHourMap.has(snap.hour)) todayHourMap.set(snap.hour, []);
-        todayHourMap.get(snap.hour)!.push(snap.listeners);
-      });
-      const hData = Array.from({ length: 24 }, (_, h) => {
-        const vals = todayHourMap.get(h) || [];
-        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-        return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-      });
-
-      // Daily from pre-calculated table — group by day of week
-      const dayMap = new Map<number, number[]>();
-      dailyRows.forEach((row) => {
-        const d = new Date(row.date + "T12:00:00-03:00");
-        const dow = d.getDay();
-        if (!dayMap.has(dow)) dayMap.set(dow, []);
-        dayMap.get(dow)!.push(row.avg_listeners);
-      });
-      const dData = [0, 1, 2, 3, 4, 5, 6].map((d) => {
-        const vals = dayMap.get(d) || [];
-        const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-        return { time: DAY_NAMES[d], listeners: avg };
-      });
-
-      // Monthly from pre-calculated table
-      const mData = (monthlyRows || []).map((row) => {
-        const mm = parseInt(row.month.split("-")[1], 10);
-        return { time: MONTH_NAMES[mm - 1], listeners: row.avg_listeners };
-      });
-
-      setHourlyData(hData);
-      setDailyData(dData);
-      setMonthlyData(mData);
-      mainCacheRef.current.set(stationId, { snapshots: snapData, hourly: hData, daily: dData, monthly: mData });
-      } finally {
-        if (!cancelled) setLoadingMain(false);
-      }
+      return allData;
     }
 
-    fetchAll();
-    return () => { cancelled = true; };
+    fetchAll().then((data) => {
+        if (!data || data.length === 0) {
+          setHourlyData(status.history);
+          setDailyData([]);
+          setMonthlyData([]);
+          setAllSnapshots([]);
+          return;
+        }
+
+        setAllSnapshots(data);
+
+        const todayStr = formatBrasiliaDateInput();
+        const todayData = data.filter(
+          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+        );
+
+        const todayHourMap = new Map<number, number[]>();
+        todayData.forEach((snap) => {
+          const h = snap.hour;
+          if (!todayHourMap.has(h)) todayHourMap.set(h, []);
+          todayHourMap.get(h)!.push(snap.listeners);
+        });
+
+        const hData = Array.from({ length: 24 }, (_, i) => i).map((h) => {
+          const vals = todayHourMap.get(h) || [];
+          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+          return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
+        });
+
+        const dayMap = new Map<number, number[]>();
+        const monthMap = new Map<string, { sum: number; count: number }>();
+
+        data.forEach((snap) => {
+          const utcMs = new Date(snap.recorded_at).getTime();
+          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+          const d = brasiliaDate.getUTCDay();
+          if (!dayMap.has(d)) dayMap.set(d, []);
+          dayMap.get(d)!.push(snap.listeners);
+
+          const mKey = `${brasiliaDate.getUTCFullYear()}-${String(brasiliaDate.getUTCMonth() + 1).padStart(2, "0")}`;
+          if (!monthMap.has(mKey)) monthMap.set(mKey, { sum: 0, count: 0 });
+          const m = monthMap.get(mKey)!;
+          m.sum += snap.listeners;
+          m.count += 1;
+        });
+
+        const dData = [0, 1, 2, 3, 4, 5, 6].map((d) => {
+          const vals = dayMap.get(d) || [];
+          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+          return { time: DAY_NAMES[d], listeners: avg };
+        });
+
+        const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        const mData = sortedMonths.map(([key, { sum, count }]) => {
+          const [, mm] = key.split("-");
+          return { time: MONTH_NAMES[parseInt(mm, 10) - 1], listeners: Math.round(sum / count) };
+        });
+
+        setHourlyData(hData);
+        setDailyData(dData);
+        setMonthlyData(mData);
+      });
   }, [open, status]);
 
   // Filtered hourly data based on horarioFilter
@@ -504,14 +449,22 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
     async function fetchCompare() {
       const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      const allData = await fetchAllPages<SnapshotRow>(
-        () => supabase
+      const allData: SnapshotRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
           .from("audience_snapshots")
           .select("listeners, hour, recorded_at")
           .eq("station_id", compareStationId)
           .gte("recorded_at", cutoff)
           .order("recorded_at", { ascending: true })
-      );
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
       if (!cancelled) setCompareSnapshots(allData);
     }
     fetchCompare();
@@ -559,50 +512,19 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", avgValue: 0 };
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
+    }
+    const todayStr = formatBrasiliaDateInput();
+    const todaySnaps = allSnapshots.filter(
+      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+    );
+    if (todaySnaps.length === 0) {
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
     }
 
-    let filteredSnaps: SnapshotRow[];
-
-    if (viewMode === "horario") {
-      if (horarioFilter === "dia") {
-        const targetStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
-        filteredSnaps = allSnapshots.filter(
-          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === targetStr
-        );
-      } else if (horarioFilter === "seg-sex") {
-        filteredSnaps = allSnapshots.filter((snap) => {
-          const utcMs = new Date(snap.recorded_at).getTime();
-          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-          const dow = brasiliaDate.getUTCDay();
-          return dow >= 1 && dow <= 5;
-        });
-      } else if (horarioFilter === "sab-dom") {
-        filteredSnaps = allSnapshots.filter((snap) => {
-          const utcMs = new Date(snap.recorded_at).getTime();
-          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-          const dow = brasiliaDate.getUTCDay();
-          return dow === 0 || dow === 6;
-        });
-      } else {
-        // geral - all snapshots
-        filteredSnaps = allSnapshots;
-      }
-    } else {
-      // For other views, use selectedDate or today
-      const targetStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
-      filteredSnaps = allSnapshots.filter(
-        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === targetStr
-      );
-    }
-
-    if (filteredSnaps.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", avgValue: 0 };
-    }
-
-    let peakSnap = filteredSnaps[0];
-    let minSnap = filteredSnaps[0];
-    for (const snap of filteredSnaps) {
+    let peakSnap = todaySnaps[0];
+    let minSnap = todaySnaps[0];
+    for (const snap of todaySnaps) {
       if (snap.listeners > peakSnap.listeners) peakSnap = snap;
       if (snap.listeners < minSnap.listeners) minSnap = snap;
     }
@@ -612,16 +534,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       return d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
     };
 
-    const avg = filteredSnaps.reduce((s, snap) => s + snap.listeners, 0) / filteredSnaps.length;
-
     return {
       peakValue: Math.round(peakSnap.listeners * factor),
       peakTimeStr: formatTime(peakSnap),
       minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
-      avgValue: Math.round(avg * factor),
     };
-  }, [allSnapshots, status, factor, selectedDate, viewMode, horarioFilter]);
+  }, [allSnapshots, status, factor]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
@@ -803,24 +722,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
           {/* Compact metrics table */}
           <div className="rounded-lg bg-secondary/30 overflow-hidden my-2 sm:my-3">
-            <div className="flex items-center justify-between px-2 pt-1.5">
-              <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Métricas</span>
-              <span className="text-[9px] sm:text-[10px] text-primary font-mono font-medium tabular-nums">
-                {viewMode === "horario"
-                  ? horarioFilter === "seg-sex" ? "Seg–Sex"
-                    : horarioFilter === "sab-dom" ? "Sáb–Dom"
-                    : horarioFilter === "geral" ? "Geral (90 dias)"
-                    : selectedDate ? format(selectedDate, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy")
-                  : selectedDate ? format(selectedDate, "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy")
-                }
-              </span>
-            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-[10px] sm:text-[11px]">
                 <thead>
                   <tr className="border-b border-border/50">
                     <th className="text-left text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Emissora</th>
-                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">{(!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput()) ? "Agora" : "Média"}</th>
+                    <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Agora</th>
                     <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Pico</th>
                     <th className="text-center text-muted-foreground font-medium py-1.5 px-2 uppercase whitespace-nowrap">Menor</th>
                   </tr>
@@ -828,7 +735,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 <tbody>
                   <tr>
                     <td className="py-1.5 px-2 text-foreground font-medium truncate max-w-[120px]">{station.name}</td>
-                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap tabular-nums">{(!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput()) ? listeners.toLocaleString("pt-BR") : todayStats.avgValue.toLocaleString("pt-BR")}</td>
+                    <td className="py-1.5 px-2 text-center font-mono font-bold text-foreground whitespace-nowrap tabular-nums">{listeners.toLocaleString("pt-BR")}</td>
                     <td className="py-1.5 px-2 text-center whitespace-nowrap">
                       <span className="font-mono font-bold text-accent tabular-nums">{todayStats.peakValue.toLocaleString("pt-BR")}</span>
                       <span className="text-[9px] text-muted-foreground ml-1 hidden sm:inline">às {todayStats.peakTimeStr}</span>
@@ -867,16 +774,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
               </button>
             ))}
           </div>
-
-          {/* Loading indicator */}
-          {((viewMode === "blend" && loadingBlend) || (viewMode !== "blend" && loadingMain)) && (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-muted-foreground">Carregando dados...</span>
-              </div>
-            </div>
-          )}
 
           {/* Real-time chart */}
           {viewMode === "realtime" && (
