@@ -546,7 +546,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", avgValue: 0 };
     }
 
     let filteredSnaps: SnapshotRow[];
@@ -584,7 +584,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }
 
     if (filteredSnaps.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", avgValue: 0 };
     }
 
     let peakSnap = filteredSnaps[0];
