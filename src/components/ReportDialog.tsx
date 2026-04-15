@@ -332,6 +332,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchAll() {
+      setLoadingMain(true);
+      try {
       const stationId = status!.station.id;
 
       // 1) Snapshots: only last 30 days for realtime/horário
