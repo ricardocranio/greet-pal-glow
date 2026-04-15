@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          token: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string
+          token: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          token?: string
+          username?: string
+        }
+        Relationships: []
+      }
       audience_snapshots: {
         Row: {
           bitrate: number | null
