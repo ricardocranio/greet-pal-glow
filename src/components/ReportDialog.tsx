@@ -446,6 +446,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       setHourlyData(hData);
       setDailyData(dData);
       setMonthlyData(mData);
+      mainCacheRef.current.set(stationId, { snapshots: snapData, hourly: hData, daily: dData, monthly: mData });
       } finally {
         if (!cancelled) setLoadingMain(false);
       }
