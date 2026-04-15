@@ -192,8 +192,7 @@ function IndexContent() {
               </Button>
             )}
 
-            {/* Filter popover - admin only */}
-            {isAdmin && (
+            {/* Filter popover */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground">
@@ -242,7 +241,8 @@ function IndexContent() {
                     </div>
                   </div>
 
-                  {/* Simulator */}
+                  {/* Simulator - admin only */}
+                  {isAdmin && (
                   <div className="border-t border-border pt-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -267,10 +267,10 @@ function IndexContent() {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
-            )}
 
             {isAdmin && (
             <Button
