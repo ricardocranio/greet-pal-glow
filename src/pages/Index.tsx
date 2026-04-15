@@ -105,6 +105,7 @@ function IndexContent() {
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
   const isAdmin = userRole === "admin";
   const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
+  const navigate = useNavigate();
 
   const onlineCount = statuses.filter((s) => s.online).length;
   const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
