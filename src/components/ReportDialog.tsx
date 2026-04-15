@@ -233,6 +233,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
+      setLoadingBlend(true);
+      try {
       if (blendView === "horario") {
         // Horário: fetch snapshots for the selected day only (small dataset)
         const dateStr = formatBrasiliaDateInput(blendDate);
