@@ -265,6 +265,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
+      const cacheKey = `${blendView}_${formatBrasiliaDateInput(blendDate)}`;
+      const cached = blendCacheRef.current.get(cacheKey);
+      if (cached) {
+        setBlendData(cached);
+        return;
+      }
       setLoadingBlend(true);
       try {
       if (blendView === "horario") {
