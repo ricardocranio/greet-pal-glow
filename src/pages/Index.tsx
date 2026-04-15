@@ -179,6 +179,19 @@ function IndexContent() {
               </span>
             </div>
 
+            {/* Admin panel button */}
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/admin")}
+                className="border-border text-muted-foreground hover:text-foreground"
+                title="Gerenciar Usuários"
+              >
+                <Users className="h-4 w-4" />
+              </Button>
+            )}
+
             {/* Filter popover - admin only */}
             {isAdmin && (
             <Popover>
