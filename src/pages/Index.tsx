@@ -103,6 +103,7 @@ function IndexContent() {
   const [downloading, setDownloading] = useState(false);
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
   const isAdmin = userRole === "admin";
+  const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
 
   const onlineCount = statuses.filter((s) => s.online).length;
   const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
@@ -160,7 +161,7 @@ function IndexContent() {
 
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="text-xs text-muted-foreground hidden sm:inline">
-              Bem-vindo, <span className="text-foreground font-semibold">{sessionStorage.getItem("auth_username") || "Usuário"}</span>
+              Bem-vindo, <span className="text-foreground font-semibold">{authUsername}</span>
             </span>
             <BrasiliaClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
