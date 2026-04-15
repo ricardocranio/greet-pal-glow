@@ -35,6 +35,7 @@ serve(async (req) => {
       { username: "ricardo2", password: "teste", role: "admin" },
       { username: "FelintoF", password: "NatalNatal", role: "viewer" },
       { username: "Wolsey98", password: "Natal98fm", role: "viewer" },
+      { username: "FmNordeste", password: "08562027", role: "viewer" },
     ];
 
     const match = validUsers.find(u => u.username === username && u.password === password);
