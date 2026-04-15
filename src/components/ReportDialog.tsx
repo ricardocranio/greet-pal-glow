@@ -307,7 +307,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        if (!cancelled) setBlendData(rows);
+        if (!cancelled) { blendCacheRef.current.set(cacheKey, rows); setBlendData(rows); }
       } else {
         // Dia view: use pre-calculated daily_averages table (much faster!)
         const allData = await fetchAllPages<{ station_id: string; date: string; avg_listeners: number }>(
@@ -338,7 +338,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           });
           return row;
         });
-        if (!cancelled) setBlendData(rows);
+        if (!cancelled) { blendCacheRef.current.set(cacheKey, rows); setBlendData(rows); }
       }
       } finally {
         if (!cancelled) setLoadingBlend(false);
