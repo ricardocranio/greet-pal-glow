@@ -101,6 +101,8 @@ function IndexContent() {
   const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const userRole = sessionStorage.getItem("auth_role") || "viewer";
+  const isAdmin = userRole === "admin";
 
   const onlineCount = statuses.filter((s) => s.online).length;
   const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
@@ -174,7 +176,8 @@ function IndexContent() {
               </span>
             </div>
 
-            {/* Filter popover */}
+            {/* Filter popover - admin only */}
+            {isAdmin && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground">
@@ -251,7 +254,9 @@ function IndexContent() {
                 </div>
               </PopoverContent>
             </Popover>
+            )}
 
+            {isAdmin && (
             <Button
               size="sm"
               variant="outline"
@@ -262,6 +267,7 @@ function IndexContent() {
               <Download className="h-4 w-4 mr-1.5" />
               <span className="hidden sm:inline">{downloading ? 'Gerando...' : 'Relatório'}</span>
             </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
