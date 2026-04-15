@@ -141,6 +141,31 @@ serve(async (req) => {
       });
     }
 
+    // EDIT user
+    if (action === "edit") {
+      const { user_id, display_name, password: newPass, role: newRole } = body;
+      const updates: Record<string, unknown> = {};
+      if (display_name !== undefined) updates.display_name = display_name;
+      if (newPass) updates.password = newPass;
+      if (newRole && ["admin", "editor", "viewer"].includes(newRole)) updates.role = newRole;
+
+      if (Object.keys(updates).length === 0) {
+        return new Response(JSON.stringify({ error: "Nenhuma alteração informada" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error } = await supabase.from("app_users").update(updates).eq("id", user_id);
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Ação inválida" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
