@@ -101,6 +101,8 @@ function IndexContent() {
   const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const userRole = sessionStorage.getItem("auth_role") || "viewer";
+  const isAdmin = userRole === "admin";
 
   const onlineCount = statuses.filter((s) => s.online).length;
   const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
