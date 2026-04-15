@@ -242,7 +242,6 @@ function IndexContent() {
                   </div>
 
                   {/* Simulator - admin only */}
-                  {isAdmin && (
                   <div className="border-t border-border pt-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -267,7 +266,6 @@ function IndexContent() {
                       </div>
                     )}
                   </div>
-                  )}
                 </div>
               </PopoverContent>
             </Popover>
