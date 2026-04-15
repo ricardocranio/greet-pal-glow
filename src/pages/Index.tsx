@@ -155,13 +155,11 @@ function IndexContent() {
               <p className="text-[10px] text-muted-foreground/60">by Ricardo Amaral</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 sm:gap-4">
             <span className="text-xs text-muted-foreground hidden sm:inline">
               Bem-vindo, <span className="text-foreground font-semibold">{sessionStorage.getItem("auth_username") || "Usuário"}</span>
             </span>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-4">
             <BrasiliaClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
