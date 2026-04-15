@@ -84,6 +84,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [loadingMain, setLoadingMain] = useState(false);
+  const [loadingBlend, setLoadingBlend] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -231,6 +233,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
+      setLoadingBlend(true);
+      try {
       if (blendView === "horario") {
         // Horário: fetch snapshots for the selected day only (small dataset)
         const dateStr = formatBrasiliaDateInput(blendDate);
@@ -314,6 +318,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         });
         if (!cancelled) setBlendData(rows);
       }
+      } finally {
+        if (!cancelled) setLoadingBlend(false);
+      }
     }
 
     fetchBlendData();
@@ -325,6 +332,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchAll() {
+      setLoadingMain(true);
+      try {
       const stationId = status!.station.id;
 
       // 1) Snapshots: only last 30 days for realtime/horário
@@ -428,6 +437,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       setHourlyData(hData);
       setDailyData(dData);
       setMonthlyData(mData);
+      } finally {
+        if (!cancelled) setLoadingMain(false);
+      }
     }
 
     fetchAll();
@@ -854,6 +866,16 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
               </button>
             ))}
           </div>
+
+          {/* Loading indicator */}
+          {((viewMode === "blend" && loadingBlend) || (viewMode !== "blend" && loadingMain)) && (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-muted-foreground">Carregando dados...</span>
+              </div>
+            </div>
+          )}
 
           {/* Real-time chart */}
           {viewMode === "realtime" && (
