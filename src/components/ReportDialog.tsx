@@ -231,37 +231,32 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
 
     async function fetchBlendData() {
-      const dateStr = formatBrasiliaDateInput(blendDate);
-      const cutoff = blendView === "horario"
-        ? dateStr + "T00:00:00-03:00"
-        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      const upperBound = blendView === "horario"
-        ? dateStr + "T23:59:59-03:00"
-        : null;
-
-      const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
-      let from = 0;
-      const pageSize = 1000;
-
-      while (true) {
-        let query = supabase
-          .from("audience_snapshots")
-          .select("station_id, listeners, hour, recorded_at")
-          .gte("recorded_at", cutoff)
-          .order("recorded_at", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (upperBound) query = query.lte("recorded_at", upperBound);
-        const { data } = await query;
-        if (!data || data.length === 0) break;
-        allData.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-
-      if (cancelled) return;
-      if (allData.length === 0) { setBlendData([]); return; }
-
       if (blendView === "horario") {
+        // Horário: fetch snapshots for the selected day only (small dataset)
+        const dateStr = formatBrasiliaDateInput(blendDate);
+        const cutoff = dateStr + "T00:00:00-03:00";
+        const upperBound = dateStr + "T23:59:59-03:00";
+
+        const allData: { station_id: string; listeners: number; hour: number }[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data } = await supabase
+            .from("audience_snapshots")
+            .select("station_id, listeners, hour")
+            .gte("recorded_at", cutoff)
+            .lte("recorded_at", upperBound)
+            .order("hour", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (!data || data.length === 0) break;
+          allData.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+
+        if (cancelled) return;
+        if (allData.length === 0) { setBlendData([]); return; }
+
         const hourMap = new Map<number, Map<string, number[]>>();
         allData.forEach(s => {
           if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
@@ -280,17 +275,33 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         });
         if (!cancelled) setBlendData(rows);
       } else {
+        // Dia view: use pre-calculated daily_averages table (much faster!)
+        const allData: { station_id: string; date: string; avg_listeners: number }[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data } = await supabase
+            .from("daily_averages")
+            .select("station_id, date, avg_listeners")
+            .order("date", { ascending: true })
+            .range(from, from + pageSize - 1);
+          if (!data || data.length === 0) break;
+          allData.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+
+        if (cancelled) return;
+        if (allData.length === 0) { setBlendData([]); return; }
+
         const dayMap = new Map<number, Map<string, number[]>>();
-        allData.forEach(s => {
-          const d = new Date(s.recorded_at);
-          const utcMs = d.getTime();
-          const brasiliaMs = utcMs - 3 * 60 * 60 * 1000;
-          const brasiliaDate = new Date(brasiliaMs);
-          const dayOfWeek = brasiliaDate.getUTCDay();
+        allData.forEach(row => {
+          const d = new Date(row.date + "T12:00:00-03:00");
+          const dayOfWeek = d.getDay();
           if (!dayMap.has(dayOfWeek)) dayMap.set(dayOfWeek, new Map());
           const stMap = dayMap.get(dayOfWeek)!;
-          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
-          stMap.get(s.station_id)!.push(s.listeners);
+          if (!stMap.has(row.station_id)) stMap.set(row.station_id, []);
+          stMap.get(row.station_id)!.push(row.avg_listeners);
         });
         const rows = [0, 1, 2, 3, 4, 5, 6].map(d => {
           const row: Record<string, any> = { time: DAY_NAMES[d] };
