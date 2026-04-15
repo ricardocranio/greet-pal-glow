@@ -38,6 +38,36 @@ export type Database = {
         }
         Relationships: []
       }
+      app_users: {
+        Row: {
+          blocked: boolean
+          created_at: string
+          display_name: string | null
+          id: string
+          password: string
+          role: string
+          username: string
+        }
+        Insert: {
+          blocked?: boolean
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          password: string
+          role?: string
+          username: string
+        }
+        Update: {
+          blocked?: boolean
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          password?: string
+          role?: string
+          username?: string
+        }
+        Relationships: []
+      }
       audience_snapshots: {
         Row: {
           bitrate: number | null
