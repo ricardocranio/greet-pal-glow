@@ -512,19 +512,55 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
-    }
-    const todayStr = formatBrasiliaDateInput();
-    const todaySnaps = allSnapshots.filter(
-      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
-    );
-    if (todaySnaps.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--" };
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", label: "Hoje" };
     }
 
-    let peakSnap = todaySnaps[0];
-    let minSnap = todaySnaps[0];
-    for (const snap of todaySnaps) {
+    let relevantSnaps: SnapshotRow[];
+    let label = "Hoje";
+
+    if (viewMode === "horario") {
+      if (horarioFilter === "dia") {
+        const dateStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+        relevantSnaps = allSnapshots.filter(
+          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === dateStr
+        );
+        label = selectedDate ? format(selectedDate, "dd/MM", { locale: ptBR }) : "Hoje";
+      } else if (horarioFilter === "seg-sex") {
+        relevantSnaps = allSnapshots.filter((snap) => {
+          const utcMs = new Date(snap.recorded_at).getTime();
+          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+          const dow = brasiliaDate.getUTCDay();
+          return dow >= 1 && dow <= 5;
+        });
+        label = "Seg–Sex";
+      } else if (horarioFilter === "sab-dom") {
+        relevantSnaps = allSnapshots.filter((snap) => {
+          const utcMs = new Date(snap.recorded_at).getTime();
+          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
+          const dow = brasiliaDate.getUTCDay();
+          return dow === 0 || dow === 6;
+        });
+        label = "Sáb–Dom";
+      } else {
+        // geral
+        relevantSnaps = allSnapshots;
+        label = "Geral";
+      }
+    } else {
+      // For realtime, dia, mes, blend: use today
+      const todayStr = formatBrasiliaDateInput();
+      relevantSnaps = allSnapshots.filter(
+        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+      );
+    }
+
+    if (relevantSnaps.length === 0) {
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", label };
+    }
+
+    let peakSnap = relevantSnaps[0];
+    let minSnap = relevantSnaps[0];
+    for (const snap of relevantSnaps) {
       if (snap.listeners > peakSnap.listeners) peakSnap = snap;
       if (snap.listeners < minSnap.listeners) minSnap = snap;
     }
@@ -539,8 +575,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       peakTimeStr: formatTime(peakSnap),
       minValue: Math.round(minSnap.listeners * factor),
       minTimeStr: formatTime(minSnap),
+      label,
     };
-  }, [allSnapshots, status, factor]);
+  }, [allSnapshots, status, factor, viewMode, horarioFilter, selectedDate]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
