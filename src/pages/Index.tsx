@@ -160,7 +160,7 @@ function IndexContent() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
-            <span className="text-xs text-muted-foreground hidden sm:inline">
+            <span className="text-xs text-muted-foreground">
               Bem-vindo, <span className="text-foreground font-semibold">{authUsername}</span>
             </span>
             <BrasiliaClock />
