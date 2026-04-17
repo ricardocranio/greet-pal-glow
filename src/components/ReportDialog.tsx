@@ -1356,6 +1356,11 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <td className="py-1 sm:py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm">
                                 <div className="flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
                                   <span className="text-muted-foreground font-mono text-[8px] sm:text-[10px]">{idx + 1}°</span>
+                                  <span
+                                    className="inline-block w-1 h-3 sm:h-3.5 rounded-sm shrink-0"
+                                    style={{ backgroundColor: color }}
+                                    aria-hidden="true"
+                                  />
                                   {getStationLogoSrc(st.id, st.logoUrl) ? (
                                     <img src={getStationLogoSrc(st.id, st.logoUrl)} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
                                   ) : (
