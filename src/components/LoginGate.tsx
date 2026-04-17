@@ -2,6 +2,7 @@ import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Radio, Lock, User, Eye, EyeOff } from "lucide-react";
+import natalSplash from "@/assets/natal-splash.jpg";
 
 import { toast } from "sonner";
 
@@ -16,6 +17,7 @@ export function LoginGate({ children }: LoginGateProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
     const token = sessionStorage.getItem("auth_token");
@@ -52,7 +54,11 @@ export function LoginGate({ children }: LoginGateProps) {
       sessionStorage.setItem("auth_token", data.token);
       sessionStorage.setItem("auth_username", data.username);
       sessionStorage.setItem("auth_role", data.role);
-      setAuthenticated(true);
+      setShowSplash(true);
+      setTimeout(() => {
+        setAuthenticated(true);
+        setShowSplash(false);
+      }, 2000);
       toast.success(`Bem-vindo, ${data.username}!`);
     } catch {
       toast.error("Erro ao conectar ao servidor");
@@ -65,6 +71,18 @@ export function LoginGate({ children }: LoginGateProps) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Radio className="h-8 w-8 text-primary animate-pulse" />
+      </div>
+    );
+  }
+
+  if (showSplash) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background animate-fade-in">
+        <img
+          src={natalSplash}
+          alt="Natal/RN"
+          className="w-full h-full object-cover"
+        />
       </div>
     );
   }
