@@ -168,7 +168,7 @@ export const stations: Station[] = [
     id: "cidadefm",
     name: "CIDADE FM NATAL",
     frequency: "94,3 MHz",
-    streamUrl: "https://cidadedosolaac.jmvstream.com/index.html?sid=1",
+    streamUrl: "https://cidadedosolaac.jmvstream.com",
     logoUrl: "/logos/cidade-fm.jpg",
     instagramHandle: "@cidadefmnatal",
     category: 'commercial',
