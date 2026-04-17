@@ -1028,6 +1028,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <HourRangeFilter />
                 </div>
               )}
 
