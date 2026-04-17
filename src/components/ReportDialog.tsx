@@ -24,6 +24,17 @@ import { toPng } from "html-to-image";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import jsPDF from "jspdf";
+import logo98fm from "@/assets/logo-98fm.png";
+import logo97fm from "@/assets/logo-97fm.png";
+import logo96fm from "@/assets/logo-96fm.png";
+import logo95fm from "@/assets/logo-95fm.png";
+import logo91fm from "@/assets/logo-91fm.png";
+import logo104fm from "@/assets/logo-104fm.png";
+import logoClubefm from "@/assets/logo-clubefm.png";
+import logoJpnatal from "@/assets/logo-jpnatal.png";
+import logoJpnews from "@/assets/logo-jpnews.png";
+import logoMundialfm from "@/assets/logo-mundialfm.png";
 
 interface Props {
   status: StationStatus | null;
@@ -48,6 +59,20 @@ const STATION_COLORS = [
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 const MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const LOCAL_STATION_LOGOS: Record<string, string> = {
+  "98fm": logo98fm,
+  "97fm": logo97fm,
+  "96fm": logo96fm,
+  "95fm": logo95fm,
+  "91fm": logo91fm,
+  "104fm": logo104fm,
+  "clubefm": logoClubefm,
+  "jpnatal": logoJpnatal,
+  "jpnews": logoJpnews,
+  "mundialfm": logoMundialfm,
+};
+
+const getStationLogoSrc = (stationId: string, logoUrl?: string) => LOCAL_STATION_LOGOS[stationId] || logoUrl || "";
 
 interface SnapshotRow {
   listeners: number;
@@ -199,12 +224,40 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         },
       });
 
-      // Create PDF-like download (PNG with high quality)
-      const link = document.createElement('a');
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
       const modeLabel = mode === 'light' ? 'W' : 'B';
-      link.download = `relatorio_${viewMode}_PDF-${modeLabel}_${formatBrasiliaDateInput()}.png`;
-      link.href = dataUrl;
-      link.click();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 24;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+      const scaledHeight = (image.height * usableWidth) / image.width;
+      const pageFill = () => {
+        pdf.setFillColor(mode === 'light' ? 255 : 15, mode === 'light' ? 255 : 23, mode === 'light' ? 255 : 41);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      };
+
+      pageFill();
+      let offsetY = 0;
+      let remainingHeight = scaledHeight;
+
+      while (remainingHeight > 0) {
+        pdf.addImage(dataUrl, 'PNG', margin, margin - offsetY, usableWidth, scaledHeight, undefined, 'FAST');
+        remainingHeight -= usableHeight;
+        offsetY += usableHeight;
+        if (remainingHeight > 0) {
+          pdf.addPage();
+          pageFill();
+        }
+      }
+
+      pdf.save(`relatorio_${viewMode}_PDF-${modeLabel}_${formatBrasiliaDateInput()}.pdf`);
     } catch (err) {
       console.error('Erro ao exportar:', err);
     } finally {
@@ -724,6 +777,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   if (!status) return null;
   const { station, listeners } = status;
+  const stationLogoSrc = getStationLogoSrc(station.id, station.logoUrl);
 
   const rawChartData = viewMode === "horario" ? filteredHourlyData : viewMode === "dia" ? dailyData : monthlyData;
   const chartData = factor !== 1
@@ -823,9 +877,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         <div ref={contentRef}>
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2 sm:gap-3 text-foreground">
-              {station.logoUrl ? (
+              {stationLogoSrc ? (
                 <img
-                  src={station.logoUrl}
+                  src={stationLogoSrc}
                   alt={station.name}
                   className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
                   width={40}
@@ -1293,8 +1347,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <td className="py-1 sm:py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm">
                                 <div className="flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
                                   <span className="text-muted-foreground font-mono text-[8px] sm:text-[10px]">{idx + 1}°</span>
-                                  {st.logoUrl ? (
-                                    <img src={st.logoUrl} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
+                                  {getStationLogoSrc(st.id, st.logoUrl) ? (
+                                    <img src={getStationLogoSrc(st.id, st.logoUrl)} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
                                   ) : (
                                     <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded bg-muted flex items-center justify-center text-[6px] text-muted-foreground shrink-0">FM</span>
                                   )}
