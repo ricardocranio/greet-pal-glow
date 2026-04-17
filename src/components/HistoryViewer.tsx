@@ -149,45 +149,104 @@ export default function HistoryViewer() {
     toast.success("CSV exportado");
   };
 
-  const exportPDF = (mode: "light" | "dark") => {
+  const loadImageAsDataURL = async (url: string): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> => {
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      const blob = await res.blob();
+      const data: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = reject;
+        img.src = data;
+      });
+      const fmt = blob.type.includes("png") ? "PNG" : "JPEG";
+      return { data, w: dims.w, h: dims.h, fmt };
+    } catch {
+      return null;
+    }
+  };
+
+  const exportPDF = async (mode: "light" | "dark") => {
     const isDark = mode === "dark";
     const bg: [number, number, number] = isDark ? [15, 23, 41] : [255, 255, 255];
     const fg: [number, number, number] = isDark ? [240, 240, 245] : [20, 20, 25];
     const headBg: [number, number, number] = isDark ? [30, 41, 59] : [30, 30, 30];
     const headFg: [number, number, number] = [255, 255, 255];
     const altRow: [number, number, number] = isDark ? [22, 30, 48] : [245, 245, 248];
+    const wmColor: [number, number, number] = isDark ? [60, 75, 100] : [220, 220, 225];
 
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
 
-    // Background
-    doc.setFillColor(...bg);
-    doc.rect(0, 0, pageW, pageH, "F");
+    const station = stations.find((s) => s.id === stationId);
+    const logo = station?.logoUrl ? await loadImageAsDataURL(station.logoUrl) : null;
+
+    const drawPageChrome = () => {
+      // Background
+      doc.setFillColor(...bg);
+      doc.rect(0, 0, pageW, pageH, "F");
+
+      // Diagonal watermark
+      doc.saveGraphicsState?.();
+      doc.setTextColor(...wmColor);
+      doc.setFontSize(60);
+      const wmText = "AUDIÊNCIA NATAL/RN";
+      // jsPDF supports angle via text options
+      doc.text(wmText, pageW / 2, pageH / 2, { align: "center", angle: 30 } as never);
+      doc.restoreGraphicsState?.();
+
+      // Footer brand
+      doc.setFontSize(8);
+      doc.setTextColor(...fg);
+      doc.text("Audiência Natal/RN", 14, pageH - 8);
+      doc.text(format(new Date(), "dd/MM/yyyy HH:mm"), pageW - 14, pageH - 8, { align: "right" });
+    };
+
+    drawPageChrome();
+
+    // Header logo
+    let textX = 14;
+    if (logo) {
+      const logoH = 16;
+      const logoW = (logo.w / logo.h) * logoH;
+      try {
+        doc.addImage(logo.data, logo.fmt, 14, 10, logoW, logoH);
+        textX = 14 + logoW + 6;
+      } catch {
+        /* ignore */
+      }
+    }
 
     doc.setTextColor(...fg);
     doc.setFontSize(16);
-    doc.text("Relatório Consolidado de Audiência", 14, 18);
+    doc.text("Relatório Consolidado de Audiência", textX, 18);
     doc.setFontSize(11);
-    doc.text(`Estação: ${stationName(stationId)}`, 14, 28);
-    doc.text(`Período: ${periodLabel}`, 14, 34);
-    doc.text(`Granularidade: ${granLabel}`, 14, 40);
+    doc.text(`Estação: ${stationName(stationId)}`, textX, 28);
+
+    doc.text(`Período: ${periodLabel}`, 14, 40);
+    doc.text(`Granularidade: ${granLabel}`, 14, 46);
     doc.text(
       `Média geral: ${totals.avg.toLocaleString("pt-BR")}   Pico: ${totals.peak.toLocaleString("pt-BR")}   Amostras: ${totals.samples}`,
       14,
-      46
+      52
     );
 
     autoTable(doc, {
-      startY: 52,
+      startY: 58,
       head: [["Período", "Média Ouvintes", "Pico Ouvintes", "Amostras"]],
       body: buckets.map((b) => [b.label, b.avg.toLocaleString("pt-BR"), b.peak.toLocaleString("pt-BR"), b.samples]),
       styles: { fontSize: 9, textColor: fg, fillColor: bg },
       headStyles: { fillColor: headBg, textColor: headFg },
       alternateRowStyles: { fillColor: altRow },
-      didDrawPage: () => {
-        doc.setFillColor(...bg);
-        doc.rect(0, 0, pageW, pageH, "F");
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) drawPageChrome();
       },
     });
 
