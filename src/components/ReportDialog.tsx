@@ -1171,6 +1171,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       >
                         Próximo ▶
                       </Button>
+                      <span className="text-muted-foreground/50">|</span>
+                      <HourRangeFilter />
                     </>
                   )}
                 </div>
