@@ -1198,7 +1198,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[100px] sm:min-w-[140px]">Emissora</th>
-                          {Array.from({ length: 24 }, (_, h) => (
+                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => (
                             <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 whitespace-nowrap" style={{ minWidth: '30px' }}>
                               {`${String(h).padStart(2, "0")}h`}
                             </th>
@@ -1210,7 +1210,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         {blendStations.map((st, idx) => {
                           const globalIdx = stations.findIndex(s => s.id === st.id);
                           const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
-                          const stationVals = Array.from({ length: 24 }, (_, h) => {
+                          const stationVals = Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                             const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                             return row?.[st.id];
                           }).filter((v): v is number => v != null && v > 0);
@@ -1229,7 +1229,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                                   <span className="text-foreground font-medium text-[8px] sm:text-[10px]">{st.name}</span>
                                 </div>
                               </td>
-                              {Array.from({ length: 24 }, (_, h) => {
+                              {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const val = row?.[st.id];
                                 return (
@@ -1256,7 +1256,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <span className="text-primary font-bold text-[8px] sm:text-[10px]">Média {simulatorEnabled ? 'Fi' : 'Geral'} FM</span>
                             </div>
                           </td>
-                          {Array.from({ length: 24 }, (_, h) => {
+                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                             const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                             const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                             const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
@@ -1270,7 +1270,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           })}
                           <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
                             {(() => {
-                              const allVals = Array.from({ length: 24 }, (_, h) => {
+                              const allVals = Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                                 return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
