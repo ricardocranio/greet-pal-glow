@@ -21,6 +21,7 @@ const STREAMS: StreamConfig[] = [
   { id: "mundialfm", url: "https://stm4.srvstm.com:7252",              type: "shoutcast" },
   { id: "jpnatal",   url: "https://pannatal.jmvstream.com",             type: "shoutcast" },
   { id: "jpnews",    url: "https://s02.maxcast.com.br:8082",            type: "shoutcast" },
+  { id: "cidadefm",  url: "https://cidadedosolaac.jmvstream.com",       type: "shoutcast" },
   { id: "104fm",     url: "https://radios.braviahost.com.br:8000",      type: "shoutcast" },
   // Religious
   { id: "nordeste925", url: "https://radio.midiaserverbr.com:9988",     type: "shoutcast" },
