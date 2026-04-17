@@ -268,19 +268,28 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }
   }, [viewMode, inlineImages, restoreImages]);
 
-  // Blend stations filtered & sorted by audience
+  // Blend stations filtered & sorted by audience (respects hour-range filter when in horario view)
   const blendStations = useMemo(() => {
     const filtered = stations.filter(s => blendVisibleStations.has(s.id));
-    // Sort by total audience (sum of values in blend data)
-    if (blendData.length > 0) {
-      return filtered.sort((a, b) => {
-        const sumA = blendData.reduce((sum, row) => sum + (row[a.id] ?? 0), 0);
-        const sumB = blendData.reduce((sum, row) => sum + (row[b.id] ?? 0), 0);
-        return sumB - sumA;
-      });
-    }
-    return filtered;
-  }, [blendVisibleStations, blendData]);
+    if (blendData.length === 0) return filtered;
+
+    // For horario view, only consider rows inside the selected hour range so
+    // the ranking matches the displayed/exported recorte (e.g., 08h–11h).
+    const rowsForRanking = blendView === "horario"
+      ? blendData.filter(row => {
+          const h = parseInt(String(row.time).slice(0, 2), 10);
+          return Number.isFinite(h) && h >= hourStart && h <= hourEnd;
+        })
+      : blendData;
+
+    return [...filtered].sort((a, b) => {
+      const valsA = rowsForRanking.map(r => r[a.id]).filter((v): v is number => v != null && v > 0);
+      const valsB = rowsForRanking.map(r => r[b.id]).filter((v): v is number => v != null && v > 0);
+      const avgA = valsA.length > 0 ? valsA.reduce((s, v) => s + v, 0) / valsA.length : 0;
+      const avgB = valsB.length > 0 ? valsB.reduce((s, v) => s + v, 0) / valsB.length : 0;
+      return avgB - avgA;
+    });
+  }, [blendVisibleStations, blendData, blendView, hourStart, hourEnd]);
 
   // Fetch blend data
   useEffect(() => {
