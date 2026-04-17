@@ -20,10 +20,12 @@ echo [1/5] Instalando dependencias do projeto...
 call npm install
 if errorlevel 1 goto :erro
 
-REM 3. Garante Electron + electron-builder
+REM 3. Garante Electron + electron-builder + electron-updater
 echo.
-echo [2/5] Instalando Electron e electron-builder...
+echo [2/5] Instalando Electron, electron-builder e electron-updater...
 call npm install --save-dev electron electron-builder
+if errorlevel 1 goto :erro
+call npm install --save electron-updater
 if errorlevel 1 goto :erro
 
 REM 4. Build do front-end (Vite)
@@ -35,7 +37,7 @@ if errorlevel 1 goto :erro
 REM 5. Ajusta package.json: main + metadata para electron-builder
 echo.
 echo [4/5] Ajustando package.json (main + build config)...
-node -e "const fs=require('fs');const p=require('./package.json');p.main='electron/main.cjs';p.build={appId:'com.monitorradios.app',productName:'Monitor de Radios',copyright:'Monitor de Radios',directories:{output:'electron-release',buildResources:'electron'},files:['dist/**/*','electron/**/*','package.json'],win:{target:[{target:'nsis',arch:['x64']}],icon:'electron/icon.ico',artifactName:'MonitorRadios-Setup-${version}.${ext}'},nsis:{oneClick:false,perMachine:false,allowToChangeInstallationDirectory:true,createDesktopShortcut:true,createStartMenuShortcut:true,shortcutName:'Monitor de Radios',installerIcon:'electron/icon.ico',uninstallerIcon:'electron/icon.ico',installerHeaderIcon:'electron/icon.ico',deleteAppDataOnUninstall:false,runAfterFinish:true}};fs.writeFileSync('./package.json',JSON.stringify(p,null,2));console.log('package.json atualizado para electron-builder');"
+node -e "const fs=require('fs');const p=require('./package.json');p.main='electron/main.cjs';if(!p.version)p.version='1.0.0';p.build={appId:'com.monitorradios.app',productName:'Monitor de Radios',copyright:'Monitor de Radios',directories:{output:'electron-release',buildResources:'electron'},files:['dist/**/*','electron/**/*','package.json'],publish:[{provider:'github',owner:'ricardocranio',repo:'greet-pal-glow'}],win:{target:[{target:'nsis',arch:['x64']}],icon:'electron/icon.ico',artifactName:'MonitorRadios-Setup-${version}.${ext}'},nsis:{oneClick:false,perMachine:false,allowToChangeInstallationDirectory:true,createDesktopShortcut:true,createStartMenuShortcut:true,shortcutName:'Monitor de Radios',installerIcon:'electron/icon.ico',uninstallerIcon:'electron/icon.ico',installerHeaderIcon:'electron/icon.ico',deleteAppDataOnUninstall:false,runAfterFinish:true}};fs.writeFileSync('./package.json',JSON.stringify(p,null,2));console.log('package.json atualizado para electron-builder + auto-update');"
 if errorlevel 1 goto :erro
 
 REM 6. Build do instalador
