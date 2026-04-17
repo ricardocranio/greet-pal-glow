@@ -441,9 +441,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     return Array.from({ length: 24 }, (_, h) => {
       const vals = hourMap.get(h) || [];
       const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-    });
-  }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData]);
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg, hour: h };
+    }).filter(d => d.hour >= hourStart && d.hour <= hourEnd);
+  }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData, hourStart, hourEnd]);
 
   // Compare station: fetch snapshots
   const [compareSnapshots, setCompareSnapshots] = useState<SnapshotRow[]>([]);
@@ -509,9 +509,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     return Array.from({ length: 24 }, (_, h) => {
       const vals = hourMap.get(h) || [];
       const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-    });
-  }, [compareStationId, compareSnapshots, horarioFilter, selectedDate]);
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg, hour: h };
+    }).filter(d => d.hour >= hourStart && d.hour <= hourEnd);
+  }, [compareStationId, compareSnapshots, horarioFilter, selectedDate, hourStart, hourEnd]);
 
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
