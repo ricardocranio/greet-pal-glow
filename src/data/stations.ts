@@ -165,6 +165,18 @@ export const stations: Station[] = [
     },
   },
   {
+    id: "cidadefm",
+    name: "CIDADE FM NATAL",
+    frequency: "94,3 MHz",
+    streamUrl: "https://cidadedosolaac.jmvstream.com/index.html?sid=1",
+    logoUrl: "/logos/cidade-fm.jpg",
+    instagramHandle: "@cidadefmnatal",
+    category: 'commercial',
+    social: {
+      instagram: "https://www.instagram.com/cidadefmnatal",
+    },
+  },
+  {
     id: "104fm",
     name: "104 FM NATAL",
     frequency: "104,7 MHz",
