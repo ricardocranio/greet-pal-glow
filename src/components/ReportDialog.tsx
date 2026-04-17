@@ -82,6 +82,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendDate, setBlendDate] = useState<Date>(new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  // Hour-range filter (00..23). End is inclusive — covers minute 59 of that hour.
+  const [hourStart, setHourStart] = useState<number>(0);
+  const [hourEnd, setHourEnd] = useState<number>(23);
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
