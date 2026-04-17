@@ -986,7 +986,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     ? "Audiência por Dia da Semana"
                     : "Audiência Média por Mês"}
                 </p>
-                <PdfExportButtons />
+                <DownloadMenu />
               </div>
 
               {/* Horário filter controls */}
@@ -1112,16 +1112,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     {simulatorEnabled && <span className="text-accent text-[10px] font-normal ml-2">Fi {simulatorFactor}</span>}
                   </p>
                   <div className="flex items-center gap-1.5 flex-wrap" data-export-hide="true">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-                      onClick={() => handleSavePng(blendChartRef, 'blend_comparativo')}
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      PNG
-                    </Button>
-                    <PdfExportButtons />
+                    <DownloadMenu pngRef={blendChartRef} pngFilename="blend_comparativo" />
                   </div>
                 </div>
 
