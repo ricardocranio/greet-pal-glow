@@ -82,6 +82,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendDate, setBlendDate] = useState<Date>(new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  // Hour-range filter (00..23). End is inclusive — covers minute 59 of that hour.
+  const [hourStart, setHourStart] = useState<number>(0);
+  const [hourEnd, setHourEnd] = useState<number>(23);
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
@@ -438,9 +441,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     return Array.from({ length: 24 }, (_, h) => {
       const vals = hourMap.get(h) || [];
       const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-    });
-  }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData]);
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg, hour: h };
+    }).filter(d => d.hour >= hourStart && d.hour <= hourEnd);
+  }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData, hourStart, hourEnd]);
 
   // Compare station: fetch snapshots
   const [compareSnapshots, setCompareSnapshots] = useState<SnapshotRow[]>([]);
@@ -506,9 +509,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     return Array.from({ length: 24 }, (_, h) => {
       const vals = hourMap.get(h) || [];
       const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-    });
-  }, [compareStationId, compareSnapshots, horarioFilter, selectedDate]);
+      return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg, hour: h };
+    }).filter(d => d.hour >= hourStart && d.hour <= hourEnd);
+  }, [compareStationId, compareSnapshots, horarioFilter, selectedDate, hourStart, hourEnd]);
 
   const todayStats = useMemo(() => {
     if (!status || allSnapshots.length === 0) {
@@ -641,6 +644,57 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }));
   }, [viewMode, filteredHourlyData, compareHourlyData, compareStationId, factor]);
 
+  // Hour-range select component (used in "horario" tab and "blend > horario" sub-view)
+  const HourRangeFilter = () => (
+    <div className="flex items-center gap-1 ml-1">
+      <span className="text-[9px] sm:text-[10px] font-bold text-accent uppercase tracking-wide">Faixa</span>
+      <Select value={String(hourStart)} onValueChange={(v) => {
+        const s = parseInt(v, 10);
+        setHourStart(s);
+        if (s > hourEnd) setHourEnd(s);
+      }}>
+        <SelectTrigger className="h-6 w-[64px] text-[10px] border-border text-foreground gap-1 px-1.5">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-card border-border max-h-[260px]">
+          {Array.from({ length: 24 }, (_, h) => (
+            <SelectItem key={h} value={String(h)} className="text-[11px]">
+              {`${String(h).padStart(2, "0")}:00`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-[10px] text-muted-foreground">→</span>
+      <Select value={String(hourEnd)} onValueChange={(v) => {
+        const e = parseInt(v, 10);
+        setHourEnd(e);
+        if (e < hourStart) setHourStart(e);
+      }}>
+        <SelectTrigger className="h-6 w-[64px] text-[10px] border-border text-foreground gap-1 px-1.5">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-card border-border max-h-[260px]">
+          {Array.from({ length: 24 }, (_, h) => (
+            <SelectItem key={h} value={String(h)} className="text-[11px]">
+              {`${String(h).padStart(2, "0")}:59`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {(hourStart !== 0 || hourEnd !== 23) && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          onClick={() => { setHourStart(0); setHourEnd(23); }}
+          title="Limpar faixa horária"
+        >
+          ×
+        </Button>
+      )}
+    </div>
+  );
+
   if (!status) return null;
   const { station, listeners } = status;
 
@@ -649,16 +703,25 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
     : rawChartData;
 
-  // Apply factor to blend data
-  const displayBlendData = factor !== 1
-    ? blendData.map(row => {
-        const newRow: Record<string, any> = { time: row.time };
-        stations.forEach(st => {
-          newRow[st.id] = row[st.id] != null ? Math.round(row[st.id] * factor) : null;
-        });
-        return newRow;
-      })
-    : blendData;
+  // Apply factor to blend data; for "horario" sub-view also apply hour-range filter
+  const displayBlendData = (() => {
+    const base = factor !== 1
+      ? blendData.map(row => {
+          const newRow: Record<string, any> = { time: row.time };
+          stations.forEach(st => {
+            newRow[st.id] = row[st.id] != null ? Math.round(row[st.id] * factor) : null;
+          });
+          return newRow;
+        })
+      : blendData;
+    if (viewMode === "blend" && blendView === "horario") {
+      return base.filter(row => {
+        const h = parseInt(String(row.time).slice(0, 2), 10);
+        return Number.isFinite(h) && h >= hourStart && h <= hourEnd;
+      });
+    }
+    return base;
+  })();
   const dayName = DAY_SHORT[getBrasiliaDay()];
 
   // Streaming & Simulado averages for single-station views
@@ -965,6 +1028,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <HourRangeFilter />
                 </div>
               )}
 
@@ -1106,6 +1171,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       >
                         Próximo ▶
                       </Button>
+                      <span className="text-muted-foreground/50">|</span>
+                      <HourRangeFilter />
                     </>
                   )}
                 </div>
@@ -1186,7 +1253,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[100px] sm:min-w-[140px]">Emissora</th>
-                          {Array.from({ length: 24 }, (_, h) => (
+                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => (
                             <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 whitespace-nowrap" style={{ minWidth: '30px' }}>
                               {`${String(h).padStart(2, "0")}h`}
                             </th>
@@ -1198,7 +1265,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         {blendStations.map((st, idx) => {
                           const globalIdx = stations.findIndex(s => s.id === st.id);
                           const color = STATION_COLORS[globalIdx % STATION_COLORS.length];
-                          const stationVals = Array.from({ length: 24 }, (_, h) => {
+                          const stationVals = Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                             const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                             return row?.[st.id];
                           }).filter((v): v is number => v != null && v > 0);
@@ -1217,7 +1284,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                                   <span className="text-foreground font-medium text-[8px] sm:text-[10px]">{st.name}</span>
                                 </div>
                               </td>
-                              {Array.from({ length: 24 }, (_, h) => {
+                              {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const val = row?.[st.id];
                                 return (
@@ -1244,7 +1311,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <span className="text-primary font-bold text-[8px] sm:text-[10px]">Média {simulatorEnabled ? 'Fi' : 'Geral'} FM</span>
                             </div>
                           </td>
-                          {Array.from({ length: 24 }, (_, h) => {
+                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                             const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                             const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                             const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
@@ -1258,7 +1325,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           })}
                           <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
                             {(() => {
-                              const allVals = Array.from({ length: 24 }, (_, h) => {
+                              const allVals = Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                                 return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
