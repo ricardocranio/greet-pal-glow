@@ -149,17 +149,52 @@ export default function HistoryViewer() {
     toast.success("CSV exportado");
   };
 
-  const exportPDF = () => {
+  const exportPDF = (mode: "light" | "dark") => {
+    const isDark = mode === "dark";
+    const bg: [number, number, number] = isDark ? [15, 23, 41] : [255, 255, 255];
+    const fg: [number, number, number] = isDark ? [240, 240, 245] : [20, 20, 25];
+    const headBg: [number, number, number] = isDark ? [30, 41, 59] : [30, 30, 30];
+    const headFg: [number, number, number] = [255, 255, 255];
+    const altRow: [number, number, number] = isDark ? [22, 30, 48] : [245, 245, 248];
+
     const doc = new jsPDF();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+
+    // Background
+    doc.setFillColor(...bg);
+    doc.rect(0, 0, pageW, pageH, "F");
+
+    doc.setTextColor(...fg);
     doc.setFontSize(16);
     doc.text("Relatório Consolidado de Audiência", 14, 18);
     doc.setFontSize(11);
     doc.text(`Estação: ${stationName(stationId)}`, 14, 28);
     doc.text(`Período: ${periodLabel}`, 14, 34);
     doc.text(`Granularidade: ${granLabel}`, 14, 40);
-    doc.text(`Média geral: ${totals.avg.toLocaleString("pt-BR")}   Pico: ${totals.peak.toLocaleString("pt-BR")}   Amostras: ${totals.samples}`, 14, 46);
+    doc.text(
+      `Média geral: ${totals.avg.toLocaleString("pt-BR")}   Pico: ${totals.peak.toLocaleString("pt-BR")}   Amostras: ${totals.samples}`,
+      14,
+      46
+    );
 
     autoTable(doc, {
+      startY: 52,
+      head: [["Período", "Média Ouvintes", "Pico Ouvintes", "Amostras"]],
+      body: buckets.map((b) => [b.label, b.avg.toLocaleString("pt-BR"), b.peak.toLocaleString("pt-BR"), b.samples]),
+      styles: { fontSize: 9, textColor: fg, fillColor: bg },
+      headStyles: { fillColor: headBg, textColor: headFg },
+      alternateRowStyles: { fillColor: altRow },
+      didDrawPage: () => {
+        doc.setFillColor(...bg);
+        doc.rect(0, 0, pageW, pageH, "F");
+      },
+    });
+
+    const tag = isDark ? "PDF-B" : "PDF-W";
+    doc.save(`historico_${stationId}_${granularity}_${tag}_${format(from, "yyyyMMdd")}_${format(to, "yyyyMMdd")}.pdf`);
+    toast.success(`${tag} exportado`);
+  };
       startY: 52,
       head: [["Período", "Média Ouvintes", "Pico Ouvintes", "Amostras"]],
       body: buckets.map((b) => [b.label, b.avg.toLocaleString("pt-BR"), b.peak.toLocaleString("pt-BR"), b.samples]),
