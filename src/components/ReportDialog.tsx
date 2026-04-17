@@ -35,6 +35,7 @@ import logoClubefm from "@/assets/logo-clubefm.png";
 import logoJpnatal from "@/assets/logo-jpnatal.png";
 import logoJpnews from "@/assets/logo-jpnews.png";
 import logoMundialfm from "@/assets/logo-mundialfm.png";
+import logoCidadefm from "@/assets/logo-cidadefm.jpg";
 
 interface Props {
   status: StationStatus | null;
@@ -70,6 +71,7 @@ const LOCAL_STATION_LOGOS: Record<string, string> = {
   "jpnatal": logoJpnatal,
   "jpnews": logoJpnews,
   "mundialfm": logoMundialfm,
+  "cidadefm": logoCidadefm,
 };
 
 const getStationLogoSrc = (stationId: string, logoUrl?: string) => LOCAL_STATION_LOGOS[stationId] || logoUrl || "";
