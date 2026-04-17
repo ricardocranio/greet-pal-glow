@@ -755,29 +755,37 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const streamingAvg = chartData.length > 0 ? calcAvg(chartData.filter(d => d.listeners > 0).map(d => d.listeners)) : 0;
   const simuladoAvg = simulatorEnabled && factor !== 1 ? streamingAvg : 0;
 
-  // PDF export buttons component
-  const PdfExportButtons = ({ className = "" }: { className?: string }) => (
-    <div data-export-hide="true" className={cn("flex items-center gap-1.5", className)}>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-        onClick={() => handleExportPdf('light')}
-        disabled={isExporting}
-      >
-        <FileText className="h-3 w-3 mr-1" />
-        PDF-W
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-        onClick={() => handleExportPdf('dark')}
-        disabled={isExporting}
-      >
-        <FileText className="h-3 w-3 mr-1" />
-        PDF-B
-      </Button>
+  // Unified Download menu (PNG / PDF-W / PDF-B)
+  const DownloadMenu = ({ pngRef, pngFilename, className = "" }: { pngRef?: React.RefObject<HTMLDivElement>; pngFilename?: string; className?: string }) => (
+    <div data-export-hide="true" className={cn("flex items-center", className)}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
+            disabled={isExporting}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            Download
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Formato</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {pngRef && pngFilename && (
+            <DropdownMenuItem onClick={() => handleSavePng(pngRef, pngFilename)} className="text-xs cursor-pointer">
+              <Download className="h-3.5 w-3.5 mr-2" /> PNG
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={() => handleExportPdf('light')} disabled={isExporting} className="text-xs cursor-pointer">
+            <FileText className="h-3.5 w-3.5 mr-2" /> PDF-W <span className="ml-auto text-[9px] text-muted-foreground">claro</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleExportPdf('dark')} disabled={isExporting} className="text-xs cursor-pointer">
+            <FileText className="h-3.5 w-3.5 mr-2" /> PDF-B <span className="ml-auto text-[9px] text-muted-foreground">escuro</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
