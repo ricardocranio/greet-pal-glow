@@ -644,6 +644,57 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }));
   }, [viewMode, filteredHourlyData, compareHourlyData, compareStationId, factor]);
 
+  // Hour-range select component (used in "horario" tab and "blend > horario" sub-view)
+  const HourRangeFilter = () => (
+    <div className="flex items-center gap-1 ml-1">
+      <span className="text-[9px] sm:text-[10px] font-bold text-accent uppercase tracking-wide">Faixa</span>
+      <Select value={String(hourStart)} onValueChange={(v) => {
+        const s = parseInt(v, 10);
+        setHourStart(s);
+        if (s > hourEnd) setHourEnd(s);
+      }}>
+        <SelectTrigger className="h-6 w-[64px] text-[10px] border-border text-foreground gap-1 px-1.5">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-card border-border max-h-[260px]">
+          {Array.from({ length: 24 }, (_, h) => (
+            <SelectItem key={h} value={String(h)} className="text-[11px]">
+              {`${String(h).padStart(2, "0")}:00`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-[10px] text-muted-foreground">→</span>
+      <Select value={String(hourEnd)} onValueChange={(v) => {
+        const e = parseInt(v, 10);
+        setHourEnd(e);
+        if (e < hourStart) setHourStart(e);
+      }}>
+        <SelectTrigger className="h-6 w-[64px] text-[10px] border-border text-foreground gap-1 px-1.5">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-card border-border max-h-[260px]">
+          {Array.from({ length: 24 }, (_, h) => (
+            <SelectItem key={h} value={String(h)} className="text-[11px]">
+              {`${String(h).padStart(2, "0")}:59`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {(hourStart !== 0 || hourEnd !== 23) && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          onClick={() => { setHourStart(0); setHourEnd(23); }}
+          title="Limpar faixa horária"
+        >
+          ×
+        </Button>
+      )}
+    </div>
+  );
+
   if (!status) return null;
   const { station, listeners } = status;
 
