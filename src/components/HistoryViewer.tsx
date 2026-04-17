@@ -212,8 +212,11 @@ export default function HistoryViewer() {
           <Button size="sm" variant="outline" onClick={exportCSV} disabled={buckets.length === 0}>
             <Download className="h-3.5 w-3.5 mr-1" /> CSV
           </Button>
-          <Button size="sm" variant="outline" onClick={exportPDF} disabled={buckets.length === 0}>
-            <FileText className="h-3.5 w-3.5 mr-1" /> PDF
+          <Button size="sm" variant="outline" onClick={() => exportPDF("light")} disabled={buckets.length === 0} title="PDF fundo branco">
+            <FileText className="h-3.5 w-3.5 mr-1" /> PDF-W
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportPDF("dark")} disabled={buckets.length === 0} title="PDF fundo preto" className="bg-foreground text-background hover:bg-foreground/90 hover:text-background">
+            <FileText className="h-3.5 w-3.5 mr-1" /> PDF-B
           </Button>
         </div>
       </div>
