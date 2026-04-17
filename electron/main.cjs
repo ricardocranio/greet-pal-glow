@@ -1,21 +1,66 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('path');
 
+// Mantém referência global para evitar GC fechar a janela
+let mainWindow = null;
+
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    icon: path.join(__dirname, '..', 'public', 'logo-monitor.png'),
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1024,
+    minHeight: 700,
+    icon: path.join(__dirname, 'icon.ico'),
+    title: 'Monitor de Rádios',
+    backgroundColor: '#0a0a0a',
+    autoHideMenuBar: true,
+    show: false, // mostra só após carregar para evitar flash branco
     webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
+      webSecurity: true,
     },
   });
 
-  win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  // Remove menu padrão (File/Edit/View...)
+  Menu.setApplicationMenu(null);
+
+  mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
+  // Abre links externos no navegador padrão, não dentro do Electron
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
-app.whenReady().then(createWindow);
+// Garante apenas uma instância do app
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(createWindow);
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
