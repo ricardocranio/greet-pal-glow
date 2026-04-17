@@ -195,16 +195,6 @@ export default function HistoryViewer() {
     doc.save(`historico_${stationId}_${granularity}_${tag}_${format(from, "yyyyMMdd")}_${format(to, "yyyyMMdd")}.pdf`);
     toast.success(`${tag} exportado`);
   };
-      startY: 52,
-      head: [["Período", "Média Ouvintes", "Pico Ouvintes", "Amostras"]],
-      body: buckets.map((b) => [b.label, b.avg.toLocaleString("pt-BR"), b.peak.toLocaleString("pt-BR"), b.samples]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [30, 30, 30] },
-    });
-
-    doc.save(`historico_${stationId}_${granularity}_${format(from, "yyyyMMdd")}_${format(to, "yyyyMMdd")}.pdf`);
-    toast.success("PDF exportado");
-  };
 
   const setPreset = (days: number) => {
     setTo(new Date());
