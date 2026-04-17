@@ -878,9 +878,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         <div ref={contentRef}>
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2 sm:gap-3 text-foreground">
-              {station.logoUrl ? (
+              {stationLogoSrc ? (
                 <img
-                  src={station.logoUrl}
+                  src={stationLogoSrc}
                   alt={station.name}
                   className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-lg bg-secondary p-1"
                   width={40}
@@ -1348,8 +1348,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <td className="py-1 sm:py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm">
                                 <div className="flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
                                   <span className="text-muted-foreground font-mono text-[8px] sm:text-[10px]">{idx + 1}°</span>
-                                  {st.logoUrl ? (
-                                    <img src={st.logoUrl} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
+                                  {getStationLogoSrc(st.id, st.logoUrl) ? (
+                                    <img src={getStationLogoSrc(st.id, st.logoUrl)} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded object-contain shrink-0" />
                                   ) : (
                                     <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded bg-muted flex items-center justify-center text-[6px] text-muted-foreground shrink-0">FM</span>
                                   )}
