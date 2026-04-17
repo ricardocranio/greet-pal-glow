@@ -1,1 +1,4 @@
 project_id = "btopqcgjoszcvbqpczai"
+
+[functions.bulk-import-snapshots]
+verify_jwt = false
