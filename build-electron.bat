@@ -32,7 +32,13 @@ echo [3/4] Gerando build de producao (Vite)...
 call npx vite build
 if errorlevel 1 goto :erro
 
-REM 5. Empacota com electron-packager para Windows x64
+REM 5. Garante que package.json tem "main" apontando para electron/main.cjs
+echo.
+echo [3.5/4] Ajustando package.json (campo "main")...
+node -e "const fs=require('fs');const p=require('./package.json');let changed=false;if(p.main!=='electron/main.cjs'){p.main='electron/main.cjs';changed=true;}if(p.type==='module'){/* manter type module: .cjs funciona */}if(changed){fs.writeFileSync('./package.json',JSON.stringify(p,null,2));console.log('package.json atualizado: main=electron/main.cjs');}else{console.log('package.json ja tem main correto');}"
+if errorlevel 1 goto :erro
+
+REM 6. Empacota com electron-packager para Windows x64
 echo.
 echo [4/4] Empacotando aplicativo Electron para Windows x64...
 if exist electron-release rmdir /s /q electron-release
