@@ -34,10 +34,45 @@ echo [3/5] Gerando build de producao (Vite)...
 call npx vite build
 if errorlevel 1 goto :erro
 
-REM 5. Ajusta package.json: main + metadata para electron-builder
+REM 5. Ajusta package.json via arquivo .js (evita problemas de escape no cmd)
 echo.
 echo [4/5] Ajustando package.json (main + build config)...
-node -e "const fs=require('fs');const p=require('./package.json');p.main='electron/main.cjs';if(!p.version)p.version='1.0.0';p.build={appId:'com.monitorradios.app',productName:'Monitor de Radios',copyright:'Monitor de Radios',directories:{output:'electron-release',buildResources:'electron'},files:['dist/**/*','electron/**/*','package.json'],publish:[{provider:'github',owner:'ricardocranio',repo:'greet-pal-glow'}],win:{target:[{target:'nsis',arch:['x64']}],icon:'electron/icon.ico',artifactName:'MonitorRadios-Setup-${version}.${ext}'},nsis:{oneClick:false,perMachine:false,allowToChangeInstallationDirectory:true,createDesktopShortcut:true,createStartMenuShortcut:true,shortcutName:'Monitor de Radios',installerIcon:'electron/icon.ico',uninstallerIcon:'electron/icon.ico',installerHeaderIcon:'electron/icon.ico',deleteAppDataOnUninstall:false,runAfterFinish:true}};fs.writeFileSync('./package.json',JSON.stringify(p,null,2));console.log('package.json atualizado para electron-builder + auto-update');"
+> "%TEMP%\fix-pkg.js" echo const fs=require('fs');
+>> "%TEMP%\fix-pkg.js" echo const path=require('path');
+>> "%TEMP%\fix-pkg.js" echo const pkgPath=path.resolve('./package.json');
+>> "%TEMP%\fix-pkg.js" echo const p=JSON.parse(fs.readFileSync(pkgPath,'utf8'));
+>> "%TEMP%\fix-pkg.js" echo p.main='electron/main.cjs';
+>> "%TEMP%\fix-pkg.js" echo if(!p.version) p.version='1.0.0';
+>> "%TEMP%\fix-pkg.js" echo p.build={
+>> "%TEMP%\fix-pkg.js" echo   appId:'com.monitorradios.app',
+>> "%TEMP%\fix-pkg.js" echo   productName:'Monitor de Radios',
+>> "%TEMP%\fix-pkg.js" echo   copyright:'Monitor de Radios',
+>> "%TEMP%\fix-pkg.js" echo   directories:{ output:'electron-release', buildResources:'electron' },
+>> "%TEMP%\fix-pkg.js" echo   files:['dist/**/*','electron/**/*','package.json'],
+>> "%TEMP%\fix-pkg.js" echo   publish:[{ provider:'github', owner:'ricardocranio', repo:'greet-pal-glow' }],
+>> "%TEMP%\fix-pkg.js" echo   win:{
+>> "%TEMP%\fix-pkg.js" echo     target:[{ target:'nsis', arch:['x64'] }],
+>> "%TEMP%\fix-pkg.js" echo     icon:'electron/icon.ico',
+>> "%TEMP%\fix-pkg.js" echo     artifactName:'MonitorRadios-Setup-${version}.${ext}'
+>> "%TEMP%\fix-pkg.js" echo   },
+>> "%TEMP%\fix-pkg.js" echo   nsis:{
+>> "%TEMP%\fix-pkg.js" echo     oneClick:false,
+>> "%TEMP%\fix-pkg.js" echo     perMachine:false,
+>> "%TEMP%\fix-pkg.js" echo     allowToChangeInstallationDirectory:true,
+>> "%TEMP%\fix-pkg.js" echo     createDesktopShortcut:true,
+>> "%TEMP%\fix-pkg.js" echo     createStartMenuShortcut:true,
+>> "%TEMP%\fix-pkg.js" echo     shortcutName:'Monitor de Radios',
+>> "%TEMP%\fix-pkg.js" echo     installerIcon:'electron/icon.ico',
+>> "%TEMP%\fix-pkg.js" echo     uninstallerIcon:'electron/icon.ico',
+>> "%TEMP%\fix-pkg.js" echo     installerHeaderIcon:'electron/icon.ico',
+>> "%TEMP%\fix-pkg.js" echo     deleteAppDataOnUninstall:false,
+>> "%TEMP%\fix-pkg.js" echo     runAfterFinish:true
+>> "%TEMP%\fix-pkg.js" echo   }
+>> "%TEMP%\fix-pkg.js" echo };
+>> "%TEMP%\fix-pkg.js" echo fs.writeFileSync(pkgPath,JSON.stringify(p,null,2));
+>> "%TEMP%\fix-pkg.js" echo console.log('package.json atualizado para electron-builder + auto-update');
+
+call node "%TEMP%\fix-pkg.js"
 if errorlevel 1 goto :erro
 
 REM 6. Build do instalador
