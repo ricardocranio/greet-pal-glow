@@ -652,16 +652,25 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     ? rawChartData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
     : rawChartData;
 
-  // Apply factor to blend data
-  const displayBlendData = factor !== 1
-    ? blendData.map(row => {
-        const newRow: Record<string, any> = { time: row.time };
-        stations.forEach(st => {
-          newRow[st.id] = row[st.id] != null ? Math.round(row[st.id] * factor) : null;
-        });
-        return newRow;
-      })
-    : blendData;
+  // Apply factor to blend data; for "horario" sub-view also apply hour-range filter
+  const displayBlendData = (() => {
+    const base = factor !== 1
+      ? blendData.map(row => {
+          const newRow: Record<string, any> = { time: row.time };
+          stations.forEach(st => {
+            newRow[st.id] = row[st.id] != null ? Math.round(row[st.id] * factor) : null;
+          });
+          return newRow;
+        })
+      : blendData;
+    if (viewMode === "blend" && blendView === "horario") {
+      return base.filter(row => {
+        const h = parseInt(String(row.time).slice(0, 2), 10);
+        return Number.isFinite(h) && h >= hourStart && h <= hourEnd;
+      });
+    }
+    return base;
+  })();
   const dayName = DAY_SHORT[getBrasiliaDay()];
 
   // Streaming & Simulado averages for single-station views
