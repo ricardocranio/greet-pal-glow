@@ -918,16 +918,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                   Audiência em Tempo Real — {dayName}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap" data-export-hide="true">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-[10px] border-border text-muted-foreground hover:text-foreground"
-                    onClick={() => handleSavePng(realtimeChartRef, `tempo_real_${station.name.replace(/\s+/g, '_')}`)}
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    PNG
-                  </Button>
-                  <PdfExportButtons />
+                  <DownloadMenu pngRef={realtimeChartRef} pngFilename={`tempo_real_${station.name.replace(/\s+/g, '_')}`} />
                 </div>
               </div>
 
