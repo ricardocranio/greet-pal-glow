@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import HistoryViewer from "@/components/HistoryViewer";
 
 interface AppUser {
   id: string;
@@ -182,6 +183,9 @@ export default function AdminPanel() {
       </header>
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Historical data viewer */}
+        <HistoryViewer />
+
         {/* Connected users */}
         <div className="bg-card border border-border rounded-xl p-4">
           <h2 className="font-display font-semibold text-sm text-foreground flex items-center gap-2 mb-3">
