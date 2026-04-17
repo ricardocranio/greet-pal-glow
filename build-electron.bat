@@ -39,9 +39,15 @@ if exist electron-release rmdir /s /q electron-release
 call npx @electron/packager . "MonitorRadios" ^
   --platform=win32 --arch=x64 ^
   --out=electron-release --overwrite ^
+  --icon=electron/icon.ico ^
+  --app-copyright="Monitor de Radios" ^
+  --win32metadata.CompanyName="Monitor de Radios" ^
+  --win32metadata.ProductName="Monitor de Radios" ^
+  --win32metadata.FileDescription="Monitor de Radios - Audiencia em tempo real" ^
   --ignore="^/src" --ignore="^/public" ^
   --ignore="^/electron-release" --ignore="^/supabase" ^
-  --ignore="^/playwright.*" --ignore="^/vitest.*"
+  --ignore="^/playwright.*" --ignore="^/vitest.*" ^
+  --ignore="^/mem"
 if errorlevel 1 goto :erro
 
 echo.
