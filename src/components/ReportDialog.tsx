@@ -692,6 +692,32 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
           ×
         </Button>
       )}
+      <div className="flex flex-wrap items-center gap-1 ml-1">
+        {[
+          { l: "Madrugada", s: 0, e: 5 },
+          { l: "Manhã", s: 6, e: 11 },
+          { l: "Tarde", s: 12, e: 17 },
+          { l: "Noite", s: 18, e: 23 },
+          { l: "Comercial", s: 6, e: 17 },
+        ].map((p) => {
+          const active = hourStart === p.s && hourEnd === p.e;
+          return (
+            <Button
+              key={p.l}
+              size="sm"
+              variant={active ? "default" : "outline"}
+              className={cn(
+                "h-6 px-2 text-[10px] font-medium",
+                active ? "" : "border-border text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => { setHourStart(p.s); setHourEnd(p.e); }}
+              title={`${String(p.s).padStart(2, "0")}:00 – ${String(p.e).padStart(2, "0")}:59`}
+            >
+              {p.l}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 
