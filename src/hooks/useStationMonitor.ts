@@ -46,58 +46,84 @@ export function useStationMonitor() {
   const [simulatorEnabled, setSimulatorEnabled] = useState(false);
   const [simulatorFactor, setSimulatorFactor] = useState(75);
 
+  const applyResult = useCallback((real: StreamResult) => {
+    setStatuses((prev) =>
+      prev.map((s) => {
+        if (s.station.id !== real.id) return s;
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const newHistory = [...s.history, { time: timeStr, listeners: real.listeners }].slice(-24);
+        const newPeak = real.listeners > s.peakListeners ? real.listeners : s.peakListeners;
+        const newPeakTime = real.listeners > s.peakListeners ? timeStr : s.peakTime;
+        const serverPeak = real.peakListeners > newPeak ? real.peakListeners : newPeak;
+        return {
+          ...s,
+          online: real.online,
+          listeners: real.online ? real.listeners : 0,
+          peakListeners: serverPeak,
+          peakTime: real.peakListeners > newPeak ? "server" : newPeakTime,
+          lastChecked: now,
+          history: newHistory,
+          title: real.title || s.title,
+          bitrate: real.bitrate || s.bitrate,
+          source: 'real' as const,
+        };
+      })
+    );
+  }, []);
+
   const fetchRealData = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('stream-status');
+      // 1. Fast path: read pre-computed current_status from DB (cached, no upstream calls)
+      const { data: rows } = await supabase
+        .from('current_status')
+        .select('station_id, online, listeners, peak_listeners, title, bitrate');
 
-      if (error) {
-        console.error('Edge function error:', error);
-        return;
+      if (rows && rows.length > 0) {
+        rows.forEach(r => applyResult({
+          id: r.station_id,
+          online: r.online,
+          listeners: r.listeners,
+          peakListeners: r.peak_listeners,
+          title: r.title || '',
+          bitrate: r.bitrate || 0,
+        }));
       }
 
-      const results: StreamResult[] = data?.statuses ?? [];
-
-      setStatuses((prev) =>
-        prev.map((s) => {
-          const real = results.find((r) => r.id === s.station.id);
-          if (!real) return s;
-
-          const now = new Date();
-          const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-          const newHistory = [
-            ...s.history,
-            { time: timeStr, listeners: real.listeners },
-          ].slice(-24);
-
-          const newPeak = real.listeners > s.peakListeners ? real.listeners : s.peakListeners;
-          const newPeakTime = real.listeners > s.peakListeners ? timeStr : s.peakTime;
-          const serverPeak = real.peakListeners > newPeak ? real.peakListeners : newPeak;
-
-          return {
-            ...s,
-            online: real.online,
-            listeners: real.online ? real.listeners : 0,
-            peakListeners: serverPeak,
-            peakTime: real.peakListeners > newPeak ? "server" : newPeakTime,
-            lastChecked: now,
-            history: newHistory,
-            title: real.title || s.title,
-            bitrate: real.bitrate || s.bitrate,
-            source: 'real' as const,
-          };
-        })
-      );
+      // 2. Trigger fresh fetch in background (updates current_status for everyone)
+      supabase.functions.invoke('stream-status').catch(err => console.error('stream-status:', err));
     } catch (err) {
-      console.error('Failed to fetch stream status:', err);
+      console.error('Failed to load status:', err);
     }
-  }, []);
+  }, [applyResult]);
 
   useEffect(() => {
     fetchRealData();
-    const interval = setInterval(fetchRealData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchRealData]);
+    // Background refresh every 60s (was 30s) — Realtime handles instant updates
+    const interval = setInterval(fetchRealData, 60000);
+
+    // Realtime: push updates from current_status table
+    const channel = supabase
+      .channel('current_status_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'current_status' }, (payload) => {
+        const r = payload.new as any;
+        if (!r?.station_id) return;
+        applyResult({
+          id: r.station_id,
+          online: r.online,
+          listeners: r.listeners,
+          peakListeners: r.peak_listeners,
+          title: r.title || '',
+          bitrate: r.bitrate || 0,
+        });
+      })
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRealData, applyResult]);
 
   // Filtered statuses based on visibility (memoized)
   const filteredStatuses = useMemo(
