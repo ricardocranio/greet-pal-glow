@@ -52,9 +52,9 @@ function StationCardImpl({ status, onReport, rank }: Props) {
         </div>
       )}
       {/* Live dot */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      <div className="absolute top-3 right-3 flex items-center gap-1.5">
         {source === 'real' && online && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400 ring-1 ring-red-500/30">
+          <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400 ring-1 ring-red-500/30">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
             Ao Vivo
           </span>
@@ -64,13 +64,13 @@ function StationCardImpl({ status, onReport, rank }: Props) {
             online ? "bg-online animate-pulse" : "bg-offline"
           }`}
         />
-        <span className="text-xs font-mono text-muted-foreground">
+        <span className="hidden 2xl:inline text-[10px] font-mono text-muted-foreground">
           {online ? "ONLINE" : "OFFLINE"}
         </span>
       </div>
 
       {/* Station info */}
-      <div className="flex items-start gap-3 mb-3">
+      <div className="flex items-start gap-3 mb-3 pr-10">
         <div className="relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
           {station.logoUrl ? (
             <img
