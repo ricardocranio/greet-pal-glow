@@ -44,6 +44,13 @@ function StationCardImpl({ status, onReport, rank }: Props) {
     <div className={`relative group rounded-xl border bg-card p-5 transition-all hover:shadow-[0_0_30px_-10px_hsl(var(--primary)/0.25)] ${
       isPlaying ? "border-primary shadow-[0_0_30px_-10px_hsl(var(--primary)/0.3)]" : "border-border hover:border-primary/40"
     }`}>
+      {/* Rank badge */}
+      {online && rank !== undefined && (
+        <div className={`absolute -top-2 -left-2 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 shadow-sm ${medalColor}`}>
+          {rank <= 3 ? <Trophy className="h-3 w-3" /> : <Medal className="h-3 w-3" />}
+          <span className="font-mono tabular-nums">{rank}º</span>
+        </div>
+      )}
       {/* Live dot */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
         {source === 'real' && online && (
