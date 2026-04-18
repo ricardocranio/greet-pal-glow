@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Route, Routes } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
-import AdminPanel from "./pages/AdminPanel.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import { LoginGate } from "./components/LoginGate";
+
+const AdminPanel = lazy(() => import("./pages/AdminPanel.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -17,12 +19,13 @@ const App = () => (
       <Sonner />
       <LoginGate>
         <HashRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/admin" element={<AdminPanel />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando…</div>}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </HashRouter>
       </LoginGate>
     </TooltipProvider>

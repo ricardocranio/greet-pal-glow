@@ -25,9 +25,7 @@ const STREAMS: StreamConfig[] = [
   { id: "104fm",     url: "https://radios.braviahost.com.br:8000",      type: "shoutcast" },
   { id: "universitariafm", url: "https://radio.comunica.ufrn.br:8000",  type: "icecast" },
   { id: "105fm",     url: "https://stream2.svrdedicado.org:7031",       type: "shoutcast" },
-  // Religious
   { id: "nordeste925", url: "https://radio.midiaserverbr.com:9988",     type: "shoutcast" },
-  // State
   { id: "marinhafm",   url: "https://stm0.inovativa.net/listen/radiomarinha", type: "icecast" },
 ];
 
@@ -41,62 +39,80 @@ interface StreamResult {
   error?: string;
 }
 
+const ENDPOINTS = [
+  { path: '/stats?sid=1&json=1', parser: parseShoutcastJson },
+  { path: '/status-json.xsl', parser: parseIcecastJson },
+  { path: '/status2.xsl', parser: parseIcecastStatus2 },
+  { path: '/7.html', parser: parseShoutcast7html },
+];
+
+// In-memory cache: which endpoint worked last for each stream (persists across warm invocations)
+const endpointCache = new Map<string, number>();
+
+async function tryFetch(url: string, viaJina: boolean, timeoutMs: number): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: viaJina
+        ? { 'Accept': 'application/json', 'X-Return-Format': 'text' }
+        : { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
+    });
+    clearTimeout(timer);
+    if (!response.ok) return null;
+    let text = await response.text();
+    if (viaJina) {
+      try {
+        const wrap = JSON.parse(text);
+        text = wrap?.data?.text ?? wrap?.data?.content ?? text;
+      } catch { /* raw */ }
+    }
+    return text;
+  } catch {
+    return null;
+  }
+}
+
+async function tryEndpoint(stream: StreamConfig, idx: number): Promise<Partial<StreamResult> | null> {
+  const ep = ENDPOINTS[idx];
+  const directUrl = `${stream.url}${ep.path}`;
+  // Try direct first (fast), then jina fallback for TLS issues
+  let text = await tryFetch(directUrl, false, 5000);
+  if (!text) {
+    text = await tryFetch(`https://r.jina.ai/${directUrl}`, true, 8000);
+  }
+  if (!text) return null;
+  return ep.parser(text);
+}
+
 async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> {
-  const result: StreamResult = {
-    id: stream.id,
-    online: false,
-    listeners: 0,
-    peakListeners: 0,
-    title: '',
-    bitrate: 0,
+  const base: StreamResult = {
+    id: stream.id, online: false, listeners: 0, peakListeners: 0, title: '', bitrate: 0,
   };
 
-  const endpoints = [
-    { path: '/stats?sid=1&json=1', parser: parseShoutcastJson },
-    { path: '/status-json.xsl', parser: parseIcecastJson },
-    { path: '/status2.xsl', parser: parseIcecastStatus2 },
-    { path: '/7.html', parser: parseShoutcast7html },
-  ];
-
-  for (const endpoint of endpoints) {
-    const directUrl = `${stream.url}${endpoint.path}`;
-    // Try direct first; on TLS/cert errors, fall back to r.jina.ai which unwraps JSON in data.content
-    const attempts: Array<{ url: string; viaJina: boolean; timeout: number }> = [
-      { url: directUrl, viaJina: false, timeout: 6000 },
-      { url: `https://r.jina.ai/${directUrl}`, viaJina: true, timeout: 12000 },
-    ];
-    for (let i = 0; i < attempts.length; i++) {
-      const { url, viaJina, timeout: t } = attempts[i];
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), t);
-        const response = await fetch(url, {
-          signal: controller.signal,
-          headers: viaJina
-            ? { 'Accept': 'application/json', 'X-Return-Format': 'text' }
-            : { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
-        });
-        clearTimeout(timeout);
-        if (response.ok) {
-          let text = await response.text();
-          if (viaJina) {
-            try {
-              const wrap = JSON.parse(text);
-              text = wrap?.data?.text ?? wrap?.data?.content ?? text;
-            } catch { /* use raw text */ }
-          }
-          const parsed = endpoint.parser(text);
-          if (parsed) return { ...result, ...parsed, id: stream.id };
-        }
-        if (!viaJina) break; // direct returned non-OK; try next endpoint
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (i === 0 && /certificate|Connect|tls|UnknownIssuer/i.test(msg)) continue;
-        break;
-      }
-    }
+  // 1. Try cached endpoint first (fast path)
+  const cachedIdx = endpointCache.get(stream.id);
+  if (cachedIdx !== undefined) {
+    const result = await tryEndpoint(stream, cachedIdx);
+    if (result) return { ...base, ...result };
   }
-  return result;
+
+  // 2. Race all remaining endpoints in parallel — first success wins
+  const indices = ENDPOINTS.map((_, i) => i).filter(i => i !== cachedIdx);
+  try {
+    const winner = await Promise.any(
+      indices.map(async (i) => {
+        const r = await tryEndpoint(stream, i);
+        if (!r) throw new Error('no');
+        return { idx: i, result: r };
+      })
+    );
+    endpointCache.set(stream.id, winner.idx);
+    return { ...base, ...winner.result };
+  } catch {
+    return base;
+  }
 }
 
 function parseShoutcastJson(text: string): Partial<StreamResult> | null {
@@ -119,10 +135,10 @@ function parseIcecastJson(text: string): Partial<StreamResult> | null {
     const source = data.icestats?.source;
     if (!source) return null;
     const sources = Array.isArray(source) ? source : [source];
-    const s = sources.reduce((best: any, cur: any) => 
+    const s = sources.reduce((best: any, cur: any) =>
       (cur.listeners ?? 0) > (best.listeners ?? 0) ? cur : best
     , sources[0]);
-    return { online: true, listeners: s.listeners ?? 0, peakListeners: s.listener_peak ?? 0, title: s.title ?? s.server_name ?? '', bitrate: Number(s.bitrate ?? s['ice-bitrate'] ?? 0), };
+    return { online: true, listeners: s.listeners ?? 0, peakListeners: s.listener_peak ?? 0, title: s.title ?? s.server_name ?? '', bitrate: Number(s.bitrate ?? s['ice-bitrate'] ?? 0) };
   } catch { return null; }
 }
 
@@ -158,7 +174,7 @@ function parseShoutcast7html(text: string): Partial<StreamResult> | null {
   } catch { return null; }
 }
 
-async function saveSnapshots(statuses: StreamResult[]) {
+async function persistResults(statuses: StreamResult[]) {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -169,7 +185,21 @@ async function saveSnapshots(statuses: StreamResult[]) {
     const hour = brasiliaTime.getHours();
     const minute = brasiliaTime.getMinutes();
 
-    const rows = statuses
+    // 1. Upsert current_status (1 row per station) — drives Realtime updates
+    const currentRows = statuses.map(s => ({
+      station_id: s.id,
+      online: s.online,
+      listeners: s.online ? s.listeners : 0,
+      peak_listeners: s.peakListeners,
+      title: s.title || '',
+      bitrate: s.bitrate || 0,
+      last_checked: now.toISOString(),
+      updated_at: now.toISOString(),
+    }));
+    await supabase.from('current_status').upsert(currentRows, { onConflict: 'station_id' });
+
+    // 2. Append to audience_snapshots (history) — only online stations
+    const snapshotRows = statuses
       .filter(s => s.online)
       .map(s => ({
         station_id: s.id,
@@ -180,12 +210,11 @@ async function saveSnapshots(statuses: StreamResult[]) {
         hour,
         recorded_at: now.toISOString(),
       }));
-
-    if (rows.length > 0) {
-      await supabase.from('audience_snapshots').insert(rows);
+    if (snapshotRows.length > 0) {
+      await supabase.from('audience_snapshots').insert(snapshotRows);
     }
 
-    // At 23:55-23:59, trigger daily average calculation for today
+    // 3. Trigger daily averages near end of day
     if (hour === 23 && minute >= 55) {
       try {
         const brasiliaStr = brasiliaTime.toISOString().split('T')[0];
@@ -198,13 +227,13 @@ async function saveSnapshots(statuses: StreamResult[]) {
       }
     }
 
-    // Clean up data older than 90 days — only at minute 0 of each hour to avoid I/O on every poll
+    // 4. Cleanup old snapshots — only at minute 0
     if (minute === 0) {
       const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
       await supabase.from('audience_snapshots').delete().lt('recorded_at', cutoff);
     }
   } catch (e) {
-    console.error('Failed to save snapshots:', e);
+    console.error('Failed to persist:', e);
   }
 }
 
@@ -223,13 +252,13 @@ Deno.serve(async (req) => {
       return { id: STREAMS[i].id, online: false, listeners: 0, peakListeners: 0, title: '', bitrate: 0, error: 'timeout' };
     });
 
-    // Save to database in background (fire-and-forget, doesn't delay response)
+    // Background persistence (doesn't delay response)
     // @ts-ignore - EdgeRuntime is available in Deno Deploy
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
       // @ts-ignore
-      EdgeRuntime.waitUntil(saveSnapshots(statuses));
+      EdgeRuntime.waitUntil(persistResults(statuses));
     } else {
-      saveSnapshots(statuses);
+      persistResults(statuses);
     }
 
     return new Response(JSON.stringify({ statuses, timestamp: new Date().toISOString() }), {

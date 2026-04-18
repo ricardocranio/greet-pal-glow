@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Users, Shield, ShieldCheck, Eye, UserPlus, Ban, Trash2, LogOut as LogOutIcon, ArrowLeft, RefreshCw, Wifi, Pencil, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import HistoryViewer from "@/components/HistoryViewer";
+const HistoryViewer = lazy(() => import("@/components/HistoryViewer"));
 
 interface AppUser {
   id: string;
@@ -184,7 +184,9 @@ export default function AdminPanel() {
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Historical data viewer */}
-        <HistoryViewer />
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando histórico…</div>}>
+          <HistoryViewer />
+        </Suspense>
 
         {/* Connected users */}
         <div className="bg-card border border-border rounded-xl p-4">

@@ -104,6 +104,39 @@ export type Database = {
         }
         Relationships: []
       }
+      current_status: {
+        Row: {
+          bitrate: number | null
+          last_checked: string
+          listeners: number
+          online: boolean
+          peak_listeners: number
+          station_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          bitrate?: number | null
+          last_checked?: string
+          listeners?: number
+          online?: boolean
+          peak_listeners?: number
+          station_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bitrate?: number | null
+          last_checked?: string
+          listeners?: number
+          online?: boolean
+          peak_listeners?: number
+          station_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_averages: {
         Row: {
           avg_listeners: number
