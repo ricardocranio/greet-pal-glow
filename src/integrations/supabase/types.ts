@@ -104,6 +104,36 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_log: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size_bytes: number
+          id: string
+          period_end: string
+          period_start: string
+          rows_exported: number
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size_bytes?: number
+          id?: string
+          period_end: string
+          period_start: string
+          rows_exported?: number
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size_bytes?: number
+          id?: string
+          period_end?: string
+          period_start?: string
+          rows_exported?: number
+        }
+        Relationships: []
+      }
       current_status: {
         Row: {
           bitrate: number | null
