@@ -51,16 +51,23 @@ function StationCardImpl({ status, onReport, rank }: Props) {
           <span className="font-mono tabular-nums">{rank}º</span>
         </div>
       )}
-      {/* Live dot */}
+      {/* Live dot / status */}
       <div className="absolute top-3 right-3 flex items-center gap-1.5">
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${
-            online ? "bg-online animate-pulse" : "bg-offline"
-          }`}
-        />
-        <span className="hidden 2xl:inline text-[10px] font-mono text-muted-foreground">
-          {online ? "ONLINE" : "OFFLINE"}
-        </span>
+        {online ? (
+          <span
+            className="h-2.5 w-2.5 rounded-full bg-online animate-pulse shadow-[0_0_8px_hsl(var(--online))]"
+            aria-label="Online"
+            title="Online"
+          />
+        ) : (
+          <span
+            className="flex items-center gap-1 rounded-full bg-offline/15 px-2 py-0.5 text-[10px] font-mono font-bold text-offline ring-1 ring-offline/40"
+            title="Estação fora do ar"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-offline animate-pulse" />
+            OFFLINE
+          </span>
+        )}
       </div>
 
       {/* Station info */}
