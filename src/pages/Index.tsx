@@ -333,7 +333,12 @@ function IndexContent() {
                   .filter((s) => s.online)
                   .sort((a, b) => b.listeners - a.listeners)
                   .forEach((s, i) => rankMap.set(s.station.id, i + 1));
-                return statuses.map((status) => (
+                const ordered = [...statuses].sort((a, b) => {
+                  const ra = rankMap.get(a.station.id) ?? Infinity;
+                  const rb = rankMap.get(b.station.id) ?? Infinity;
+                  return ra - rb;
+                });
+                return ordered.map((status) => (
                   <StationCard
                     key={status.station.id}
                     status={status}
