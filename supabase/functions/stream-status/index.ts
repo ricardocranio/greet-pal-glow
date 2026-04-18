@@ -59,21 +59,33 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
   ];
 
   for (const endpoint of endpoints) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch(`${stream.url}${endpoint.path}`, {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
-      });
-      clearTimeout(timeout);
-      if (response.ok) {
-        const text = await response.text();
-        const parsed = endpoint.parser(text);
-        if (parsed) return { ...result, ...parsed, id: stream.id };
+    const urls = [
+      `${stream.url}${endpoint.path}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(stream.url + endpoint.path)}`,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
+        });
+        clearTimeout(timeout);
+        if (response.ok) {
+          const text = await response.text();
+          const parsed = endpoint.parser(text);
+          if (parsed) return { ...result, ...parsed, id: stream.id };
+        }
+        break; // response not ok, try next endpoint (not next proxy)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // Try proxy only when direct failed with TLS/connect error
+        if (i === 0 && /certificate|Connect|tls|UnknownIssuer/i.test(msg)) continue;
+        console.error(`[${stream.id}] ${endpoint.path} failed:`, msg);
+        break;
       }
-    } catch (e) {
-      console.error(`[${stream.id}] ${endpoint.path} failed:`, e instanceof Error ? e.message : String(e));
     }
   }
   return result;
