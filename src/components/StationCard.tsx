@@ -156,6 +156,7 @@ export const StationCard = memo(StationCardImpl, (prev, next) => {
     prev.status.online === next.status.online &&
     prev.status.listeners === next.status.listeners &&
     prev.status.source === next.status.source &&
+    prev.rank === next.rank &&
     prev.onReport === next.onReport
   );
 });
