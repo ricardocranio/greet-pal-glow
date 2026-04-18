@@ -82,7 +82,7 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
           if (viaJina) {
             try {
               const wrap = JSON.parse(text);
-              text = wrap?.data?.content ?? text;
+              text = wrap?.data?.text ?? wrap?.data?.content ?? text;
             } catch { /* use raw text */ }
           }
           const parsed = endpoint.parser(text);
