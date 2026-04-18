@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 const HistoryViewer = lazy(() => import("@/components/HistoryViewer"));
+const BackupManager = lazy(() => import("@/components/BackupManager"));
 
 interface AppUser {
   id: string;
@@ -186,6 +187,11 @@ export default function AdminPanel() {
         {/* Historical data viewer */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando histórico…</div>}>
           <HistoryViewer />
+        </Suspense>
+
+        {/* Automatic backups */}
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando backups…</div>}>
+          <BackupManager />
         </Suspense>
 
         {/* Connected users */}
