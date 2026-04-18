@@ -61,7 +61,7 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
   for (const endpoint of endpoints) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const timeout = setTimeout(() => controller.abort(), 8000);
       const response = await fetch(`${stream.url}${endpoint.path}`, {
         signal: controller.signal,
         headers: { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
@@ -72,7 +72,9 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
         const parsed = endpoint.parser(text);
         if (parsed) return { ...result, ...parsed, id: stream.id };
       }
-    } catch (_e) { /* next */ }
+    } catch (e) {
+      console.error(`[${stream.id}] ${endpoint.path} failed:`, e instanceof Error ? e.message : String(e));
+    }
   }
   return result;
 }
