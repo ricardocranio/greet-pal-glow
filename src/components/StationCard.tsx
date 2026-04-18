@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square } from "lucide-react";
+import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square, Medal, Trophy } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
 import { SocialLinks } from "@/data/stations";
@@ -8,6 +8,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 interface Props {
   status: StationStatus;
   onReport: () => void;
+  rank?: number;
 }
 
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
