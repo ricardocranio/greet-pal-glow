@@ -95,7 +95,7 @@ export function useStationMonitor() {
 
   useEffect(() => {
     fetchRealData();
-    const interval = setInterval(fetchRealData, 30000);
+    const interval = setInterval(fetchRealData, 60000);
     return () => clearInterval(interval);
   }, [fetchRealData]);
 

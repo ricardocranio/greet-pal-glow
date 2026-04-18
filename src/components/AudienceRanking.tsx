@@ -30,12 +30,14 @@ export function AudienceRanking({ statuses }: Props) {
   const [dailyAvgs, setDailyAvgs] = useState<DailyAvgData[]>([]);
 
   useEffect(() => {
-    async function fetchToday() {
-      const now = new Date();
-      const brasiliaStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-      const startOfDay = `${brasiliaStr}T00:00:00-03:00`;
-      const endOfDay = `${brasiliaStr}T23:59:59-03:00`;
+    const now = new Date();
+    const brasiliaStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const startOfDay = `${brasiliaStr}T00:00:00-03:00`;
+    const endOfDay = `${brasiliaStr}T23:59:59-03:00`;
 
+    let cancelled = false;
+
+    async function fetchToday() {
       const allData: SnapshotData[] = [];
       let from = 0;
       const pageSize = 1000;
@@ -52,11 +54,39 @@ export function AudienceRanking({ statuses }: Props) {
         if (data.length < pageSize) break;
         from += pageSize;
       }
-      setSnapshots(allData);
+      if (!cancelled) setSnapshots(allData);
     }
+
     fetchToday();
-    const interval = setInterval(fetchToday, 30 * 1000);
-    return () => clearInterval(interval);
+
+    // Realtime: escuta novos snapshots e adiciona incrementalmente (sem re-baixar o dia)
+    const channel = supabase
+      .channel("audience_snapshots_today")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "audience_snapshots" },
+        (payload) => {
+          const row = payload.new as SnapshotData & { recorded_at: string };
+          if (!row?.recorded_at) return;
+          // Filtra apenas snapshots de hoje (Brasília)
+          if (row.recorded_at < startOfDay || row.recorded_at > endOfDay) return;
+          setSnapshots((prev) => [
+            ...prev,
+            {
+              station_id: row.station_id,
+              listeners: row.listeners,
+              hour: row.hour,
+              recorded_at: row.recorded_at,
+            },
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Fetch daily averages for monthly view
