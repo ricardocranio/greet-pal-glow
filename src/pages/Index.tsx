@@ -327,13 +327,21 @@ function IndexContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {statuses.map((status) => (
-                <StationCard
-                  key={status.station.id}
-                  status={status}
-                  onReport={() => handleReport(status)}
-                />
-              ))}
+              {(() => {
+                const rankMap = new Map<string, number>();
+                [...statuses]
+                  .filter((s) => s.online)
+                  .sort((a, b) => b.listeners - a.listeners)
+                  .forEach((s, i) => rankMap.set(s.station.id, i + 1));
+                return statuses.map((status) => (
+                  <StationCard
+                    key={status.station.id}
+                    status={status}
+                    rank={rankMap.get(status.station.id)}
+                    onReport={() => handleReport(status)}
+                  />
+                ));
+              })()}
             </div>
           </div>
           <div className="lg:col-span-1">
