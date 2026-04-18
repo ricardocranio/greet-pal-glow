@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square } from "lucide-react";
+import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square, Medal, Trophy } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
 import { SocialLinks } from "@/data/stations";
@@ -8,6 +8,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 interface Props {
   status: StationStatus;
   onReport: () => void;
+  rank?: number;
 }
 
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -28,15 +29,28 @@ function SocialIcons({ social }: { social: SocialLinks }) {
   );
 }
 
-function StationCardImpl({ status, onReport }: Props) {
+function StationCardImpl({ status, onReport, rank }: Props) {
   const { station, online, listeners, lastChecked, source } = status;
   const { playingStationId, play } = useAudioPlayer();
   const isPlaying = playingStationId === station.id;
+
+  const medalColor =
+    rank === 1 ? "text-yellow-400 bg-yellow-400/10 ring-yellow-400/40"
+    : rank === 2 ? "text-slate-300 bg-slate-300/10 ring-slate-300/40"
+    : rank === 3 ? "text-amber-600 bg-amber-600/10 ring-amber-600/40"
+    : "text-muted-foreground bg-muted/40 ring-border";
 
   return (
     <div className={`relative group rounded-xl border bg-card p-5 transition-all hover:shadow-[0_0_30px_-10px_hsl(var(--primary)/0.25)] ${
       isPlaying ? "border-primary shadow-[0_0_30px_-10px_hsl(var(--primary)/0.3)]" : "border-border hover:border-primary/40"
     }`}>
+      {/* Rank badge */}
+      {online && rank !== undefined && (
+        <div className={`absolute -top-2 -left-2 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 shadow-sm ${medalColor}`}>
+          {rank <= 3 ? <Trophy className="h-3 w-3" /> : <Medal className="h-3 w-3" />}
+          <span className="font-mono tabular-nums">{rank}º</span>
+        </div>
+      )}
       {/* Live dot */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
         {source === 'real' && online && (
@@ -142,6 +156,7 @@ export const StationCard = memo(StationCardImpl, (prev, next) => {
     prev.status.online === next.status.online &&
     prev.status.listeners === next.status.listeners &&
     prev.status.source === next.status.source &&
+    prev.rank === next.rank &&
     prev.onReport === next.onReport
   );
 });
