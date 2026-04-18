@@ -59,20 +59,42 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
   ];
 
   for (const endpoint of endpoints) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-      const response = await fetch(`${stream.url}${endpoint.path}`, {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
-      });
-      clearTimeout(timeout);
-      if (response.ok) {
-        const text = await response.text();
-        const parsed = endpoint.parser(text);
-        if (parsed) return { ...result, ...parsed, id: stream.id };
+    const directUrl = `${stream.url}${endpoint.path}`;
+    // Try direct first; on TLS/cert errors, fall back to r.jina.ai which unwraps JSON in data.content
+    const attempts: Array<{ url: string; viaJina: boolean; timeout: number }> = [
+      { url: directUrl, viaJina: false, timeout: 6000 },
+      { url: `https://r.jina.ai/${directUrl}`, viaJina: true, timeout: 12000 },
+    ];
+    for (let i = 0; i < attempts.length; i++) {
+      const { url, viaJina, timeout: t } = attempts[i];
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), t);
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: viaJina
+            ? { 'Accept': 'application/json', 'X-Return-Format': 'text' }
+            : { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
+        });
+        clearTimeout(timeout);
+        if (response.ok) {
+          let text = await response.text();
+          if (viaJina) {
+            try {
+              const wrap = JSON.parse(text);
+              text = wrap?.data?.text ?? wrap?.data?.content ?? text;
+            } catch { /* use raw text */ }
+          }
+          const parsed = endpoint.parser(text);
+          if (parsed) return { ...result, ...parsed, id: stream.id };
+        }
+        if (!viaJina) break; // direct returned non-OK; try next endpoint
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (i === 0 && /certificate|Connect|tls|UnknownIssuer/i.test(msg)) continue;
+        break;
       }
-    } catch (_e) { /* next */ }
+    }
   }
   return result;
 }
