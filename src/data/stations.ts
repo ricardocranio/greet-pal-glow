@@ -195,7 +195,7 @@ export const stations: Station[] = [
     id: "universitariafm",
     name: "UNIVERSITÁRIA FM",
     frequency: "88,9 MHz",
-    streamUrl: "https://radio.comunica.ufrn.br:8000/live",
+    streamUrl: "https://radio.comunica.ufrn.br:8000",
     logoUrl: "/logos/universitaria-fm.png",
     category: 'commercial',
     social: {
