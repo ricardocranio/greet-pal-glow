@@ -23,7 +23,7 @@ const STREAMS: StreamConfig[] = [
   { id: "jpnews",    url: "https://s02.maxcast.com.br:8082",            type: "shoutcast" },
   { id: "cidadefm",  url: "https://cidadedosolaac.jmvstream.com",       type: "shoutcast" },
   { id: "104fm",     url: "https://radios.braviahost.com.br:8000",      type: "shoutcast" },
-  { id: "universitariafm", url: "https://radio.comunica.ufrn.br:8000",  type: "shoutcast" },
+  { id: "universitariafm", url: "http://radio.comunica.ufrn.br:8000",   type: "icecast" },
   { id: "105fm",     url: "https://stream2.svrdedicado.org:7031",       type: "shoutcast" },
   // Religious
   { id: "nordeste925", url: "https://radio.midiaserverbr.com:9988",     type: "shoutcast" },
