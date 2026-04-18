@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut, Users } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
-import { ReportDialog } from "@/components/ReportDialog";
+const ReportDialog = lazy(() => import("@/components/ReportDialog").then(m => ({ default: m.ReportDialog })));
 import { AudienceRanking } from "@/components/AudienceRanking";
 import { AudioProvider, useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { Button } from "@/components/ui/button";
@@ -358,14 +358,18 @@ function IndexContent() {
       </main>
 
       <NowPlayingBar />
-      <ReportDialog
-        status={selectedStation}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        visibleStations={visibleStations}
-        simulatorEnabled={simulatorEnabled}
-        simulatorFactor={simulatorFactor}
-      />
+      {dialogOpen && (
+        <Suspense fallback={null}>
+          <ReportDialog
+            status={selectedStation}
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            visibleStations={visibleStations}
+            simulatorEnabled={simulatorEnabled}
+            simulatorFactor={simulatorFactor}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
