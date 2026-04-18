@@ -29,10 +29,16 @@ function SocialIcons({ social }: { social: SocialLinks }) {
   );
 }
 
-function StationCardImpl({ status, onReport }: Props) {
+function StationCardImpl({ status, onReport, rank }: Props) {
   const { station, online, listeners, lastChecked, source } = status;
   const { playingStationId, play } = useAudioPlayer();
   const isPlaying = playingStationId === station.id;
+
+  const medalColor =
+    rank === 1 ? "text-yellow-400 bg-yellow-400/10 ring-yellow-400/40"
+    : rank === 2 ? "text-slate-300 bg-slate-300/10 ring-slate-300/40"
+    : rank === 3 ? "text-amber-600 bg-amber-600/10 ring-amber-600/40"
+    : "text-muted-foreground bg-muted/40 ring-border";
 
   return (
     <div className={`relative group rounded-xl border bg-card p-5 transition-all hover:shadow-[0_0_30px_-10px_hsl(var(--primary)/0.25)] ${
