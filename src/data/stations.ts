@@ -191,6 +191,26 @@ export const stations: Station[] = [
       facebook: "https://www.facebook.com/104fmnatal",
     },
   },
+  {
+    id: "universitariafm",
+    name: "UNIVERSITÁRIA FM",
+    frequency: "88,9 MHz",
+    streamUrl: "https://radio.comunica.ufrn.br:8000/live",
+    logoUrl: "/logos/universitaria-fm.png",
+    category: 'commercial',
+    social: {
+      website: "https://radio.comunica.ufrn.br",
+    },
+  },
+  {
+    id: "105fm",
+    name: "105 FM NATAL",
+    frequency: "105,9 MHz",
+    streamUrl: "https://stream2.svrdedicado.org:7031/stream",
+    logoUrl: "/logos/105-fm.png",
+    category: 'commercial',
+    social: {},
+  },
   // Religious stations (hidden by default)
   {
     id: "nordeste925",
