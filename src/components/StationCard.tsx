@@ -121,12 +121,7 @@ function StationCardImpl({ status, onReport, rank }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-          {source === 'real' && (
-            <span className="text-[10px] text-primary font-medium">● dados em tempo real</span>
-          )}
-        </span>
+      <div className="flex justify-center">
         <Button
           size="sm"
           variant="outline"
