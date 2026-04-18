@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut, Users } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
@@ -107,13 +107,13 @@ function IndexContent() {
   const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
   const navigate = useNavigate();
 
-  const onlineCount = statuses.filter((s) => s.online).length;
-  const totalListeners = statuses.reduce((sum, s) => sum + s.listeners, 0);
+  const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);
+  const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
 
-  const handleReport = (status: StationStatus) => {
+  const handleReport = useCallback((status: StationStatus) => {
     setSelectedStation(status);
     setDialogOpen(true);
-  };
+  }, []);
 
   const handleDownloadReport = async () => {
     setDownloading(true);

@@ -55,7 +55,7 @@ export function AudienceRanking({ statuses }: Props) {
       setSnapshots(allData);
     }
     fetchToday();
-    const interval = setInterval(fetchToday, 5 * 60 * 1000);
+    const interval = setInterval(fetchToday, 30 * 1000);
     return () => clearInterval(interval);
   }, []);
 

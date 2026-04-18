@@ -59,7 +59,7 @@ async function fetchShoutcastStats(stream: StreamConfig): Promise<StreamResult> 
   for (const endpoint of endpoints) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 4000);
       const response = await fetch(`${stream.url}${endpoint.path}`, {
         signal: controller.signal,
         headers: { 'User-Agent': 'Mozilla/5.0 (StreamMonitor/1.0)', 'Accept': '*/*' },
@@ -174,9 +174,11 @@ async function saveSnapshots(statuses: StreamResult[]) {
       }
     }
 
-    // Clean up data older than 90 days
-    const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    await supabase.from('audience_snapshots').delete().lt('recorded_at', cutoff);
+    // Clean up data older than 90 days — only at minute 0 of each hour to avoid I/O on every poll
+    if (minute === 0) {
+      const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from('audience_snapshots').delete().lt('recorded_at', cutoff);
+    }
   } catch (e) {
     console.error('Failed to save snapshots:', e);
   }
@@ -197,11 +199,17 @@ Deno.serve(async (req) => {
       return { id: STREAMS[i].id, online: false, listeners: 0, peakListeners: 0, title: '', bitrate: 0, error: 'timeout' };
     });
 
-    // Save to database in background
-    saveSnapshots(statuses);
+    // Save to database in background (fire-and-forget, doesn't delay response)
+    // @ts-ignore - EdgeRuntime is available in Deno Deploy
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(saveSnapshots(statuses));
+    } else {
+      saveSnapshots(statuses);
+    }
 
     return new Response(JSON.stringify({ statuses, timestamp: new Date().toISOString() }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';

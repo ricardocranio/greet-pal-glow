@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ function SocialIcons({ social }: { social: SocialLinks }) {
   );
 }
 
-export function StationCard({ status, onReport }: Props) {
+function StationCardImpl({ status, onReport }: Props) {
   const { station, online, listeners, lastChecked, source } = status;
   const { playingStationId, play } = useAudioPlayer();
   const isPlaying = playingStationId === station.id;
@@ -133,3 +134,14 @@ export function StationCard({ status, onReport }: Props) {
     </div>
   );
 }
+
+// Re-render only when station status actually changes
+export const StationCard = memo(StationCardImpl, (prev, next) => {
+  return (
+    prev.status.station.id === next.status.station.id &&
+    prev.status.online === next.status.online &&
+    prev.status.listeners === next.status.listeners &&
+    prev.status.source === next.status.source &&
+    prev.onReport === next.onReport
+  );
+});

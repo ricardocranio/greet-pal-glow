@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { stations, Station, getDefaultVisibleStations } from "@/data/stations";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -99,22 +99,28 @@ export function useStationMonitor() {
     return () => clearInterval(interval);
   }, [fetchRealData]);
 
-  // Filtered statuses based on visibility
-  const filteredStatuses = statuses.filter(s => {
-    if (s.station.category === 'religious' && !showReligious) return false;
-    if (s.station.category === 'state' && !showState) return false;
-    return visibleStations.has(s.station.id);
-  });
+  // Filtered statuses based on visibility (memoized)
+  const filteredStatuses = useMemo(
+    () => statuses.filter(s => {
+      if (s.station.category === 'religious' && !showReligious) return false;
+      if (s.station.category === 'state' && !showState) return false;
+      return visibleStations.has(s.station.id);
+    }),
+    [statuses, showReligious, showState, visibleStations]
+  );
 
-  // Apply simulator
-  const displayStatuses = simulatorEnabled
-    ? filteredStatuses.map(s => ({
-        ...s,
-        listeners: Math.round(s.listeners * simulatorFactor),
-        peakListeners: Math.round(s.peakListeners * simulatorFactor),
-        history: s.history.map(h => ({ ...h, listeners: Math.round(h.listeners * simulatorFactor) })),
-      }))
-    : filteredStatuses;
+  // Apply simulator (memoized)
+  const displayStatuses = useMemo(
+    () => simulatorEnabled
+      ? filteredStatuses.map(s => ({
+          ...s,
+          listeners: Math.round(s.listeners * simulatorFactor),
+          peakListeners: Math.round(s.peakListeners * simulatorFactor),
+          history: s.history.map(h => ({ ...h, listeners: Math.round(h.listeners * simulatorFactor) })),
+        }))
+      : filteredStatuses,
+    [filteredStatuses, simulatorEnabled, simulatorFactor]
+  );
 
   const toggleStation = useCallback((id: string) => {
     setVisibleStations(prev => {
