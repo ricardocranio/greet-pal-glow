@@ -174,9 +174,11 @@ async function saveSnapshots(statuses: StreamResult[]) {
       }
     }
 
-    // Clean up data older than 90 days
-    const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    await supabase.from('audience_snapshots').delete().lt('recorded_at', cutoff);
+    // Clean up data older than 90 days — only at minute 0 of each hour to avoid I/O on every poll
+    if (minute === 0) {
+      const cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from('audience_snapshots').delete().lt('recorded_at', cutoff);
+    }
   } catch (e) {
     console.error('Failed to save snapshots:', e);
   }
