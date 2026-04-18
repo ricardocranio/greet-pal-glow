@@ -71,7 +71,15 @@ function StationCardImpl({ status, onReport, rank }: Props) {
 
       {/* Station info */}
       <div className="flex items-start gap-3 mb-3 pr-10">
-        <div className="relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0">
+        <button
+          type="button"
+          onClick={() => online && play(station.id, station.streamUrl)}
+          disabled={!online}
+          aria-label={isPlaying ? `Parar ${station.name}` : `Tocar ${station.name}`}
+          className={`group/logo relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0 transition-all ${
+            online ? "cursor-pointer hover:ring-2 hover:ring-primary/60" : "cursor-not-allowed opacity-60"
+          } ${isPlaying ? "ring-2 ring-primary" : ""}`}
+        >
           {station.logoUrl ? (
             <img
               src={station.logoUrl}
@@ -87,33 +95,22 @@ function StationCardImpl({ status, onReport, rank }: Props) {
           ) : (
             <span className="text-sm font-bold text-muted-foreground">FM</span>
           )}
-        </div>
-        <div className="flex-1">
-          <h3 className="font-display font-bold text-foreground leading-tight text-sm">
+          {online && (
+            <span className={`absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm transition-opacity ${
+              isPlaying ? "opacity-100" : "opacity-0 group-hover/logo:opacity-100"
+            }`}>
+              {isPlaying ? <Square className="h-4 w-4 text-primary" /> : <Play className="h-4 w-4 text-primary ml-0.5" />}
+            </span>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display font-bold text-foreground leading-tight text-sm truncate">
             {station.name}
           </h3>
           <p className="text-xs font-mono text-muted-foreground">
             {station.frequency}
           </p>
         </div>
-      </div>
-
-      {/* Social links + Play */}
-      <div className="flex items-center justify-between mb-3">
-        <SocialIcons social={station.social} />
-        <Button
-          size="sm"
-          variant={isPlaying ? "default" : "outline"}
-          className={`h-8 w-8 p-0 rounded-full ${
-            isPlaying
-              ? "bg-primary text-primary-foreground"
-              : "border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
-          }`}
-          onClick={() => play(station.id, station.streamUrl)}
-          disabled={!online}
-        >
-          {isPlaying ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
-        </Button>
       </div>
 
       {/* Stats */}
