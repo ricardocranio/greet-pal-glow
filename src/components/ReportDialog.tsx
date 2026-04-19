@@ -440,13 +440,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Replaces the client-side filtering of allSnapshots that previously required loading 90 days of data.
   const [serverHourlyData, setServerHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
-    if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); return; }
-    // "dia" filter is satisfied by today-snapshots (already loaded); only call RPC for other filters
-    // OR for a non-today specific date.
+    if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); setIsLoadingHorario(false); return; }
     const isToday = horarioFilter === "dia" && (!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput());
-    if (isToday) { setServerHourlyData(null); return; }
+    if (isToday) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
 
     let cancelled = false;
+    setIsLoadingHorario(true);
     (async () => {
       const stationId = status.station.id;
       let p_from: string, p_to: string, p_dow_filter: string;
@@ -471,6 +470,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         listeners: map.get(h) ?? 0,
         hour: h,
       })));
+      setIsLoadingHorario(false);
     })();
     return () => { cancelled = true; };
   }, [open, status, viewMode, horarioFilter, selectedDate]);
