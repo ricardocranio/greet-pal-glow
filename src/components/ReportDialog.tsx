@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { stations } from "@/data/stations";
 import { toPng } from "html-to-image";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
