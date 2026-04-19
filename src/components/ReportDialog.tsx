@@ -860,6 +860,21 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     ? "sm:max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-0 overflow-y-auto px-3 sm:px-6 pr-8 sm:pr-10"
     : "sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[98vw] sm:w-[95vw] px-3 sm:px-6 pr-8 sm:pr-10";
 
+  // Skeleton placeholder for charts while RPCs are loading
+  const ChartSkeleton = ({ height }: { height: number }) => (
+    <div className="w-full" style={{ height }} aria-busy="true" aria-label="Carregando gráfico">
+      <div className="flex items-end gap-1.5 h-full w-full px-2 pt-2 pb-6">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <Skeleton
+            key={i}
+            className="flex-1 bg-muted/40"
+            style={{ height: `${30 + ((i * 37) % 65)}%`, animationDelay: `${i * 40}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogContentClass, "bg-card border-border")}>
