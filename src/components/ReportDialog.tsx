@@ -1018,6 +1018,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     </ResponsiveContainer>
                   </div>
                 </div>
+              ) : isLoadingMain ? (
+                <ChartSkeleton height={isFullscreen ? 350 : 180} />
               ) : (
                 <div className="flex items-center justify-center h-[180px] sm:h-[220px] text-muted-foreground text-sm">
                   Aguardando dados de hoje...
