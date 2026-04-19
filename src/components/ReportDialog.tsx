@@ -90,6 +90,15 @@ function getDateTimeStamp(): string {
   return `${date} às ${time} (Brasília)`;
 }
 
+function normalizeCalendarDate(date?: Date): Date | undefined {
+  if (!date) return undefined;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+}
+
+function formatCalendarDateInput(date: Date): string {
+  return format(date, "yyyy-MM-dd");
+}
+
 // Compute average for an array of numbers
 function calcAvg(arr: number[]): number {
   if (arr.length === 0) return 0;
@@ -108,9 +117,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
-  const [blendDate, setBlendDate] = useState<Date>(new Date());
+  const [blendDate, setBlendDate] = useState<Date>(() => normalizeCalendarDate(new Date()) ?? new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => normalizeCalendarDate(new Date()));
   // Hour-range filter (00..23). End is inclusive — covers minute 59 of that hour.
   const [hourStart, setHourStart] = useState<number>(0);
   const [hourEnd, setHourEnd] = useState<number>(23);
@@ -304,7 +313,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     let cancelled = false;
     setIsLoadingBlend(true);
     async function fetchBlendData() {
-      const dateStr = formatBrasiliaDateInput(blendDate);
+      const dateStr = formatCalendarDateInput(blendDate);
       const p_from = blendView === "horario"
         ? `${dateStr}T00:00:00-03:00`
         : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
@@ -318,7 +327,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       if (!data || data.length === 0) { setBlendData([]); return; }
 
       if (blendView === "horario") {
-        // Pivot: rows = 24 hours, cols = stations
         const pivot = new Map<number, Map<string, number>>();
         (data as { station_id: string; hour: number; avg_listeners: number }[]).forEach(r => {
           if (!pivot.has(r.hour)) pivot.set(r.hour, new Map());
@@ -332,7 +340,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         });
         setBlendData(rows);
       } else {
-        // Pivot: rows = 7 days-of-week, cols = stations
         const pivot = new Map<number, Map<string, number>>();
         (data as unknown as { station_id: string; dow: number; avg_listeners: number }[]).forEach(r => {
           if (!pivot.has(r.dow)) pivot.set(r.dow, new Map());
@@ -441,7 +448,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [serverHourlyData, setServerHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
     if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); setIsLoadingHorario(false); return; }
-    const isToday = horarioFilter === "dia" && (!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput());
+    const isToday = horarioFilter === "dia" && (!selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput());
     if (isToday) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
 
     let cancelled = false;
@@ -450,7 +457,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       const stationId = status.station.id;
       let p_from: string, p_to: string, p_dow_filter: string;
       if (horarioFilter === "dia" && selectedDate) {
-        const dStr = formatBrasiliaDateInput(selectedDate);
+        const dStr = formatCalendarDateInput(selectedDate);
         p_from = `${dStr}T00:00:00-03:00`;
         p_to = `${dStr}T23:59:59-03:00`;
         p_dow_filter = "all";
@@ -481,15 +488,15 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   } | null>(null);
   useEffect(() => {
     if (!open || !status || viewMode !== "horario") { setServerPeakMin(null); return; }
-    const isTodayDia = horarioFilter === "dia" && (!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput());
-    if (isTodayDia) { setServerPeakMin(null); return; } // today path uses allSnapshots (already small)
+    const isTodayDia = horarioFilter === "dia" && (!selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput());
+    if (isTodayDia) { setServerPeakMin(null); return; }
 
     let cancelled = false;
     (async () => {
       const stationId = status.station.id;
       let p_from: string, p_to: string, p_dow_filter: string;
       if (horarioFilter === "dia" && selectedDate) {
-        const dStr = formatBrasiliaDateInput(selectedDate);
+        const dStr = formatCalendarDateInput(selectedDate);
         p_from = `${dStr}T00:00:00-03:00`;
         p_to = `${dStr}T23:59:59-03:00`;
         p_dow_filter = "date";
@@ -540,7 +547,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     (async () => {
       let p_from: string, p_to: string, p_dow_filter: string;
       if (horarioFilter === "dia") {
-        const dStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
+        const dStr = selectedDate ? formatCalendarDateInput(selectedDate) : formatBrasiliaDateInput();
         p_from = `${dStr}T00:00:00-03:00`;
         p_to = `${dStr}T23:59:59-03:00`;
         p_dow_filter = "all";
@@ -1099,7 +1106,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         <CalendarPicker
                           mode="single"
                           selected={selectedDate}
-                          onSelect={setSelectedDate}
+                          onSelect={(date) => setSelectedDate(normalizeCalendarDate(date))}
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                           disabled={(date) => date > new Date()}
@@ -1230,7 +1237,10 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           <CalendarPicker
                             mode="single"
                             selected={blendDate}
-                            onSelect={(d) => { if (d) setBlendDate(d); }}
+                            onSelect={(d) => {
+                              const normalized = normalizeCalendarDate(d);
+                              if (normalized) setBlendDate(normalized);
+                            }}
                             locale={ptBR}
                             initialFocus
                             className={cn("p-3 pointer-events-auto")}
@@ -1245,7 +1255,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         onClick={() => {
                           const prev = new Date(blendDate);
                           prev.setDate(prev.getDate() - 1);
-                          setBlendDate(prev);
+                          setBlendDate(normalizeCalendarDate(prev) ?? prev);
                         }}
                       >
                         ◀ Anterior
@@ -1257,7 +1267,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                         onClick={() => {
                           const next = new Date(blendDate);
                           next.setDate(next.getDate() + 1);
-                          if (next <= new Date()) setBlendDate(next);
+                          if (next <= new Date()) setBlendDate(normalizeCalendarDate(next) ?? next);
                         }}
                       >
                         Próximo ▶
