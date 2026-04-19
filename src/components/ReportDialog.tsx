@@ -690,16 +690,16 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Merge compare station data into chart for horário view
   const compareStation = compareStationId ? stations.find(s => s.id === compareStationId) : null;
   const mergedHorarioData = useMemo(() => {
-    if (viewMode !== "horario" || !compareHourlyData || !compareStationId) return null;
+    if (viewMode !== "horario" || !compareHourlyDataFiltered || !compareStationId) return null;
     const base = factor !== 1
       ? filteredHourlyData.map(d => ({ ...d, listeners: Math.round(d.listeners * factor) }))
       : filteredHourlyData;
     return base.map((d, i) => ({
       time: d.time,
       listeners: d.listeners,
-      compare: compareHourlyData[i] ? (factor !== 1 ? Math.round(compareHourlyData[i].listeners * factor) : compareHourlyData[i].listeners) : 0,
+      compare: compareHourlyDataFiltered[i] ? (factor !== 1 ? Math.round(compareHourlyDataFiltered[i].listeners * factor) : compareHourlyDataFiltered[i].listeners) : 0,
     }));
-  }, [viewMode, filteredHourlyData, compareHourlyData, compareStationId, factor]);
+  }, [viewMode, filteredHourlyData, compareHourlyDataFiltered, compareStationId, factor]);
 
   // Hour-range select component (used in "horario" tab and "blend > horario" sub-view)
   const HourRangeFilter = () => (
