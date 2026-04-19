@@ -348,7 +348,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       }
     }
 
-    fetchBlendData();
+    fetchBlendData().finally(() => {
+      if (!cancelled) setIsLoadingBlend(false);
+    });
     return () => { cancelled = true; };
   }, [open, viewMode, blendView, blendDate]);
 
