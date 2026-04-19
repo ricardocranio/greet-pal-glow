@@ -534,8 +534,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Compare station: server-aggregated hourly averages with same dow/date filter
   const [compareHourlyData, setCompareHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
-    if (!open || !compareStationId) { setCompareHourlyData(null); return; }
+    if (!open || !compareStationId) { setCompareHourlyData(null); setIsLoadingCompare(false); return; }
     let cancelled = false;
+    setIsLoadingCompare(true);
     (async () => {
       let p_from: string, p_to: string, p_dow_filter: string;
       if (horarioFilter === "dia") {
