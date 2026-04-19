@@ -1314,9 +1314,11 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       </ResponsiveContainer>
                     </div>
                   </div>
+                ) : isLoadingBlend ? (
+                  <ChartSkeleton height={isFullscreen ? 350 : 220} />
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                    Carregando dados comparativos...
+                    Sem dados para o período selecionado.
                   </div>
                 )}
               </div>
