@@ -283,6 +283,21 @@ export type Database = {
           samples: number
         }[]
       }
+      station_peak_min: {
+        Args: {
+          p_dow_filter?: string
+          p_from: string
+          p_station_id: string
+          p_to: string
+        }
+        Returns: {
+          min_at: string
+          min_listeners: number
+          peak_at: string
+          peak_listeners: number
+          samples: number
+        }[]
+      }
       station_today_realtime: {
         Args: { p_station_id: string }
         Returns: {
