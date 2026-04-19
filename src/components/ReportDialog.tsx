@@ -377,96 +377,156 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     return () => { cancelled = true; };
   }, [open, viewMode, blendView, blendDate]);
 
+  // FAST LOAD: only today's raw snapshots (small set) for realtime chart + stats.
+  // Heavy aggregations (hourly/daily/monthly across 90 days) are done server-side via RPCs.
   useEffect(() => {
     if (!open || !status) return;
+    let cancelled = false;
+    const stationId = status.station.id;
+    const cutoffIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const nowIso = new Date().toISOString();
 
-    async function fetchAll() {
-      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      const allData: SnapshotRow[] = [];
-      let from = 0;
-      const pageSize = 1000;
+    // Reset to avoid showing stale data from a previously opened station
+    setAllSnapshots([]);
+    setHourlyData(status.history);
+    setDailyData([]);
+    setMonthlyData([]);
 
-      while (true) {
-        const { data } = await supabase
-          .from("audience_snapshots")
-          .select("listeners, hour, recorded_at")
-          .eq("station_id", status!.station.id)
-          .gte("recorded_at", cutoff)
-          .order("recorded_at", { ascending: true })
-          .range(from, from + pageSize - 1);
+    // 1) Today's raw points only (for realtime chart). Small payload.
+    (async () => {
+      const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
+      if (cancelled || !data) return;
+      setAllSnapshots(data as SnapshotRow[]);
+    })();
 
-        if (!data || data.length === 0) break;
-        allData.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-
-      return allData;
-    }
-
-    fetchAll().then((data) => {
-        if (!data || data.length === 0) {
-          setHourlyData(status.history);
-          setDailyData([]);
-          setMonthlyData([]);
-          setAllSnapshots([]);
-          return;
-        }
-
-        setAllSnapshots(data);
-
-        const todayStr = formatBrasiliaDateInput();
-        const todayData = data.filter(
-          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
-        );
-
-        const todayHourMap = new Map<number, number[]>();
-        todayData.forEach((snap) => {
-          const h = snap.hour;
-          if (!todayHourMap.has(h)) todayHourMap.set(h, []);
-          todayHourMap.get(h)!.push(snap.listeners);
-        });
-
-        const hData = Array.from({ length: 24 }, (_, i) => i).map((h) => {
-          const vals = todayHourMap.get(h) || [];
-          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-          return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg };
-        });
-
-        const dayMap = new Map<number, number[]>();
-        const monthMap = new Map<string, { sum: number; count: number }>();
-
-        data.forEach((snap) => {
-          const utcMs = new Date(snap.recorded_at).getTime();
-          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-          const d = brasiliaDate.getUTCDay();
-          if (!dayMap.has(d)) dayMap.set(d, []);
-          dayMap.get(d)!.push(snap.listeners);
-
-          const mKey = `${brasiliaDate.getUTCFullYear()}-${String(brasiliaDate.getUTCMonth() + 1).padStart(2, "0")}`;
-          if (!monthMap.has(mKey)) monthMap.set(mKey, { sum: 0, count: 0 });
-          const m = monthMap.get(mKey)!;
-          m.sum += snap.listeners;
-          m.count += 1;
-        });
-
-        const dData = [0, 1, 2, 3, 4, 5, 6].map((d) => {
-          const vals = dayMap.get(d) || [];
-          const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-          return { time: DAY_NAMES[d], listeners: avg };
-        });
-
-        const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-        const mData = sortedMonths.map(([key, { sum, count }]) => {
-          const [, mm] = key.split("-");
-          return { time: MONTH_NAMES[parseInt(mm, 10) - 1], listeners: Math.round(sum / count) };
-        });
-
-        setHourlyData(hData);
-        setDailyData(dData);
-        setMonthlyData(mData);
+    // 2) Hourly averages (today only — used as default in horario tab when no filter active)
+    (async () => {
+      const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      todayStartIso.setHours(0, 0, 0, 0);
+      const { data } = await supabase.rpc("station_hourly_avg", {
+        p_station_id: stationId,
+        p_from: todayStartIso.toISOString(),
+        p_to: nowIso,
+        p_dow_filter: "all",
       });
+      if (cancelled) return;
+      const map = new Map<number, number>();
+      (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
+      setHourlyData(Array.from({ length: 24 }, (_, h) => ({
+        time: `${String(h).padStart(2, "0")}:00`,
+        listeners: map.get(h) ?? 0,
+      })));
+    })();
+
+    // 3) Day-of-week averages (90 days)
+    (async () => {
+      const { data } = await supabase.rpc("station_dow_avg", {
+        p_station_id: stationId,
+        p_from: cutoffIso,
+        p_to: nowIso,
+      });
+      if (cancelled) return;
+      const map = new Map<number, number>();
+      (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
+      setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
+        time: DAY_NAMES[d],
+        listeners: map.get(d) ?? 0,
+      })));
+    })();
+
+    // 4) Monthly averages (90 days)
+    (async () => {
+      const { data } = await supabase.rpc("station_month_avg", {
+        p_station_id: stationId,
+        p_from: cutoffIso,
+        p_to: nowIso,
+      });
+      if (cancelled) return;
+      const rows = (data ?? []) as { month: string; avg_listeners: number }[];
+      setMonthlyData(rows.map(r => {
+        const mm = parseInt(r.month.split("-")[1], 10);
+        return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
+      }));
+    })();
+
+    return () => { cancelled = true; };
   }, [open, status]);
+
+  // Server-side hourly aggregates for the horario tab (filtered by dow / specific date)
+  // Replaces the client-side filtering of allSnapshots that previously required loading 90 days of data.
+  const [serverHourlyData, setServerHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
+  useEffect(() => {
+    if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); return; }
+    // "dia" filter is satisfied by today-snapshots (already loaded); only call RPC for other filters
+    // OR for a non-today specific date.
+    const isToday = horarioFilter === "dia" && (!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput());
+    if (isToday) { setServerHourlyData(null); return; }
+
+    let cancelled = false;
+    (async () => {
+      const stationId = status.station.id;
+      let p_from: string, p_to: string, p_dow_filter: string;
+      if (horarioFilter === "dia" && selectedDate) {
+        const dStr = formatBrasiliaDateInput(selectedDate);
+        p_from = `${dStr}T00:00:00-03:00`;
+        p_to = `${dStr}T23:59:59-03:00`;
+        p_dow_filter = "all";
+      } else {
+        p_from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        p_to = new Date().toISOString();
+        p_dow_filter = horarioFilter === "seg-sex" ? "weekday" : horarioFilter === "sab-dom" ? "weekend" : "all";
+      }
+      const { data } = await supabase.rpc("station_hourly_avg", {
+        p_station_id: stationId, p_from, p_to, p_dow_filter,
+      });
+      if (cancelled) return;
+      const map = new Map<number, number>();
+      (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
+      setServerHourlyData(Array.from({ length: 24 }, (_, h) => ({
+        time: `${String(h).padStart(2, "0")}:00`,
+        listeners: map.get(h) ?? 0,
+        hour: h,
+      })));
+    })();
+    return () => { cancelled = true; };
+  }, [open, status, viewMode, horarioFilter, selectedDate]);
+
+  // Server-side peak/min for stats card (replaces scanning 90 days of allSnapshots client-side)
+  const [serverPeakMin, setServerPeakMin] = useState<{
+    peak: number; peakAt: string | null; min: number; minAt: string | null; samples: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!open || !status || viewMode !== "horario") { setServerPeakMin(null); return; }
+    const isTodayDia = horarioFilter === "dia" && (!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput());
+    if (isTodayDia) { setServerPeakMin(null); return; } // today path uses allSnapshots (already small)
+
+    let cancelled = false;
+    (async () => {
+      const stationId = status.station.id;
+      let p_from: string, p_to: string, p_dow_filter: string;
+      if (horarioFilter === "dia" && selectedDate) {
+        const dStr = formatBrasiliaDateInput(selectedDate);
+        p_from = `${dStr}T00:00:00-03:00`;
+        p_to = `${dStr}T23:59:59-03:00`;
+        p_dow_filter = "date";
+      } else {
+        p_from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        p_to = new Date().toISOString();
+        p_dow_filter = horarioFilter === "seg-sex" ? "weekday" : horarioFilter === "sab-dom" ? "weekend" : "all";
+      }
+      const { data } = await supabase.rpc("station_peak_min", {
+        p_station_id: stationId, p_from, p_to, p_dow_filter,
+      });
+      if (cancelled) return;
+      const row = (data ?? [])[0];
+      if (!row) { setServerPeakMin({ peak: 0, peakAt: null, min: 0, minAt: null, samples: 0 }); return; }
+      setServerPeakMin({
+        peak: row.peak_listeners, peakAt: row.peak_at,
+        min: row.min_listeners, minAt: row.min_at, samples: row.samples,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [open, status, viewMode, horarioFilter, selectedDate]);
 
   // Filtered hourly data based on horarioFilter
   const filteredHourlyData = useMemo(() => {
