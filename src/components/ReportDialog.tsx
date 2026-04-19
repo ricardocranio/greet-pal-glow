@@ -366,63 +366,70 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     setHourlyData(status.history);
     setDailyData([]);
     setMonthlyData([]);
+    setIsLoadingMain(true);
 
-    // 1) Today's raw points only (for realtime chart). Small payload.
-    (async () => {
-      const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
-      if (cancelled || !data) return;
-      setAllSnapshots(data as SnapshotRow[]);
-    })();
+    const tasks = [
+      // 1) Today's raw points only (for realtime chart). Small payload.
+      (async () => {
+        const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
+        if (cancelled) return;
+        setAllSnapshots((data ?? []) as SnapshotRow[]);
+      })(),
 
-    // 2) Hourly averages (today only — used as default in horario tab when no filter active)
-    (async () => {
-      const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-      todayStartIso.setHours(0, 0, 0, 0);
-      const { data } = await supabase.rpc("station_hourly_avg", {
-        p_station_id: stationId,
-        p_from: todayStartIso.toISOString(),
-        p_to: nowIso,
-        p_dow_filter: "all",
-      });
-      if (cancelled) return;
-      const map = new Map<number, number>();
-      (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
-      setHourlyData(Array.from({ length: 24 }, (_, h) => ({
-        time: `${String(h).padStart(2, "0")}:00`,
-        listeners: map.get(h) ?? 0,
-      })));
-    })();
+      // 2) Hourly averages (today only — used as default in horario tab when no filter active)
+      (async () => {
+        const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        todayStartIso.setHours(0, 0, 0, 0);
+        const { data } = await supabase.rpc("station_hourly_avg", {
+          p_station_id: stationId,
+          p_from: todayStartIso.toISOString(),
+          p_to: nowIso,
+          p_dow_filter: "all",
+        });
+        if (cancelled) return;
+        const map = new Map<number, number>();
+        (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
+        setHourlyData(Array.from({ length: 24 }, (_, h) => ({
+          time: `${String(h).padStart(2, "0")}:00`,
+          listeners: map.get(h) ?? 0,
+        })));
+      })(),
 
-    // 3) Day-of-week averages (90 days)
-    (async () => {
-      const { data } = await supabase.rpc("station_dow_avg", {
-        p_station_id: stationId,
-        p_from: cutoffIso,
-        p_to: nowIso,
-      });
-      if (cancelled) return;
-      const map = new Map<number, number>();
-      (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
-      setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
-        time: DAY_NAMES[d],
-        listeners: map.get(d) ?? 0,
-      })));
-    })();
+      // 3) Day-of-week averages (90 days)
+      (async () => {
+        const { data } = await supabase.rpc("station_dow_avg", {
+          p_station_id: stationId,
+          p_from: cutoffIso,
+          p_to: nowIso,
+        });
+        if (cancelled) return;
+        const map = new Map<number, number>();
+        (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
+        setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
+          time: DAY_NAMES[d],
+          listeners: map.get(d) ?? 0,
+        })));
+      })(),
 
-    // 4) Monthly averages (90 days)
-    (async () => {
-      const { data } = await supabase.rpc("station_month_avg", {
-        p_station_id: stationId,
-        p_from: cutoffIso,
-        p_to: nowIso,
-      });
-      if (cancelled) return;
-      const rows = (data ?? []) as { month: string; avg_listeners: number }[];
-      setMonthlyData(rows.map(r => {
-        const mm = parseInt(r.month.split("-")[1], 10);
-        return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
-      }));
-    })();
+      // 4) Monthly averages (90 days)
+      (async () => {
+        const { data } = await supabase.rpc("station_month_avg", {
+          p_station_id: stationId,
+          p_from: cutoffIso,
+          p_to: nowIso,
+        });
+        if (cancelled) return;
+        const rows = (data ?? []) as { month: string; avg_listeners: number }[];
+        setMonthlyData(rows.map(r => {
+          const mm = parseInt(r.month.split("-")[1], 10);
+          return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
+        }));
+      })(),
+    ];
+
+    Promise.all(tasks).finally(() => {
+      if (!cancelled) setIsLoadingMain(false);
+    });
 
     return () => { cancelled = true; };
   }, [open, status]);
