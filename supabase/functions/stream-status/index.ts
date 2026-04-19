@@ -120,10 +120,15 @@ function parseShoutcastJson(text: string): Partial<StreamResult> | null {
     const data = JSON.parse(text);
     if (data.streams) {
       const s = Array.isArray(data.streams) ? data.streams[0] : Object.values(data.streams)[0] as any;
-      if (s) return { online: s.streamstatus === 1, listeners: s.currentlisteners ?? 0, peakListeners: s.peaklisteners ?? 0, title: s.songtitle ?? '', bitrate: s.bitrate ?? 0 };
+      if (s) {
+        const listeners = s.currentlisteners ?? 0;
+        // Considera online se streamstatus=1 OU se há ouvintes ativos (caso de servidores que reportam status=0 mas têm listeners)
+        return { online: s.streamstatus === 1 || listeners > 0, listeners, peakListeners: s.peaklisteners ?? 0, title: s.songtitle ?? '', bitrate: s.bitrate ?? 0 };
+      }
     }
     if (data.currentlisteners !== undefined) {
-      return { online: data.streamstatus === 1, listeners: data.currentlisteners ?? 0, peakListeners: data.peaklisteners ?? 0, title: data.songtitle ?? data.servertitle ?? '', bitrate: data.bitrate ?? 0 };
+      const listeners = data.currentlisteners ?? 0;
+      return { online: data.streamstatus === 1 || listeners > 0, listeners, peakListeners: data.peaklisteners ?? 0, title: data.songtitle ?? data.servertitle ?? '', bitrate: data.bitrate ?? 0 };
     }
     return null;
   } catch { return null; }
@@ -168,7 +173,9 @@ function parseShoutcast7html(text: string): Partial<StreamResult> | null {
     if (!match) return null;
     const parts = match[1].split(',');
     if (parts.length >= 7) {
-      return { online: parseInt(parts[1]) === 1, listeners: parseInt(parts[0]) || 0, peakListeners: parseInt(parts[2]) || 0, title: parts.slice(6).join(',').trim(), bitrate: parseInt(parts[5]) || 0 };
+      const listeners = parseInt(parts[0]) || 0;
+      const status = parseInt(parts[1]);
+      return { online: status === 1 || listeners > 0, listeners, peakListeners: parseInt(parts[2]) || 0, title: parts.slice(6).join(',').trim(), bitrate: parseInt(parts[5]) || 0 };
     }
     return null;
   } catch { return null; }
