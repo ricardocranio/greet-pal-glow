@@ -302,7 +302,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   useEffect(() => {
     if (!open || viewMode !== "blend") return;
     let cancelled = false;
-
+    setIsLoadingBlend(true);
     async function fetchBlendData() {
       const dateStr = formatBrasiliaDateInput(blendDate);
       const p_from = blendView === "horario"
