@@ -293,83 +293,53 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
   }, [blendVisibleStations, blendData, blendView, hourStart, hourEnd]);
 
-  // Fetch blend data
+  // Fetch blend data via server-side aggregate (1 row per station+hour or station+dow)
   useEffect(() => {
     if (!open || viewMode !== "blend") return;
     let cancelled = false;
 
     async function fetchBlendData() {
       const dateStr = formatBrasiliaDateInput(blendDate);
-      const cutoff = blendView === "horario"
-        ? dateStr + "T00:00:00-03:00"
+      const p_from = blendView === "horario"
+        ? `${dateStr}T00:00:00-03:00`
         : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      const upperBound = blendView === "horario"
-        ? dateStr + "T23:59:59-03:00"
-        : null;
+      const p_to = blendView === "horario"
+        ? `${dateStr}T23:59:59-03:00`
+        : new Date().toISOString();
 
-      const allData: { station_id: string; listeners: number; hour: number; recorded_at: string }[] = [];
-      let from = 0;
-      const pageSize = 1000;
-
-      while (true) {
-        let query = supabase
-          .from("audience_snapshots")
-          .select("station_id, listeners, hour, recorded_at")
-          .gte("recorded_at", cutoff)
-          .order("recorded_at", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (upperBound) query = query.lte("recorded_at", upperBound);
-        const { data } = await query;
-        if (!data || data.length === 0) break;
-        allData.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-
+      const rpcName = blendView === "horario" ? "blend_hourly_avg" : "blend_dow_avg";
+      const { data } = await supabase.rpc(rpcName, { p_from, p_to });
       if (cancelled) return;
-      if (allData.length === 0) { setBlendData([]); return; }
+      if (!data || data.length === 0) { setBlendData([]); return; }
 
       if (blendView === "horario") {
-        const hourMap = new Map<number, Map<string, number[]>>();
-        allData.forEach(s => {
-          if (!hourMap.has(s.hour)) hourMap.set(s.hour, new Map());
-          const stMap = hourMap.get(s.hour)!;
-          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
-          stMap.get(s.station_id)!.push(s.listeners);
+        // Pivot: rows = 24 hours, cols = stations
+        const pivot = new Map<number, Map<string, number>>();
+        (data as { station_id: string; hour: number; avg_listeners: number }[]).forEach(r => {
+          if (!pivot.has(r.hour)) pivot.set(r.hour, new Map());
+          pivot.get(r.hour)!.set(r.station_id, r.avg_listeners);
         });
         const rows = Array.from({ length: 24 }, (_, h) => {
           const row: Record<string, any> = { time: `${String(h).padStart(2, "0")}:00` };
-          const stMap = hourMap.get(h);
-          stations.forEach(st => {
-            const vals = stMap?.get(st.id) || [];
-            row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-          });
+          const stMap = pivot.get(h);
+          stations.forEach(st => { row[st.id] = stMap?.get(st.id) ?? null; });
           return row;
         });
-        if (!cancelled) setBlendData(rows);
+        setBlendData(rows);
       } else {
-        const dayMap = new Map<number, Map<string, number[]>>();
-        allData.forEach(s => {
-          const d = new Date(s.recorded_at);
-          const utcMs = d.getTime();
-          const brasiliaMs = utcMs - 3 * 60 * 60 * 1000;
-          const brasiliaDate = new Date(brasiliaMs);
-          const dayOfWeek = brasiliaDate.getUTCDay();
-          if (!dayMap.has(dayOfWeek)) dayMap.set(dayOfWeek, new Map());
-          const stMap = dayMap.get(dayOfWeek)!;
-          if (!stMap.has(s.station_id)) stMap.set(s.station_id, []);
-          stMap.get(s.station_id)!.push(s.listeners);
+        // Pivot: rows = 7 days-of-week, cols = stations
+        const pivot = new Map<number, Map<string, number>>();
+        (data as { station_id: string; dow: number; avg_listeners: number }[]).forEach(r => {
+          if (!pivot.has(r.dow)) pivot.set(r.dow, new Map());
+          pivot.get(r.dow)!.set(r.station_id, r.avg_listeners);
         });
         const rows = [0, 1, 2, 3, 4, 5, 6].map(d => {
           const row: Record<string, any> = { time: DAY_NAMES[d] };
-          const stMap = dayMap.get(d);
-          stations.forEach(st => {
-            const vals = stMap?.get(st.id) || [];
-            row[st.id] = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-          });
+          const stMap = pivot.get(d);
+          stations.forEach(st => { row[st.id] = stMap?.get(st.id) ?? null; });
           return row;
         });
-        if (!cancelled) setBlendData(rows);
+        setBlendData(rows);
       }
     }
 
