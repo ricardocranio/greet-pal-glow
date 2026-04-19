@@ -1119,29 +1119,33 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 </div>
               )}
 
-              <div className="overflow-x-auto">
-                <div className="min-w-[320px]">
-                  <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
-                    <BarChart data={viewMode === "horario" && mergedHorarioData ? mergedHorarioData : chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
-                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }}
-                    labelStyle={{ color: "hsl(210 20% 92%)" }}
-                    formatter={(value: number, name: string) => {
-                      const label = name === "compare" && compareStation ? compareStation.name : name === "listeners" && compareStation ? station.name : "Conexões";
-                      return [value?.toLocaleString("pt-BR") ?? "—", label];
-                    }}
-                  />
-                  <Bar dataKey="listeners" name="listeners" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
-                  {viewMode === "horario" && mergedHorarioData && (
-                    <Bar dataKey="compare" name="compare" fill="hsl(210 90% 55%)" radius={[4, 4, 0, 0]} />
-                  )}
-                    </BarChart>
-                  </ResponsiveContainer>
+              {(isLoadingMain && !chartData?.length) || (viewMode === "horario" && (isLoadingHorario || isLoadingCompare)) ? (
+                <ChartSkeleton height={isFullscreen ? 300 : 180} />
+              ) : (
+                <div className="overflow-x-auto">
+                  <div className="min-w-[320px]">
+                    <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
+                      <BarChart data={viewMode === "horario" && mergedHorarioData ? mergedHorarioData : chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
+                    <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
+                    <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }}
+                      labelStyle={{ color: "hsl(210 20% 92%)" }}
+                      formatter={(value: number, name: string) => {
+                        const label = name === "compare" && compareStation ? compareStation.name : name === "listeners" && compareStation ? station.name : "Conexões";
+                        return [value?.toLocaleString("pt-BR") ?? "—", label];
+                      }}
+                    />
+                    <Bar dataKey="listeners" name="listeners" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
+                    {viewMode === "horario" && mergedHorarioData && (
+                      <Bar dataKey="compare" name="compare" fill="hsl(210 90% 55%)" radius={[4, 4, 0, 0]} />
+                    )}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Legend when comparing */}
               {viewMode === "horario" && compareStation && (
