@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { stations } from "@/data/stations";
 import { toPng } from "html-to-image";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -115,6 +116,10 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [hourEnd, setHourEnd] = useState<number>(23);
   const [compareStationId, setCompareStationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoadingMain, setIsLoadingMain] = useState(false);
+  const [isLoadingBlend, setIsLoadingBlend] = useState(false);
+  const [isLoadingHorario, setIsLoadingHorario] = useState(false);
+  const [isLoadingCompare, setIsLoadingCompare] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -297,7 +302,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   useEffect(() => {
     if (!open || viewMode !== "blend") return;
     let cancelled = false;
-
+    setIsLoadingBlend(true);
     async function fetchBlendData() {
       const dateStr = formatBrasiliaDateInput(blendDate);
       const p_from = blendView === "horario"
@@ -343,7 +348,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       }
     }
 
-    fetchBlendData();
+    fetchBlendData().finally(() => {
+      if (!cancelled) setIsLoadingBlend(false);
+    });
     return () => { cancelled = true; };
   }, [open, viewMode, blendView, blendDate]);
 
@@ -361,63 +368,70 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     setHourlyData(status.history);
     setDailyData([]);
     setMonthlyData([]);
+    setIsLoadingMain(true);
 
-    // 1) Today's raw points only (for realtime chart). Small payload.
-    (async () => {
-      const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
-      if (cancelled || !data) return;
-      setAllSnapshots(data as SnapshotRow[]);
-    })();
+    const tasks = [
+      // 1) Today's raw points only (for realtime chart). Small payload.
+      (async () => {
+        const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
+        if (cancelled) return;
+        setAllSnapshots((data ?? []) as SnapshotRow[]);
+      })(),
 
-    // 2) Hourly averages (today only — used as default in horario tab when no filter active)
-    (async () => {
-      const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-      todayStartIso.setHours(0, 0, 0, 0);
-      const { data } = await supabase.rpc("station_hourly_avg", {
-        p_station_id: stationId,
-        p_from: todayStartIso.toISOString(),
-        p_to: nowIso,
-        p_dow_filter: "all",
-      });
-      if (cancelled) return;
-      const map = new Map<number, number>();
-      (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
-      setHourlyData(Array.from({ length: 24 }, (_, h) => ({
-        time: `${String(h).padStart(2, "0")}:00`,
-        listeners: map.get(h) ?? 0,
-      })));
-    })();
+      // 2) Hourly averages (today only — used as default in horario tab when no filter active)
+      (async () => {
+        const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        todayStartIso.setHours(0, 0, 0, 0);
+        const { data } = await supabase.rpc("station_hourly_avg", {
+          p_station_id: stationId,
+          p_from: todayStartIso.toISOString(),
+          p_to: nowIso,
+          p_dow_filter: "all",
+        });
+        if (cancelled) return;
+        const map = new Map<number, number>();
+        (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
+        setHourlyData(Array.from({ length: 24 }, (_, h) => ({
+          time: `${String(h).padStart(2, "0")}:00`,
+          listeners: map.get(h) ?? 0,
+        })));
+      })(),
 
-    // 3) Day-of-week averages (90 days)
-    (async () => {
-      const { data } = await supabase.rpc("station_dow_avg", {
-        p_station_id: stationId,
-        p_from: cutoffIso,
-        p_to: nowIso,
-      });
-      if (cancelled) return;
-      const map = new Map<number, number>();
-      (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
-      setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
-        time: DAY_NAMES[d],
-        listeners: map.get(d) ?? 0,
-      })));
-    })();
+      // 3) Day-of-week averages (90 days)
+      (async () => {
+        const { data } = await supabase.rpc("station_dow_avg", {
+          p_station_id: stationId,
+          p_from: cutoffIso,
+          p_to: nowIso,
+        });
+        if (cancelled) return;
+        const map = new Map<number, number>();
+        (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
+        setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
+          time: DAY_NAMES[d],
+          listeners: map.get(d) ?? 0,
+        })));
+      })(),
 
-    // 4) Monthly averages (90 days)
-    (async () => {
-      const { data } = await supabase.rpc("station_month_avg", {
-        p_station_id: stationId,
-        p_from: cutoffIso,
-        p_to: nowIso,
-      });
-      if (cancelled) return;
-      const rows = (data ?? []) as { month: string; avg_listeners: number }[];
-      setMonthlyData(rows.map(r => {
-        const mm = parseInt(r.month.split("-")[1], 10);
-        return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
-      }));
-    })();
+      // 4) Monthly averages (90 days)
+      (async () => {
+        const { data } = await supabase.rpc("station_month_avg", {
+          p_station_id: stationId,
+          p_from: cutoffIso,
+          p_to: nowIso,
+        });
+        if (cancelled) return;
+        const rows = (data ?? []) as { month: string; avg_listeners: number }[];
+        setMonthlyData(rows.map(r => {
+          const mm = parseInt(r.month.split("-")[1], 10);
+          return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
+        }));
+      })(),
+    ];
+
+    Promise.all(tasks).finally(() => {
+      if (!cancelled) setIsLoadingMain(false);
+    });
 
     return () => { cancelled = true; };
   }, [open, status]);
@@ -426,13 +440,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Replaces the client-side filtering of allSnapshots that previously required loading 90 days of data.
   const [serverHourlyData, setServerHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
-    if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); return; }
-    // "dia" filter is satisfied by today-snapshots (already loaded); only call RPC for other filters
-    // OR for a non-today specific date.
+    if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); setIsLoadingHorario(false); return; }
     const isToday = horarioFilter === "dia" && (!selectedDate || formatBrasiliaDateInput(selectedDate) === formatBrasiliaDateInput());
-    if (isToday) { setServerHourlyData(null); return; }
+    if (isToday) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
 
     let cancelled = false;
+    setIsLoadingHorario(true);
     (async () => {
       const stationId = status.station.id;
       let p_from: string, p_to: string, p_dow_filter: string;
@@ -457,6 +470,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         listeners: map.get(h) ?? 0,
         hour: h,
       })));
+      setIsLoadingHorario(false);
     })();
     return () => { cancelled = true; };
   }, [open, status, viewMode, horarioFilter, selectedDate]);
@@ -520,8 +534,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   // Compare station: server-aggregated hourly averages with same dow/date filter
   const [compareHourlyData, setCompareHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
-    if (!open || !compareStationId) { setCompareHourlyData(null); return; }
+    if (!open || !compareStationId) { setCompareHourlyData(null); setIsLoadingCompare(false); return; }
     let cancelled = false;
+    setIsLoadingCompare(true);
     (async () => {
       let p_from: string, p_to: string, p_dow_filter: string;
       if (horarioFilter === "dia") {
@@ -546,6 +561,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         hour: h,
       }));
       setCompareHourlyData(rows);
+      setIsLoadingCompare(false);
     })();
     return () => { cancelled = true; };
   }, [open, compareStationId, horarioFilter, selectedDate]);
@@ -844,6 +860,21 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     ? "sm:max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none border-0 overflow-y-auto px-3 sm:px-6 pr-8 sm:pr-10"
     : "sm:max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto w-[98vw] sm:w-[95vw] px-3 sm:px-6 pr-8 sm:pr-10";
 
+  // Skeleton placeholder for charts while RPCs are loading
+  const ChartSkeleton = ({ height }: { height: number }) => (
+    <div className="w-full" style={{ height }} aria-busy="true" aria-label="Carregando gráfico">
+      <div className="flex items-end gap-1.5 h-full w-full px-2 pt-2 pb-6">
+        {Array.from({ length: 24 }).map((_, i) => (
+          <Skeleton
+            key={i}
+            className="flex-1 bg-muted/40"
+            style={{ height: `${30 + ((i * 37) % 65)}%`, animationDelay: `${i * 40}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dialogContentClass, "bg-card border-border")}>
@@ -987,6 +1018,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     </ResponsiveContainer>
                   </div>
                 </div>
+              ) : isLoadingMain ? (
+                <ChartSkeleton height={isFullscreen ? 350 : 180} />
               ) : (
                 <div className="flex items-center justify-center h-[180px] sm:h-[220px] text-muted-foreground text-sm">
                   Aguardando dados de hoje...
@@ -1086,29 +1119,33 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                 </div>
               )}
 
-              <div className="overflow-x-auto">
-                <div className="min-w-[320px]">
-                  <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
-                    <BarChart data={viewMode === "horario" && mergedHorarioData ? mergedHorarioData : chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                  <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
-                  <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }}
-                    labelStyle={{ color: "hsl(210 20% 92%)" }}
-                    formatter={(value: number, name: string) => {
-                      const label = name === "compare" && compareStation ? compareStation.name : name === "listeners" && compareStation ? station.name : "Conexões";
-                      return [value?.toLocaleString("pt-BR") ?? "—", label];
-                    }}
-                  />
-                  <Bar dataKey="listeners" name="listeners" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
-                  {viewMode === "horario" && mergedHorarioData && (
-                    <Bar dataKey="compare" name="compare" fill="hsl(210 90% 55%)" radius={[4, 4, 0, 0]} />
-                  )}
-                    </BarChart>
-                  </ResponsiveContainer>
+              {(isLoadingMain && !chartData?.length) || (viewMode === "horario" && (isLoadingHorario || isLoadingCompare)) ? (
+                <ChartSkeleton height={isFullscreen ? 300 : 180} />
+              ) : (
+                <div className="overflow-x-auto">
+                  <div className="min-w-[320px]">
+                    <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
+                      <BarChart data={viewMode === "horario" && mergedHorarioData ? mergedHorarioData : chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
+                    <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
+                    <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }}
+                      labelStyle={{ color: "hsl(210 20% 92%)" }}
+                      formatter={(value: number, name: string) => {
+                        const label = name === "compare" && compareStation ? compareStation.name : name === "listeners" && compareStation ? station.name : "Conexões";
+                        return [value?.toLocaleString("pt-BR") ?? "—", label];
+                      }}
+                    />
+                    <Bar dataKey="listeners" name="listeners" fill="hsl(160 84% 44%)" radius={[4, 4, 0, 0]} />
+                    {viewMode === "horario" && mergedHorarioData && (
+                      <Bar dataKey="compare" name="compare" fill="hsl(210 90% 55%)" radius={[4, 4, 0, 0]} />
+                    )}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Legend when comparing */}
               {viewMode === "horario" && compareStation && (
@@ -1277,9 +1314,11 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       </ResponsiveContainer>
                     </div>
                   </div>
+                ) : isLoadingBlend ? (
+                  <ChartSkeleton height={isFullscreen ? 350 : 220} />
                 ) : (
                   <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
-                    Carregando dados comparativos...
+                    Sem dados para o período selecionado.
                   </div>
                 )}
               </div>
