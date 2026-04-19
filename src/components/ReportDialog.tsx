@@ -561,6 +561,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         hour: h,
       }));
       setCompareHourlyData(rows);
+      setIsLoadingCompare(false);
     })();
     return () => { cancelled = true; };
   }, [open, compareStationId, horarioFilter, selectedDate]);
