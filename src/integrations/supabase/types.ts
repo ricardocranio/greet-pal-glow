@@ -238,7 +238,59 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      blend_dow_avg: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          avg_listeners: number
+          dow: number
+          station_id: string
+        }[]
+      }
+      blend_hourly_avg: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          avg_listeners: number
+          hour: number
+          station_id: string
+        }[]
+      }
+      station_dow_avg: {
+        Args: { p_from: string; p_station_id: string; p_to: string }
+        Returns: {
+          avg_listeners: number
+          dow: number
+          samples: number
+        }[]
+      }
+      station_hourly_avg: {
+        Args: {
+          p_dow_filter?: string
+          p_from: string
+          p_station_id: string
+          p_to: string
+        }
+        Returns: {
+          avg_listeners: number
+          hour: number
+          samples: number
+        }[]
+      }
+      station_month_avg: {
+        Args: { p_from: string; p_station_id: string; p_to: string }
+        Returns: {
+          avg_listeners: number
+          month: string
+          samples: number
+        }[]
+      }
+      station_today_realtime: {
+        Args: { p_station_id: string }
+        Returns: {
+          hour: number
+          listeners: number
+          recorded_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
