@@ -900,6 +900,16 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                   {simulatorEnabled && <span className="ml-2 text-accent text-[10px]">Fi {simulatorFactor}</span>}
                 </span>
               </div>
+              {(isLoadingMain || isLoadingBlend || isLoadingHorario || isLoadingCompare) && (
+                <span
+                  data-export-hide="true"
+                  className="hidden sm:inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-normal text-muted-foreground bg-secondary/60 border border-border rounded-full px-2 py-1 shrink-0 animate-pulse"
+                  aria-live="polite"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                  atualizando...
+                </span>
+              )}
               <Button
                 data-export-hide="true"
                 size="sm"
