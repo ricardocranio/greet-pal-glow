@@ -586,51 +586,42 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   );
 
   const todayStats = useMemo(() => {
-    if (!status || allSnapshots.length === 0) {
+    if (!status) {
       return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", label: "Hoje" };
     }
 
-    let relevantSnaps: SnapshotRow[];
-    let label = "Hoje";
+    const formatIso = (iso: string | null) => {
+      if (!iso) return "--:--";
+      const d = new Date(iso);
+      return d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+    };
 
-    if (viewMode === "horario") {
-      if (horarioFilter === "dia") {
-        const dateStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
-        relevantSnaps = allSnapshots.filter(
-          (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === dateStr
-        );
-        label = selectedDate ? format(selectedDate, "dd/MM", { locale: ptBR }) : "Hoje";
-      } else if (horarioFilter === "seg-sex") {
-        relevantSnaps = allSnapshots.filter((snap) => {
-          const utcMs = new Date(snap.recorded_at).getTime();
-          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-          const dow = brasiliaDate.getUTCDay();
-          return dow >= 1 && dow <= 5;
-        });
-        label = "Seg–Sex";
-      } else if (horarioFilter === "sab-dom") {
-        relevantSnaps = allSnapshots.filter((snap) => {
-          const utcMs = new Date(snap.recorded_at).getTime();
-          const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-          const dow = brasiliaDate.getUTCDay();
-          return dow === 0 || dow === 6;
-        });
-        label = "Sáb–Dom";
-      } else {
-        // geral
-        relevantSnaps = allSnapshots;
-        label = "Geral";
-      }
-    } else {
-      // For realtime, dia, mes, blend: use today
-      const todayStr = formatBrasiliaDateInput();
-      relevantSnaps = allSnapshots.filter(
-        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
-      );
+    // Horario tab with non-today filter → server-aggregated peak/min (fast)
+    if (viewMode === "horario" && serverPeakMin) {
+      let label = "Geral";
+      if (horarioFilter === "dia" && selectedDate) label = format(selectedDate, "dd/MM", { locale: ptBR });
+      else if (horarioFilter === "seg-sex") label = "Seg–Sex";
+      else if (horarioFilter === "sab-dom") label = "Sáb–Dom";
+      return {
+        peakValue: Math.round(serverPeakMin.peak * factor),
+        peakTimeStr: formatIso(serverPeakMin.peakAt),
+        minValue: Math.round(serverPeakMin.min * factor),
+        minTimeStr: formatIso(serverPeakMin.minAt),
+        label,
+      };
     }
 
+    // Default path: today's snapshots only (already loaded, small set)
+    if (allSnapshots.length === 0) {
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", label: "Hoje" };
+    }
+
+    const todayStr = formatBrasiliaDateInput();
+    const relevantSnaps = allSnapshots.filter(
+      (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === todayStr
+    );
     if (relevantSnaps.length === 0) {
-      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", label };
+      return { peakValue: 0, peakTimeStr: "--:--", minValue: 0, minTimeStr: "--:--", label: "Hoje" };
     }
 
     let peakSnap = relevantSnaps[0];
@@ -639,20 +630,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       if (snap.listeners > peakSnap.listeners) peakSnap = snap;
       if (snap.listeners < minSnap.listeners) minSnap = snap;
     }
-
-    const formatTime = (snap: SnapshotRow) => {
-      const d = new Date(snap.recorded_at);
-      return d.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
-    };
-
     return {
       peakValue: Math.round(peakSnap.listeners * factor),
-      peakTimeStr: formatTime(peakSnap),
+      peakTimeStr: formatIso(peakSnap.recorded_at),
       minValue: Math.round(minSnap.listeners * factor),
-      minTimeStr: formatTime(minSnap),
-      label,
+      minTimeStr: formatIso(minSnap.recorded_at),
+      label: "Hoje",
     };
-  }, [allSnapshots, status, factor, viewMode, horarioFilter, selectedDate]);
+  }, [allSnapshots, status, factor, viewMode, horarioFilter, selectedDate, serverPeakMin]);
 
   const realtimeData = useMemo(() => {
     if (!status) return [];
