@@ -329,7 +329,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       } else {
         // Pivot: rows = 7 days-of-week, cols = stations
         const pivot = new Map<number, Map<string, number>>();
-        (data as { station_id: string; dow: number; avg_listeners: number }[]).forEach(r => {
+        (data as unknown as { station_id: string; dow: number; avg_listeners: number }[]).forEach(r => {
           if (!pivot.has(r.dow)) pivot.set(r.dow, new Map());
           pivot.get(r.dow)!.set(r.station_id, r.avg_listeners);
         });
