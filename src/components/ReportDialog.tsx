@@ -528,47 +528,24 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     return () => { cancelled = true; };
   }, [open, status, viewMode, horarioFilter, selectedDate]);
 
-  // Filtered hourly data based on horarioFilter
+  // Filtered hourly data: prefer server-aggregated result; fall back to today snapshots / hourlyData
   const filteredHourlyData = useMemo(() => {
-    if (viewMode !== "horario" || allSnapshots.length === 0) return hourlyData;
-
-    let filteredSnaps = allSnapshots;
-
-    if (horarioFilter === "dia") {
-      // Specific date
-      const dateStr = selectedDate ? formatBrasiliaDateInput(selectedDate) : formatBrasiliaDateInput();
-      filteredSnaps = allSnapshots.filter(
-        (snap) => formatBrasiliaDateInput(new Date(snap.recorded_at)) === dateStr
-      );
-    } else if (horarioFilter === "seg-sex") {
-      filteredSnaps = allSnapshots.filter((snap) => {
-        const utcMs = new Date(snap.recorded_at).getTime();
-        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-        const dow = brasiliaDate.getUTCDay();
-        return dow >= 1 && dow <= 5;
-      });
-    } else if (horarioFilter === "sab-dom") {
-      filteredSnaps = allSnapshots.filter((snap) => {
-        const utcMs = new Date(snap.recorded_at).getTime();
-        const brasiliaDate = new Date(utcMs - 3 * 60 * 60 * 1000);
-        const dow = brasiliaDate.getUTCDay();
-        return dow === 0 || dow === 6;
-      });
+    if (viewMode !== "horario") return hourlyData;
+    if (serverHourlyData) {
+      return serverHourlyData.filter(d => d.hour >= hourStart && d.hour <= hourEnd);
     }
-    // "geral" = all snapshots
-
+    // Today path: use allSnapshots (only today's points are loaded — small set)
     const hourMap = new Map<number, number[]>();
-    filteredSnaps.forEach((snap) => {
+    allSnapshots.forEach((snap) => {
       if (!hourMap.has(snap.hour)) hourMap.set(snap.hour, []);
       hourMap.get(snap.hour)!.push(snap.listeners);
     });
-
     return Array.from({ length: 24 }, (_, h) => {
       const vals = hourMap.get(h) || [];
       const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
       return { time: `${String(h).padStart(2, "0")}:00`, listeners: avg, hour: h };
     }).filter(d => d.hour >= hourStart && d.hour <= hourEnd);
-  }, [viewMode, horarioFilter, selectedDate, allSnapshots, hourlyData, hourStart, hourEnd]);
+  }, [viewMode, serverHourlyData, allSnapshots, hourlyData, hourStart, hourEnd]);
 
   // Compare station: fetch snapshots
   const [compareSnapshots, setCompareSnapshots] = useState<SnapshotRow[]>([]);
