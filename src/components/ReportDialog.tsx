@@ -462,7 +462,10 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         p_to = `${dStr}T23:59:59-03:00`;
         p_dow_filter = "all";
       } else {
-        p_from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        // Start from the 1st of the current month (Brasília timezone)
+        const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        const monthStart = new Date(nowBrt.getFullYear(), nowBrt.getMonth(), 1);
+        p_from = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-01T00:00:00-03:00`;
         p_to = new Date().toISOString();
         p_dow_filter = horarioFilter === "seg-sex" ? "weekday" : horarioFilter === "sab-dom" ? "weekend" : "all";
       }
@@ -501,7 +504,9 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         p_to = `${dStr}T23:59:59-03:00`;
         p_dow_filter = "date";
       } else {
-        p_from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        const nowBrt = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        const monthStart = new Date(nowBrt.getFullYear(), nowBrt.getMonth(), 1);
+        p_from = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-01T00:00:00-03:00`;
         p_to = new Date().toISOString();
         p_dow_filter = horarioFilter === "seg-sex" ? "weekday" : horarioFilter === "sab-dom" ? "weekend" : "all";
       }
