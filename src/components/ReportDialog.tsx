@@ -538,7 +538,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       });
     })();
     return () => { cancelled = true; };
-  }, [open, status, viewMode, horarioFilter, selectedDate]);
+  }, [open, status, viewMode, horarioFilter, selectedDate, refreshTrigger]);
 
   // Filtered hourly data: prefer server-aggregated result; fall back to today snapshots / hourlyData
   const filteredHourlyData = useMemo(() => {
