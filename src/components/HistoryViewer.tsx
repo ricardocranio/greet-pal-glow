@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Download, FileText, History, BarChart3 } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileText, History, BarChart3, ChevronDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -273,17 +273,24 @@ export default function HistoryViewer() {
           <History className="h-4 w-4 text-primary" />
           Histórico por Estação
         </h2>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={exportCSV} disabled={buckets.length === 0}>
-            <Download className="h-3.5 w-3.5 mr-1" /> CSV
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => exportPDF("light")} disabled={buckets.length === 0} title="PDF fundo branco">
-            <FileText className="h-3.5 w-3.5 mr-1" /> PDF-W
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => exportPDF("dark")} disabled={buckets.length === 0} title="PDF fundo preto" className="bg-foreground text-background hover:bg-foreground/90 hover:text-background">
-            <FileText className="h-3.5 w-3.5 mr-1" /> PDF-B
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={buckets.length === 0}>
+              <Download className="h-3.5 w-3.5 mr-1" /> Download <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportCSV}>
+              <Download className="h-3.5 w-3.5 mr-2" /> CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportPDF("light")}>
+              <FileText className="h-3.5 w-3.5 mr-2" /> PDF-W
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportPDF("dark")}>
+              <FileText className="h-3.5 w-3.5 mr-2" /> PDF-B
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Controls */}
