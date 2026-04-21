@@ -11,23 +11,32 @@ interface StreamConfig {
   type: 'shoutcast' | 'icecast' | 'shoutcast-html';
 }
 
-const STREAMS: StreamConfig[] = [
-  { id: "98fm",      url: "http://cast42.sitehosting.com.br:8010",      type: "shoutcast" },
-  { id: "97fm",      url: "https://azevedo.jmvstream.com",              type: "shoutcast" },
-  { id: "96fm",      url: "http://centova10.ciclanohost.com.br:6258",    type: "shoutcast" },
-  { id: "95fm",      url: "https://radio.saopaulo01.com.br:10841",      type: "shoutcast" },
-  { id: "91fm",      url: "https://live9.livemus.com.br:27802",         type: "shoutcast" },
-  { id: "clubefm",   url: "http://radios.braviahost.com.br:8012",       type: "shoutcast" },
-  { id: "mundialfm", url: "https://stm4.srvstm.com:7252",              type: "shoutcast" },
-  { id: "jpnatal",   url: "https://pannatal.jmvstream.com",             type: "shoutcast" },
-  { id: "jpnews",    url: "https://s02.maxcast.com.br:8082",            type: "shoutcast" },
-  { id: "cidadefm",  url: "https://cidadedosolaac.jmvstream.com",       type: "shoutcast" },
-  { id: "104fm",     url: "https://radios.braviahost.com.br:8000",      type: "shoutcast" },
-  { id: "universitariafm", url: "https://radio.comunica.ufrn.br:8000",  type: "icecast" },
-  { id: "105fm",     url: "https://stream2.svrdedicado.org:7031",       type: "shoutcast" },
-  { id: "nordeste925", url: "https://radio.midiaserverbr.com:9988",     type: "shoutcast" },
-  { id: "marinhafm",   url: "https://stm0.inovativa.net/listen/radiomarinha", type: "icecast" },
-];
+// Load stations from DB at invocation time
+async function loadStreams(): Promise<StreamConfig[]> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  const { data, error } = await supabase
+    .from('stations')
+    .select('id, stream_url')
+    .eq('active', true)
+    .order('display_order', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    console.error('Failed to load stations from DB, using empty list', error);
+    return [];
+  }
+
+  return data.map((row: { id: string; stream_url: string }) => {
+    const url = row.stream_url.replace(/\/stream\/?$/, '').replace(/\/+$/, '');
+    // Detect icecast by known patterns
+    const type = url.includes('comunica.ufrn.br') || url.includes('inovativa.net')
+      ? 'icecast' as const
+      : 'shoutcast' as const;
+    return { id: row.id, url, type };
+  });
+}
 
 interface StreamResult {
   id: string;
