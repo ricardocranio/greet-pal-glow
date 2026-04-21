@@ -50,9 +50,11 @@ export function useStationMonitor() {
         const userPracas: { id: string; name: string; state: string }[] = pracasJson ? JSON.parse(pracasJson) : [];
         const role = sessionStorage.getItem("auth_role") || "viewer";
 
-        // Set initial active praça
-        if (userPracas.length > 0 && !activePracaId) {
-          setActivePracaId(userPracas[0].id);
+        // Set initial active praça if not set
+        let currentActiveId = activePracaId;
+        if (userPracas.length > 0 && !currentActiveId) {
+          currentActiveId = userPracas[0].id;
+          setActivePracaId(currentActiveId);
         }
 
         let query = supabase
