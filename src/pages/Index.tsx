@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-function BrasiliaClock() {
+function LocalClock() {
   const [time, setTime] = useState("");
 
   useEffect(() => {
@@ -29,11 +29,10 @@ function BrasiliaClock() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
-        hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
       });
-      setTime(brasilia);
+      setTime(timeStr);
     };
     update();
     const interval = setInterval(update, 1000);
@@ -44,7 +43,7 @@ function BrasiliaClock() {
     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
       <Clock className="h-3.5 w-3.5 text-primary" />
       <span className="font-mono font-medium text-foreground tabular-nums whitespace-nowrap">{time}</span>
-      <span className="text-[10px] uppercase">Brasília</span>
+      <span className="text-[10px] uppercase">Local</span>
     </div>
   );
 }
