@@ -33,6 +33,7 @@ export interface DbStation {
   category: string;
   display_order: number;
   active: boolean;
+  praca_id: string;
 }
 
 /** Convert DB row to app Station */
