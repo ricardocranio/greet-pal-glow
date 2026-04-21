@@ -29,7 +29,19 @@ async function loadStreams(): Promise<StreamConfig[]> {
   }
 
   return data.map((row: { id: string; stream_url: string }) => {
-    const url = row.stream_url.replace(/\/stream\/?$/, '').replace(/\/+$/, '');
+    let url = row.stream_url;
+    // Strip HTML pages, query strings, and trailing paths that break endpoint construction
+    try {
+      const parsed = new URL(url);
+      // Remove query string and hash
+      parsed.search = '';
+      parsed.hash = '';
+      url = parsed.origin + parsed.pathname;
+    } catch { /* keep as-is if URL parsing fails */ }
+    url = url
+      .replace(/\/index\.html?\/?$/i, '')   // /index.html or /index.htm
+      .replace(/\/stream\/?$/, '')           // /stream
+      .replace(/\/+$/, '');                  // trailing slashes
     // Detect icecast by known patterns
     const type = url.includes('comunica.ufrn.br') || url.includes('inovativa.net')
       ? 'icecast' as const
