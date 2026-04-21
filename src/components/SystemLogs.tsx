@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, AlertCircle, RefreshCw, FileWarning, Info } from "lucide-react";
+import { AlertTriangle, AlertCircle, RefreshCw, FileWarning, Info, CheckCircle2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,10 +13,10 @@ interface LogEntry {
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/system-logs`;
 const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export default function SystemLogs() {
+export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEntry[] }) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "error" | "warning">("all");
+  const [filter, setFilter] = useState<"all" | "error" | "warning" | "info">("all");
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -29,6 +29,10 @@ export default function SystemLogs() {
       });
       const data = await res.json();
       if (data.logs) setLogs(data.logs);
+      else if (data.error) {
+        console.warn("System logs error:", data.error);
+        setLogs([]);
+      }
     } catch (e) {
       console.error("Failed to fetch logs:", e);
     } finally {
@@ -38,20 +42,25 @@ export default function SystemLogs() {
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-  const filtered = filter === "all" ? logs : logs.filter(l => l.level === filter);
-  const errorCount = logs.filter(l => l.level === "error").length;
-  const warnCount = logs.filter(l => l.level === "warning").length;
+  // Merge external logs (backup actions etc.) with server logs
+  const allLogs = [...externalLogs, ...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const filtered = filter === "all" ? allLogs : allLogs.filter(l => l.level === filter);
+  const errorCount = allLogs.filter(l => l.level === "error").length;
+  const warnCount = allLogs.filter(l => l.level === "warning").length;
+  const infoCount = allLogs.filter(l => l.level === "info").length;
 
   const levelIcon = (level: string) => {
     if (level === "error") return <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />;
     if (level === "warning") return <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
+    if (level === "info") return <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />;
     return <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   };
 
   const levelBadge = (level: string) => {
     if (level === "error") return <Badge variant="destructive" className="text-[9px] px-1.5 py-0">ERRO</Badge>;
     if (level === "warning") return <Badge className="text-[9px] px-1.5 py-0 bg-amber-500/20 text-amber-500 border-amber-500/30">AVISO</Badge>;
-    return <Badge variant="outline" className="text-[9px] px-1.5 py-0">INFO</Badge>;
+    if (level === "info") return <Badge className="text-[9px] px-1.5 py-0 bg-primary/20 text-primary border-primary/30">INFO</Badge>;
+    return <Badge variant="outline" className="text-[9px] px-1.5 py-0">LOG</Badge>;
   };
 
   const formatTime = (ts: string) => {
@@ -66,11 +75,12 @@ export default function SystemLogs() {
         <h2 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
           <FileWarning className="h-4 w-4 text-primary" />
           Logs do Sistema
-          {errorCount > 0 && <Badge variant="destructive" className="text-[10px]">{errorCount} erros</Badge>}
-          {warnCount > 0 && <Badge className="text-[10px] bg-amber-500/20 text-amber-500 border-amber-500/30">{warnCount} avisos</Badge>}
+          {errorCount > 0 && <Badge variant="destructive" className="text-[10px]">{errorCount}</Badge>}
+          {warnCount > 0 && <Badge className="text-[10px] bg-amber-500/20 text-amber-500 border-amber-500/30">{warnCount}</Badge>}
+          {infoCount > 0 && <Badge className="text-[10px] bg-primary/20 text-primary border-primary/30">{infoCount}</Badge>}
         </h2>
         <div className="flex items-center gap-1">
-          {(["all", "error", "warning"] as const).map(f => (
+          {(["all", "error", "warning", "info"] as const).map(f => (
             <Button
               key={f}
               size="sm"
@@ -78,7 +88,7 @@ export default function SystemLogs() {
               className="h-6 text-[10px] px-2"
               onClick={() => setFilter(f)}
             >
-              {f === "all" ? "Todos" : f === "error" ? "Erros" : "Avisos"}
+              {f === "all" ? "Todos" : f === "error" ? "Erros" : f === "warning" ? "Avisos" : "Info"}
             </Button>
           ))}
           <Button size="sm" variant="outline" className="h-6 w-6 p-0 ml-1" onClick={fetchLogs} disabled={loading}>
@@ -96,10 +106,11 @@ export default function SystemLogs() {
         <div className="space-y-1 max-h-[350px] overflow-y-auto pr-1">
           {filtered.map((log, i) => (
             <div
-              key={i}
+              key={`${log.timestamp}-${i}`}
               className={`flex items-start gap-2 rounded-lg px-2.5 py-1.5 text-xs ${
                 log.level === "error" ? "bg-destructive/5 border border-destructive/20" :
                 log.level === "warning" ? "bg-amber-500/5 border border-amber-500/20" :
+                log.level === "info" ? "bg-primary/5 border border-primary/20" :
                 "bg-secondary/30 border border-border"
               }`}
             >

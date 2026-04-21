@@ -16,42 +16,95 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Verify admin session
-    const { token } = await req.json();
+    let token: string | null = null;
+    try {
+      const body = await req.json();
+      token = body.token;
+    } catch {
+      return new Response(JSON.stringify({ error: 'Body inválido' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (!token) {
       return new Response(JSON.stringify({ error: 'Token obrigatório' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: session } = await supabase
+    const { data: session, error: sessionError } = await supabase
       .from('active_sessions')
-      .select('role')
+      .select('role, username')
       .eq('token', token)
-      .single();
+      .maybeSingle();
+
+    if (sessionError) {
+      console.error('Session lookup error:', sessionError);
+      return new Response(JSON.stringify({ error: 'Erro ao verificar sessão' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!session || session.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Acesso negado' }), {
+      return new Response(JSON.stringify({ error: 'Acesso negado', debug: { hasSession: !!session, role: session?.role } }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Collect errors from multiple sources
+    // ===== Collect system diagnostics =====
+    const logs: { timestamp: string; level: string; source: string; message: string }[] = [];
+    const now = new Date();
+    const nowIso = now.toISOString();
 
-    // 1. Check for recent edge function errors by looking at current_status for offline stations
+    // 1. All stations (active + inactive) for cross-referencing
+    const { data: allStations } = await supabase
+      .from('stations')
+      .select('id, name, active, praca_id, stream_url');
+
+    const stationMap = new Map((allStations ?? []).map((s: any) => [s.id, s]));
+    const stationName = (id: string) => stationMap.get(id)?.name || id;
+
+    // 2. All praças
+    const { data: allPracas } = await supabase
+      .from('pracas')
+      .select('id, name, state, active, created_at');
+
+    // 3. Offline stations
     const { data: offlineStations } = await supabase
       .from('current_status')
-      .select('station_id, online, listeners, last_checked, title')
+      .select('station_id, online, listeners, last_checked')
       .eq('online', false);
 
-    // 2. Check for stations with no recent data (possibly broken streams)
-    const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString(); // 10 min ago
+    (offlineStations ?? []).forEach((s: any) => {
+      logs.push({
+        timestamp: s.last_checked || nowIso,
+        level: 'error',
+        source: 'Stream Monitor',
+        message: `${stationName(s.station_id)} está OFFLINE`,
+      });
+    });
+
+    // 4. Stale stations (no update in 10+ min)
+    const cutoff10m = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
     const { data: staleStations } = await supabase
       .from('current_status')
       .select('station_id, last_checked, online')
-      .lt('last_checked', cutoff);
+      .lt('last_checked', cutoff10m);
 
-    // 3. Check for failed daily averages (days with very few snapshots)
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    (staleStations ?? []).forEach((s: any) => {
+      const alreadyOffline = (offlineStations ?? []).some((o: any) => o.station_id === s.station_id);
+      if (!alreadyOffline) {
+        logs.push({
+          timestamp: s.last_checked || nowIso,
+          level: 'warning',
+          source: 'Stream Monitor',
+          message: `${stationName(s.station_id)} sem atualização há mais de 10 minutos`,
+        });
+      }
+    });
+
+    // 5. Low snapshot days (last 3 days)
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const { data: lowSnapshots } = await supabase
       .from('daily_averages')
       .select('station_id, date, total_snapshots, avg_listeners')
@@ -60,54 +113,65 @@ Deno.serve(async (req) => {
       .order('date', { ascending: false })
       .limit(50);
 
-    // 4. Get station names for display
-    const { data: stations } = await supabase
-      .from('stations')
-      .select('id, name')
-      .eq('active', true);
-
-    const stationMap = new Map((stations ?? []).map((s: any) => [s.id, s.name]));
-
-    const logs: { timestamp: string; level: string; source: string; message: string }[] = [];
-    const now = new Date().toISOString();
-
-    // Offline stations
-    (offlineStations ?? []).forEach((s: any) => {
-      const name = stationMap.get(s.station_id) || s.station_id;
-      logs.push({
-        timestamp: s.last_checked || now,
-        level: 'error',
-        source: 'Stream Monitor',
-        message: `${name} está OFFLINE desde ${new Date(s.last_checked).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`,
-      });
-    });
-
-    // Stale stations (no updates in 10+ min)
-    (staleStations ?? []).forEach((s: any) => {
-      const name = stationMap.get(s.station_id) || s.station_id;
-      const alreadyOffline = (offlineStations ?? []).some((o: any) => o.station_id === s.station_id);
-      if (!alreadyOffline) {
-        logs.push({
-          timestamp: s.last_checked || now,
-          level: 'warning',
-          source: 'Stream Monitor',
-          message: `${name} sem atualização há mais de 10 minutos (último check: ${new Date(s.last_checked).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`,
-        });
-      }
-    });
-
-    // Low snapshot days
     (lowSnapshots ?? []).forEach((s: any) => {
-      const name = stationMap.get(s.station_id) || s.station_id;
       logs.push({
         timestamp: `${s.date}T23:59:59Z`,
         level: 'warning',
         source: 'Daily Averages',
-        message: `${name} em ${s.date}: apenas ${s.total_snapshots} snapshots (média: ${s.avg_listeners} ouvintes)`,
+        message: `${stationName(s.station_id)} em ${s.date}: apenas ${s.total_snapshots} snapshots`,
       });
     });
 
-    // Sort by timestamp descending
+    // ===== 6. VALIDATION: stations without current_status (new stations not yet monitored) =====
+    const { data: currentStatuses } = await supabase
+      .from('current_status')
+      .select('station_id');
+
+    const monitoredIds = new Set((currentStatuses ?? []).map((c: any) => c.station_id));
+
+    (allStations ?? []).filter((s: any) => s.active).forEach((s: any) => {
+      if (!monitoredIds.has(s.id)) {
+        logs.push({
+          timestamp: nowIso,
+          level: 'warning',
+          source: 'Validação',
+          message: `Emissora "${s.name}" (${s.id}) ativa mas ainda sem dados de monitoramento`,
+        });
+      }
+      if (!s.stream_url || !s.stream_url.trim()) {
+        logs.push({
+          timestamp: nowIso,
+          level: 'warning',
+          source: 'Validação',
+          message: `Emissora "${s.name}" (${s.id}) sem URL de stream configurada`,
+        });
+      }
+    });
+
+    // 7. VALIDATION: praças without stations
+    (allPracas ?? []).filter((p: any) => p.active).forEach((p: any) => {
+      const hasStations = (allStations ?? []).some((s: any) => s.praca_id === p.id && s.active);
+      if (!hasStations) {
+        logs.push({
+          timestamp: p.created_at || nowIso,
+          level: 'info',
+          source: 'Validação',
+          message: `Praça "${p.name}/${(p.state || '').toUpperCase()}" não tem emissoras ativas vinculadas`,
+        });
+      }
+    });
+
+    // 8. VALIDATION: stations without praça
+    (allStations ?? []).filter((s: any) => s.active && !s.praca_id).forEach((s: any) => {
+      logs.push({
+        timestamp: nowIso,
+        level: 'warning',
+        source: 'Validação',
+        message: `Emissora "${s.name}" (${s.id}) não está vinculada a nenhuma praça`,
+      });
+    });
+
+    // Sort by timestamp desc
     logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     return new Response(JSON.stringify({ logs }), {
@@ -115,6 +179,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('system-logs error:', msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
