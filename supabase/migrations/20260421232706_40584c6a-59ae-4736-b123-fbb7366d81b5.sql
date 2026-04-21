@@ -1,0 +1,1 @@
+UPDATE stations SET stream_url = 'https://radio.saopaulo01.com.br:10913' WHERE id = 'clubefmrecife';
