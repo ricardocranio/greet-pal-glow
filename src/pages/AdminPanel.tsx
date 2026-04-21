@@ -95,6 +95,7 @@ export default function AdminPanel() {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [pracas, setPracas] = useState<Praca[]>([]);
   const [userPracas, setUserPracas] = useState<UserPraca[]>([]);
+  const [backupLogs, setBackupLogs] = useState<{ timestamp: string; level: string; source: string; message: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New user form
