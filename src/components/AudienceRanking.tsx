@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Trophy, Clock, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBrasiliaHour } from "@/lib/brasiliaTime";
+import { getBrasiliaHour, formatBrasiliaDateInput } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
@@ -31,7 +31,7 @@ export function AudienceRanking({ statuses }: Props) {
 
   useEffect(() => {
     const now = new Date();
-    const brasiliaStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const brasiliaStr = formatBrasiliaDateInput(now);
     const startOfDay = `${brasiliaStr}T00:00:00-03:00`;
     const endOfDay = `${brasiliaStr}T23:59:59-03:00`;
 

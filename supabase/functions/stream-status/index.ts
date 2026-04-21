@@ -197,9 +197,22 @@ async function persistResults(statuses: StreamResult[]) {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const now = new Date();
-    const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-    const hour = brasiliaTime.getHours();
-    const minute = brasiliaTime.getMinutes();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      hour: 'numeric',
+      minute: 'numeric',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(now);
+    const v: Record<string, string> = {};
+    parts.forEach(p => v[p.type] = p.value);
+    
+    const hour = parseInt(v.hour);
+    const minute = parseInt(v.minute);
+    const brasiliaDateStr = `${v.year}-${v.month.padStart(2, '0')}-${v.day.padStart(2, '0')}`;
 
     // 1. Upsert current_status (1 row per station) — drives Realtime updates
     const currentRows = statuses.map(s => ({
@@ -233,7 +246,7 @@ async function persistResults(statuses: StreamResult[]) {
     // 3. Trigger daily averages near end of day
     if (hour === 23 && minute >= 55) {
       try {
-        const brasiliaStr = brasiliaTime.toISOString().split('T')[0];
+        const brasiliaStr = brasiliaDateStr;
         await fetch(`${supabaseUrl}/functions/v1/calculate-daily-averages?date=${brasiliaStr}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
