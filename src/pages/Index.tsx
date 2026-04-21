@@ -10,7 +10,7 @@ import { AudioProvider, useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { Button } from "@/components/ui/button";
 import { generateAudienceReport } from "@/utils/generateReport";
 import { supabase } from "@/integrations/supabase/client";
-import { stations } from "@/data/stations";
+import { useStations } from "@/hooks/useStations";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -92,6 +92,7 @@ function NowPlayingBar() {
 
 function IndexContent() {
   const {
+    stations,
     statuses, allStatuses, refresh,
     visibleStations, toggleStation,
     showReligious, setShowReligious,

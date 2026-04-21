@@ -8,7 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { stations } from "@/data/stations";
+import { useStations } from "@/hooks/useStations";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
@@ -32,7 +32,7 @@ interface BucketRow {
   samples: number;
 }
 
-const stationName = (id: string) => stations.find((s) => s.id === id)?.name || id;
+const stationName = (id: string, stationsList: { id: string; name: string }[]) => stationsList.find((s) => s.id === id)?.name || id;
 
 function bucketKey(date: Date, gran: Granularity): { key: string; label: string } {
   if (gran === "daily") {
@@ -52,12 +52,18 @@ function bucketKey(date: Date, gran: Granularity): { key: string; label: string 
 }
 
 export default function HistoryViewer() {
-  const [stationId, setStationId] = useState<string>(stations[0]?.id || "");
+  const { stations } = useStations();
+  const [stationId, setStationId] = useState<string>("");
   const [granularity, setGranularity] = useState<Granularity>("daily");
   const [from, setFrom] = useState<Date>(subDays(new Date(), 14));
   const [to, setTo] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+
+  // Set default station when stations load
+  useEffect(() => {
+    if (!stationId && stations.length > 0) setStationId(stations[0].id);
+  }, [stations, stationId]);
 
   const fetchData = useCallback(async () => {
     if (!stationId) return;
@@ -129,7 +135,7 @@ export default function HistoryViewer() {
 
   const exportCSV = () => {
     const rows = [
-      ["Estação", stationName(stationId)],
+      ["Estação", stationName(stationId, stations)],
       ["Período", periodLabel],
       ["Granularidade", granLabel],
       [],
@@ -228,7 +234,7 @@ export default function HistoryViewer() {
     doc.setFontSize(16);
     doc.text("Relatório Consolidado de Audiência", textX, 18);
     doc.setFontSize(11);
-    doc.text(`Estação: ${stationName(stationId)}`, textX, 28);
+    doc.text(`Estação: ${stationName(stationId, stations)}`, textX, 28);
 
     doc.text(`Período: ${periodLabel}`, 14, 40);
     doc.text(`Granularidade: ${granLabel}`, 14, 46);
