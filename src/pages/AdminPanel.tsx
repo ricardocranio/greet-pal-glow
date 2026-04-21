@@ -234,6 +234,11 @@ export default function AdminPanel() {
           <BackupManager />
         </Suspense>
 
+        {/* System logs */}
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando logs…</div>}>
+          <SystemLogs />
+        </Suspense>
+
         {/* Connected users */}
         <div className="bg-card border border-border rounded-xl p-4">
           <h2 className="font-display font-semibold text-sm text-foreground flex items-center gap-2 mb-3">
