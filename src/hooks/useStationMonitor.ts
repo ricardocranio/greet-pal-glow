@@ -38,7 +38,14 @@ export function useStationMonitor() {
   const [simulatorFactor, setSimulatorFactor] = useState(75);
 
   // Praça filter
-  const [activePracaId, setActivePracaId] = useState<string | null>(null);
+  const [activePracaId, setActivePracaId] = useState<string | null>(() => {
+    const pracasJson = sessionStorage.getItem("auth_pracas");
+    if (pracasJson) {
+      const userPracas = JSON.parse(pracasJson);
+      if (userPracas.length > 0) return userPracas[0].id;
+    }
+    return null;
+  });
 
   // 1. Load stations from DB (filtered by praça if viewer)
   useEffect(() => {
