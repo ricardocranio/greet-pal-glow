@@ -29,7 +29,19 @@ async function loadStreams(): Promise<StreamConfig[]> {
   }
 
   return data.map((row: { id: string; stream_url: string }) => {
-    const url = row.stream_url.replace(/\/stream\/?$/, '').replace(/\/+$/, '');
+    let url = row.stream_url;
+    // Strip HTML pages, query strings, and trailing paths that break endpoint construction
+    try {
+      const parsed = new URL(url);
+      // Remove query string and hash
+      parsed.search = '';
+      parsed.hash = '';
+      url = parsed.origin + parsed.pathname;
+    } catch { /* keep as-is if URL parsing fails */ }
+    url = url
+      .replace(/\/index\.html?\/?$/i, '')   // /index.html or /index.htm
+      .replace(/\/stream\/?$/, '')           // /stream
+      .replace(/\/+$/, '');                  // trailing slashes
     // Detect icecast by known patterns
     const type = url.includes('comunica.ufrn.br') || url.includes('inovativa.net')
       ? 'icecast' as const
@@ -86,10 +98,16 @@ async function tryFetch(url: string, viaJina: boolean, timeoutMs: number): Promi
 async function tryEndpoint(stream: StreamConfig, idx: number): Promise<Partial<StreamResult> | null> {
   const ep = ENDPOINTS[idx];
   const directUrl = `${stream.url}${ep.path}`;
-  // Try direct first (fast), then jina fallback for TLS issues
+  // Try direct first (fast)
   let text = await tryFetch(directUrl, false, 5000);
+  // Fallback 1: jina proxy (handles TLS issues)
   if (!text) {
     text = await tryFetch(`https://r.jina.ai/${directUrl}`, true, 8000);
+  }
+  // Fallback 2: allorigins proxy (handles blocked IPs / non-standard ports)
+  if (!text) {
+    const encoded = encodeURIComponent(directUrl);
+    text = await tryFetch(`https://api.allorigins.win/raw?url=${encoded}`, false, 8000);
   }
   if (!text) return null;
   return ep.parser(text);

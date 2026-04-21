@@ -1,0 +1,1 @@
+UPDATE public.stations SET stream_url = 'https://pannatal.jmvstream.com' WHERE id = 'jpnatal';
