@@ -124,17 +124,25 @@ function IndexContent() {
 
   const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
-  const [lastSyncTime, setLastSyncTime] = useState<string>("--:--:--");
+  const [lastSyncTime, setLastSyncTime] = useState<string>(() => new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
 
   useEffect(() => {
-    if (statuses.length > 0) {
-      setLastSyncTime(new Date().toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }));
-    }
+    // Update sync time whenever statuses are updated
+    setLastSyncTime(new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }));
   }, [statuses]);
+
+  const nextBackupStr = useMemo(() => {
+    const now = new Date();
+    const nextMonday = new Date();
+    nextMonday.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
+    nextMonday.setHours(3, 0, 0, 0);
+    if (nextMonday < now) nextMonday.setDate(nextMonday.getDate() + 7);
+    return nextMonday.toLocaleString("pt-BR", { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  }, []);
 
   const handleReport = useCallback((status: StationStatus) => {
     setSelectedStationId(status.station.id);
