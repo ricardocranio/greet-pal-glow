@@ -401,73 +401,71 @@ function IndexContent() {
         ) : (
           <>
             {/* Status Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
-            <div className="h-10 w-10 rounded-full bg-online/10 flex items-center justify-center shrink-0">
-              <Activity className="h-5 w-5 text-online" />
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Status Geral</p>
-              <p className="text-sm font-bold text-foreground">Operando Normalmente</p>
-            </div>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
+                <div className="h-10 w-10 rounded-full bg-online/10 flex items-center justify-center shrink-0">
+                  <Activity className="h-5 w-5 text-online" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Status Geral</p>
+                  <p className="text-sm font-bold text-foreground">Operando Normalmente</p>
+                </div>
+              </div>
 
-          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <RefreshCw className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Sincronização</p>
-              <p className="text-sm font-bold text-foreground tabular-nums">{lastSyncTime}</p>
-            </div>
-          </div>
+              <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <RefreshCw className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Sincronização</p>
+                  <p className="text-sm font-bold text-foreground tabular-nums">{lastSyncTime}</p>
+                </div>
+              </div>
 
-          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
-            <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-              <Download className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Próximo Backup</p>
-              <p className="text-sm font-bold text-foreground tabular-nums capitalize">{nextBackupStr}</p>
-            </div>
-          </div>
-
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(() => {
-                const rankMap = new Map<string, number>();
-                [...statuses]
-                  .filter((s) => s.online)
-                  .sort((a, b) => b.listeners - a.listeners)
-                  .forEach((s, i) => rankMap.set(s.station.id, i + 1));
-                const ordered = [...statuses].sort((a, b) => {
-                  const ra = rankMap.get(a.station.id) ?? Infinity;
-                  const rb = rankMap.get(b.station.id) ?? Infinity;
-                  return ra - rb;
-                });
-                return ordered.map((status) => (
-                  <StationCard
-                    key={status.station.id}
-                    status={status}
-                    rank={rankMap.get(status.station.id)}
-                    onReport={() => handleReport(status)}
-                  />
-                ));
-              })()}
-            </div>
-          </div>
-            <div className="lg:col-span-1">
-              <div className="sticky top-24">
-                <AudienceRanking statuses={statuses} />
+              <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
+                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                  <Download className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Próximo Backup</p>
+                  <p className="text-sm font-bold text-foreground tabular-nums capitalize">{nextBackupStr}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
-    </main>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(() => {
+                    const rankMap = new Map<string, number>();
+                    [...statuses]
+                      .filter((s) => s.online)
+                      .sort((a, b) => b.listeners - a.listeners)
+                      .forEach((s, i) => rankMap.set(s.station.id, i + 1));
+                    const ordered = [...statuses].sort((a, b) => {
+                      const ra = rankMap.get(a.station.id) ?? Infinity;
+                      const rb = rankMap.get(b.station.id) ?? Infinity;
+                      return ra - rb;
+                    });
+                    return ordered.map((status) => (
+                      <StationCard
+                        key={status.station.id}
+                        status={status}
+                        rank={rankMap.get(status.station.id)}
+                        onReport={() => handleReport(status)}
+                      />
+                    ));
+                  })()}
+                </div>
+              </div>
+              <div className="lg:col-span-1">
+                <div className="sticky top-24">
+                  <AudienceRanking statuses={statuses} />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       <NowPlayingBar />
