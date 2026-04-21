@@ -23,6 +23,8 @@ interface Praca {
   name: string;
   state: string;
   active: boolean;
+  created_by_display: string;
+  created_at: string;
 }
 
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-users`;
