@@ -227,7 +227,8 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
     if (stRes.stations) setStations(stRes.stations);
     if (prRes.pracas) setPracas(prRes.pracas);
     setLoading(false);
-  }, []);
+    onPracasChanged?.();
+  }, [onPracasChanged]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -251,6 +252,19 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
     const res = await callApi({ action: "delete_praca", praca_id: praca.id });
     if (res.error) toast.error(res.error);
     else { toast.success("Praça excluída"); fetchAll(); }
+  };
+
+  const startEditPraca = (praca: Praca) => {
+    setEditingPracaId(praca.id);
+    setEditPracaName(praca.name);
+    setEditPracaState(praca.state);
+  };
+
+  const handleSaveEditPraca = async () => {
+    if (!editingPracaId || !editPracaName.trim()) { toast.error("Nome obrigatório"); return; }
+    const res = await callApi({ action: "edit_praca", praca_id: editingPracaId, name: editPracaName.trim(), state: editPracaState.trim() });
+    if (res.error) toast.error(res.error);
+    else { toast.success("Praça atualizada!"); setEditingPracaId(null); fetchAll(); }
   };
 
   // ========== STATION HANDLERS ==========
