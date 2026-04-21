@@ -380,7 +380,27 @@ function IndexContent() {
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-8">
-        {/* Status Dashboard */}
+        {monitorLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Radio className="h-12 w-12 text-primary animate-pulse" />
+            <p className="text-sm text-muted-foreground font-display">Carregando dados das emissoras…</p>
+          </div>
+        ) : statuses.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
+              <Radio className="h-8 w-8 text-muted-foreground opacity-50" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Nenhuma emissora visível</p>
+              <p className="text-xs text-muted-foreground mt-1">Selecione uma praça ou ajuste os filtros para ver as estações.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={refresh}>
+              <RefreshCw className="h-3 w-3 mr-1.5" /> Tentar novamente
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Status Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
             <div className="h-10 w-10 rounded-full bg-online/10 flex items-center justify-center shrink-0">
