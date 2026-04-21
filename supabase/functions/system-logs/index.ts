@@ -12,6 +12,8 @@ interface LogEntry {
   message: string;
   reason?: string;
   fix?: string;
+  ip?: string;
+  user_agent?: string;
 }
 
 Deno.serve(async (req) => {

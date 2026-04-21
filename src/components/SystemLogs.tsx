@@ -21,6 +21,8 @@ interface LogEntry {
   message: string;
   reason?: string;
   fix?: string;
+  ip?: string;
+  user_agent?: string;
 }
 
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/system-logs`;
