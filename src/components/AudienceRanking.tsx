@@ -209,7 +209,7 @@ export function AudienceRanking({ statuses }: Props) {
       <div className="flex items-center gap-1.5">
         <span className="text-muted-foreground font-mono text-[10px] w-4">{idx + 1}º</span>
         <img src={station.logoUrl} alt="" className="h-5 w-5 object-contain rounded shrink-0" width={20} height={20} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-        <span className="truncate">{station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}</span>
+        <span className="truncate">{(station.name || "").replace(/ NATAL/gi, "").replace(/DE /gi, "")}</span>
       </div>
     </td>
   );
@@ -271,7 +271,7 @@ export function AudienceRanking({ statuses }: Props) {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-display font-semibold text-foreground truncate">
-                      {s.station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}
+                      {(s.station.name || "").replace(/ NATAL/gi, "").replace(/DE /gi, "")}
                     </p>
                     <p className="text-[11px] font-mono text-muted-foreground">{s.station.frequency}</p>
                   </div>
