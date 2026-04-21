@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Radio, Plus, Pencil, Trash2, X, Check, Image, ToggleLeft, ToggleRight, Upload, Play, MapPin, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { Radio, Plus, Pencil, Trash2, X, Check, Image, ToggleLeft, ToggleRight, Upload, Play, MapPin, ChevronDown, ChevronRight, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -338,6 +338,44 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
     return <Badge variant="outline" className={m.className}>{m.label}</Badge>;
   };
 
+  // ========== BACKUP CSV ==========
+  const exportBackupCSV = useCallback(() => {
+    if (stations.length === 0 && pracas.length === 0) { toast.error("Nada para exportar"); return; }
+    const now = new Date();
+    const ts = now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }).replace(/[/:]/g, "-").replace(/ /g, "_");
+
+    // Build CSV rows
+    const lines: string[] = [];
+    lines.push("Praça,UF,Emissora ID,Emissora Nome,Frequência,Stream URL,Categoria,Ordem,Ativa,Criado por,Criado em");
+
+    pracas.forEach(p => {
+      const pStations = stations.filter(s => s.praca_id === p.id);
+      if (pStations.length === 0) {
+        lines.push(`"${p.name}","${p.state}","","(sem emissoras)","","","","","","${p.created_by_display}","${new Date(p.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}"`);
+      } else {
+        pStations.forEach(s => {
+          lines.push(`"${p.name}","${p.state}","${s.id}","${s.name}","${s.frequency}","${s.stream_url}","${s.category}","${s.display_order}","${s.active ? "Sim" : "Não"}","${p.created_by_display}","${new Date(p.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}"`);
+        });
+      }
+    });
+
+    // Orphan stations
+    const orphans = stations.filter(s => !s.praca_id);
+    orphans.forEach(s => {
+      lines.push(`"(sem praça)","","${s.id}","${s.name}","${s.frequency}","${s.stream_url}","${s.category}","${s.display_order}","${s.active ? "Sim" : "Não"}","",""`);
+    });
+
+    const csv = lines.join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup_pracas_emissoras_${ts}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup CSV exportado!");
+  }, [stations, pracas]);
+
   // Group stations by praca_id
   const stationsByPraca = (pracaId: string) => stations.filter(s => s.praca_id === pracaId);
   const orphanStations = stations.filter(s => !s.praca_id);
@@ -459,6 +497,9 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
           Praças & Emissoras
         </h2>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportBackupCSV} className="border-border text-muted-foreground" title="Backup CSV">
+            <Download className="h-4 w-4 mr-1" /> Backup
+          </Button>
           <Button size="sm" variant="outline" onClick={fetchAll} className="border-border text-muted-foreground" title="Atualizar praças">
             <RefreshCw className="h-4 w-4" />
           </Button>
