@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 const HistoryViewer = lazy(() => import("@/components/HistoryViewer"));
 const BackupManager = lazy(() => import("@/components/BackupManager"));
 const StationManager = lazy(() => import("@/components/StationManager"));
+const SystemLogs = lazy(() => import("@/components/SystemLogs"));
 
 interface AppUser {
   id: string;
