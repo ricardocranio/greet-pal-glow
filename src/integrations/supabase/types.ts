@@ -233,6 +233,45 @@ export type Database = {
         }
         Relationships: []
       }
+      stations: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          display_order: number
+          frequency: string
+          id: string
+          logo_url: string
+          name: string
+          stream_url: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          display_order?: number
+          frequency?: string
+          id: string
+          logo_url?: string
+          name: string
+          stream_url?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          display_order?: number
+          frequency?: string
+          id?: string
+          logo_url?: string
+          name?: string
+          stream_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
