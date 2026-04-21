@@ -20,6 +20,7 @@ export interface Station {
   instagramHandle?: string;
   instagramFollowers?: number;
   category: StationCategory;
+  pracaId?: string;
 }
 
 // DB row shape from the stations table
@@ -43,6 +44,7 @@ export function dbToStation(row: DbStation): Station {
     streamUrl: row.stream_url,
     logoUrl: row.logo_url,
     category: (row.category as StationCategory) || 'commercial',
+    pracaId: row.praca_id,
     social: {},
   };
 }
