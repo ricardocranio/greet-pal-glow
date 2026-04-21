@@ -16,13 +16,34 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  async function logEvent(event_type: string, source: string, message: string, username?: string, metadata?: Record<string, unknown>) {
+    try {
+      await supabase.from("system_events").insert({
+        event_type, source, message, username: username || null, metadata: metadata || {},
+      });
+    } catch (e) {
+      console.error("Failed to log event:", e);
+    }
+  }
+
   try {
     const { username, password, action, token } = await req.json();
 
     // Handle logout
     if (action === "logout") {
       if (token) {
+        // Get username before deleting session
+        const { data: sess } = await supabase
+          .from("active_sessions")
+          .select("username, role")
+          .eq("token", token)
+          .maybeSingle();
+        
         await supabase.from("active_sessions").delete().eq("token", token);
+        
+        if (sess) {
+          await logEvent("info", "Autenticação", `${sess.username} fez logout`, sess.username, { role: sess.role });
+        }
       }
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -38,6 +59,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (userError || !match) {
+      await logEvent("warning", "Autenticação", `Tentativa de login falhou para "${username || '(vazio)'}"`, username, { reason: "Credenciais inválidas" });
       return new Response(JSON.stringify({ success: false, error: "Credenciais inválidas" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -45,6 +67,7 @@ serve(async (req) => {
     }
 
     if (match.blocked) {
+      await logEvent("warning", "Autenticação", `Usuário bloqueado "${match.username}" tentou fazer login`, match.username, { reason: "Bloqueado" });
       return new Response(JSON.stringify({ success: false, error: "Usuário bloqueado. Contate o administrador." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -60,6 +83,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existing) {
+        await logEvent("warning", "Autenticação", `"${match.username}" tentou login mas já está conectado em outro dispositivo`, match.username, { reason: "Sessão duplicada" });
         return new Response(JSON.stringify({ 
           success: false, 
           error: `Usuário "${match.username}" já está conectado em outro dispositivo. Faça logout primeiro.` 
@@ -80,6 +104,9 @@ serve(async (req) => {
       token: newToken,
       role: match.role,
     });
+
+    // Log successful login
+    await logEvent("info", "Autenticação", `${match.display_name || match.username} fez login (${match.role})`, match.username, { role: match.role });
 
     // Get user's praças
     const { data: userData } = await supabase
@@ -124,6 +151,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    await logEvent("error", "Autenticação", `Erro interno no login: ${e instanceof Error ? e.message : 'desconhecido'}`);
     return new Response(JSON.stringify({ success: false, error: "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
