@@ -5,6 +5,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface LogEntry {
+  timestamp: string;
+  level: string;
+  source: string;
+  message: string;
+  reason?: string;
+  fix?: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -52,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     // ===== Collect system diagnostics =====
-    const logs: { timestamp: string; level: string; source: string; message: string }[] = [];
+    const logs: LogEntry[] = [];
     const now = new Date();
     const nowIso = now.toISOString();
 
@@ -63,6 +72,7 @@ Deno.serve(async (req) => {
 
     const stationMap = new Map((allStations ?? []).map((s: any) => [s.id, s]));
     const stationName = (id: string) => stationMap.get(id)?.name || id;
+    const stationUrl = (id: string) => stationMap.get(id)?.stream_url || '';
 
     // 2. All praças
     const { data: allPracas } = await supabase
@@ -76,11 +86,37 @@ Deno.serve(async (req) => {
       .eq('online', false);
 
     (offlineStations ?? []).forEach((s: any) => {
+      const url = stationUrl(s.station_id);
+      const lastCheck = s.last_checked ? new Date(s.last_checked) : null;
+      const minutesAgo = lastCheck ? Math.round((now.getTime() - lastCheck.getTime()) / 60000) : null;
+
+      let reason = 'O servidor de streaming não respondeu às tentativas de conexão (direta, jina proxy e allorigins).';
+      let fix = 'Verifique se a URL do stream está correta e acessível.';
+
+      if (url.includes('index.html') || url.includes('?sid=')) {
+        reason = 'A URL configurada aponta para uma página HTML em vez do servidor de streaming direto.';
+        fix = 'Corrija a URL removendo "/index.html" e query strings. Use apenas o endereço base (ex: https://servidor.com).';
+      } else if (url.startsWith('https://') && !url.includes('jmvstream') && !url.includes('maxcast') && !url.includes('audiostream')) {
+        reason = 'Possível certificado TLS inválido ou auto-assinado impedindo a conexão segura.';
+        fix = 'Tente trocar a URL de https:// para http:// se o servidor aceitar conexões não-criptografadas.';
+      } else if (!url || !url.trim()) {
+        reason = 'Nenhuma URL de streaming foi configurada para esta emissora.';
+        fix = 'Acesse Praças & Emissoras e configure a URL do stream.';
+      } else if (minutesAgo && minutesAgo > 30) {
+        reason = `Servidor sem resposta há ${minutesAgo} minutos. Pode estar fora do ar ou bloqueando conexões de servidores cloud.`;
+        fix = 'Confirme que o servidor de streaming está ativo. Se usar firewall, libere o acesso de IPs externos.';
+      } else {
+        reason = 'O servidor de streaming pode estar temporariamente fora do ar ou com problemas de rede.';
+        fix = 'Aguarde alguns minutos e verifique novamente. Se persistir, teste a URL manualmente no navegador.';
+      }
+
       logs.push({
         timestamp: s.last_checked || nowIso,
         level: 'error',
         source: 'Stream Monitor',
         message: `${stationName(s.station_id)} está OFFLINE`,
+        reason,
+        fix,
       });
     });
 
@@ -94,11 +130,15 @@ Deno.serve(async (req) => {
     (staleStations ?? []).forEach((s: any) => {
       const alreadyOffline = (offlineStations ?? []).some((o: any) => o.station_id === s.station_id);
       if (!alreadyOffline) {
+        const lastCheck = new Date(s.last_checked);
+        const minutesAgo = Math.round((now.getTime() - lastCheck.getTime()) / 60000);
         logs.push({
           timestamp: s.last_checked || nowIso,
           level: 'warning',
           source: 'Stream Monitor',
-          message: `${stationName(s.station_id)} sem atualização há mais de 10 minutos`,
+          message: `${stationName(s.station_id)} sem atualização há ${minutesAgo} minutos`,
+          reason: 'O cron de monitoramento pode ter falhado ou demorado mais do que o esperado para processar todas as emissoras.',
+          fix: 'Verifique se o stream-status está sendo chamado a cada minuto. Se o problema persistir, reduza o timeout das conexões.',
         });
       }
     });
@@ -119,10 +159,12 @@ Deno.serve(async (req) => {
         level: 'warning',
         source: 'Daily Averages',
         message: `${stationName(s.station_id)} em ${s.date}: apenas ${s.total_snapshots} snapshots`,
+        reason: 'A emissora ficou offline durante grande parte do dia, resultando em poucos registros de audiência.',
+        fix: 'Verifique o histórico de status da emissora neste dia. Se o stream estava instável, considere trocar a URL.',
       });
     });
 
-    // ===== 6. VALIDATION: stations without current_status (new stations not yet monitored) =====
+    // 6. VALIDATION: stations without current_status
     const { data: currentStatuses } = await supabase
       .from('current_status')
       .select('station_id');
@@ -135,7 +177,9 @@ Deno.serve(async (req) => {
           timestamp: nowIso,
           level: 'warning',
           source: 'Validação',
-          message: `Emissora "${s.name}" (${s.id}) ativa mas ainda sem dados de monitoramento`,
+          message: `Emissora "${s.name}" (${s.id}) ativa mas sem dados de monitoramento`,
+          reason: 'A emissora foi cadastrada recentemente e o ciclo de monitoramento ainda não a processou.',
+          fix: 'Aguarde 1-2 minutos para o próximo ciclo do stream-status. Se não aparecer, verifique a URL do stream.',
         });
       }
       if (!s.stream_url || !s.stream_url.trim()) {
@@ -144,6 +188,8 @@ Deno.serve(async (req) => {
           level: 'warning',
           source: 'Validação',
           message: `Emissora "${s.name}" (${s.id}) sem URL de stream configurada`,
+          reason: 'A emissora foi cadastrada sem informar o endereço do streaming.',
+          fix: 'Acesse Praças & Emissoras, edite a emissora e adicione a URL do stream (ex: http://servidor:porta).',
         });
       }
     });
@@ -157,6 +203,8 @@ Deno.serve(async (req) => {
           level: 'info',
           source: 'Validação',
           message: `Praça "${p.name}/${(p.state || '').toUpperCase()}" não tem emissoras ativas vinculadas`,
+          reason: 'A praça existe mas nenhuma emissora ativa foi associada a ela.',
+          fix: 'Cadastre emissoras nesta praça ou desative-a caso não seja mais necessária.',
         });
       }
     });
@@ -168,6 +216,8 @@ Deno.serve(async (req) => {
         level: 'warning',
         source: 'Validação',
         message: `Emissora "${s.name}" (${s.id}) não está vinculada a nenhuma praça`,
+        reason: 'A emissora está ativa mas não pertence a nenhuma praça, portanto não aparecerá para viewers.',
+        fix: 'Acesse Praças & Emissoras e vincule esta emissora a uma praça existente.',
       });
     });
 
