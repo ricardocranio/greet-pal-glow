@@ -225,7 +225,7 @@ export default function AdminPanel() {
 
         {/* Station management */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando emissoras…</div>}>
-          <StationManager />
+          <StationManager onPracasChanged={fetchUsers} />
         </Suspense>
 
         {/* Automatic backups */}

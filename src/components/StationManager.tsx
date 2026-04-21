@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Radio, Plus, Pencil, Trash2, X, Check, Image, ToggleLeft, ToggleRight, Upload, Play, MapPin, ChevronDown, ChevronRight } from "lucide-react";
+import { Radio, Plus, Pencil, Trash2, X, Check, Image, ToggleLeft, ToggleRight, Upload, Play, MapPin, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -181,7 +181,7 @@ function LogoUpload({ stationId, currentUrl, onUploaded }: {
   );
 }
 
-export default function StationManager() {
+export default function StationManager({ onPracasChanged }: { onPracasChanged?: () => void } = {}) {
   const [stations, setStations] = useState<DbStation[]>([]);
   const [pracas, setPracas] = useState<Praca[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,6 +192,11 @@ export default function StationManager() {
   const [newPracaName, setNewPracaName] = useState("");
   const [newPracaState, setNewPracaState] = useState("");
   const [addingPraca, setAddingPraca] = useState(false);
+
+  // Praça edit
+  const [editingPracaId, setEditingPracaId] = useState<string | null>(null);
+  const [editPracaName, setEditPracaName] = useState("");
+  const [editPracaState, setEditPracaState] = useState("");
 
   // Station form (per praça)
   const [showStationFormFor, setShowStationFormFor] = useState<string | null>(null);
@@ -222,7 +227,8 @@ export default function StationManager() {
     if (stRes.stations) setStations(stRes.stations);
     if (prRes.pracas) setPracas(prRes.pracas);
     setLoading(false);
-  }, []);
+    onPracasChanged?.();
+  }, [onPracasChanged]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -246,6 +252,19 @@ export default function StationManager() {
     const res = await callApi({ action: "delete_praca", praca_id: praca.id });
     if (res.error) toast.error(res.error);
     else { toast.success("Praça excluída"); fetchAll(); }
+  };
+
+  const startEditPraca = (praca: Praca) => {
+    setEditingPracaId(praca.id);
+    setEditPracaName(praca.name);
+    setEditPracaState(praca.state);
+  };
+
+  const handleSaveEditPraca = async () => {
+    if (!editingPracaId || !editPracaName.trim()) { toast.error("Nome obrigatório"); return; }
+    const res = await callApi({ action: "edit_praca", praca_id: editingPracaId, name: editPracaName.trim(), state: editPracaState.trim() });
+    if (res.error) toast.error(res.error);
+    else { toast.success("Praça atualizada!"); setEditingPracaId(null); fetchAll(); }
   };
 
   // ========== STATION HANDLERS ==========
@@ -437,9 +456,14 @@ export default function StationManager() {
           <MapPin className="h-4 w-4 text-primary" />
           Praças & Emissoras
         </h2>
-        <Button size="sm" variant="outline" onClick={() => setShowPracaForm(!showPracaForm)} className="border-border text-muted-foreground">
-          <Plus className="h-4 w-4 mr-1" /> Nova Praça
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={fetchAll} className="border-border text-muted-foreground" title="Atualizar praças">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowPracaForm(!showPracaForm)} className="border-border text-muted-foreground">
+            <Plus className="h-4 w-4 mr-1" /> Nova Praça
+          </Button>
+        </div>
       </div>
 
       {/* Add Praça form */}
@@ -468,27 +492,52 @@ export default function StationManager() {
         return (
           <div key={praca.id} className="border border-border rounded-lg overflow-hidden">
             {/* Praça header */}
-            <div
-              className="flex items-center justify-between px-3 py-2.5 bg-secondary/40 cursor-pointer hover:bg-secondary/60 transition-colors"
-              onClick={() => setExpandedPraca(isExpanded ? null : praca.id)}
-            >
-              <div className="flex items-center gap-2">
-                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                <MapPin className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">{praca.name}</span>
-                {praca.state && <span className="text-xs text-muted-foreground">/ {praca.state.toUpperCase()}</span>}
-                <Badge variant="outline" className="text-[10px] ml-1">{pStations.length} emissora{pStations.length !== 1 ? "s" : ""}</Badge>
+            {editingPracaId === praca.id ? (
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/40">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <Input placeholder="Cidade" value={editPracaName} onChange={(e) => setEditPracaName(e.target.value)} className="text-sm h-7 flex-1" />
+                <Input placeholder="UF" value={editPracaState} onChange={(e) => setEditPracaState(e.target.value)} className="text-sm h-7 w-16" maxLength={2} />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => setEditingPracaId(null)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary" onClick={handleSaveEditPraca}>
+                  <Check className="h-3.5 w-3.5" />
+                </Button>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                onClick={(e) => { e.stopPropagation(); handleDeletePraca(praca); }}
-                title="Excluir praça"
+            ) : (
+              <div
+                className="flex items-center justify-between px-3 py-2.5 bg-secondary/40 cursor-pointer hover:bg-secondary/60 transition-colors"
+                onClick={() => setExpandedPraca(isExpanded ? null : praca.id)}
               >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+                <div className="flex items-center gap-2">
+                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">{praca.name}</span>
+                  {praca.state && <span className="text-xs text-muted-foreground">/ {praca.state.toUpperCase()}</span>}
+                  <Badge variant="outline" className="text-[10px] ml-1">{pStations.length} emissora{pStations.length !== 1 ? "s" : ""}</Badge>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); startEditPraca(praca); }}
+                    title="Editar praça"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); handleDeletePraca(praca); }}
+                    title="Excluir praça"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Expanded content */}
             {isExpanded && (
