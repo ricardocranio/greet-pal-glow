@@ -60,7 +60,11 @@ export default function HistoryViewer() {
   const [loading, setLoading] = useState(false);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
 
-  const fetchData = useCallback(async () => {
+  // Set default station when stations load
+  useEffect(() => {
+    if (!stationId && stations.length > 0) setStationId(stations[0].id);
+  }, [stations, stationId]);
+
     if (!stationId) return;
     setLoading(true);
     const fromISO = startOfDay(from).toISOString();
