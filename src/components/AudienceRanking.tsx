@@ -132,7 +132,8 @@ export function AudienceRanking({ statuses }: Props) {
   const hourlyData = useMemo(() => {
     return statuses.map((s) => {
       const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
-      const hourData = Array.from({ length: 24 }, (_, i) => i).map((h) => {
+      const currentHour = getBrasiliaHour();
+      const hourData = Array.from({ length: currentHour + 1 }, (_, i) => i).map((h) => {
         const hourSnaps = stationSnaps.filter((snap) => snap.hour === h);
         if (hourSnaps.length === 0) {
           const currentHour = getBrasiliaHour();
