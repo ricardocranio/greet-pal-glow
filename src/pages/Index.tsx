@@ -459,11 +459,12 @@ function IndexContent() {
               })()}
             </div>
           </div>
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              <AudienceRanking statuses={statuses} />
+            <div className="lg:col-span-1">
+              <div className="sticky top-24">
+                <AudienceRanking statuses={statuses} />
+              </div>
             </div>
-          </div>
+          </>
         )}
       </main>
 
