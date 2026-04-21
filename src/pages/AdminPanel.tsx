@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 const HistoryViewer = lazy(() => import("@/components/HistoryViewer"));
 const BackupManager = lazy(() => import("@/components/BackupManager"));
+const StationManager = lazy(() => import("@/components/StationManager"));
 
 interface AppUser {
   id: string;
@@ -187,6 +188,11 @@ export default function AdminPanel() {
         {/* Historical data viewer */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando histórico…</div>}>
           <HistoryViewer />
+        </Suspense>
+
+        {/* Station management */}
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando emissoras…</div>}>
+          <StationManager />
         </Suspense>
 
         {/* Automatic backups */}
