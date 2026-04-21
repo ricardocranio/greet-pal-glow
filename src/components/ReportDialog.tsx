@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
-import { stations } from "@/data/stations";
+import { useStations } from "@/hooks/useStations";
 import { toPng } from "html-to-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
