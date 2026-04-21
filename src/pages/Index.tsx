@@ -407,9 +407,10 @@ function IndexContent() {
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Próximo Backup</p>
-              <p className="text-sm font-bold text-foreground tabular-nums">Segunda, 03:00</p>
+              <p className="text-sm font-bold text-foreground tabular-nums capitalize">{nextBackupStr}</p>
             </div>
           </div>
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
