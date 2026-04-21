@@ -464,7 +464,7 @@ function IndexContent() {
               <AudienceRanking statuses={statuses} />
             </div>
           </div>
-        </div>
+        )}
       </main>
 
       <NowPlayingBar />
