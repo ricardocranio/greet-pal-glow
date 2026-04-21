@@ -497,6 +497,9 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
           Praças & Emissoras
         </h2>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportBackupCSV} className="border-border text-muted-foreground" title="Backup CSV">
+            <Download className="h-4 w-4 mr-1" /> Backup
+          </Button>
           <Button size="sm" variant="outline" onClick={fetchAll} className="border-border text-muted-foreground" title="Atualizar praças">
             <RefreshCw className="h-4 w-4" />
           </Button>
