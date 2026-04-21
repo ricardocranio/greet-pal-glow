@@ -101,7 +101,7 @@ function IndexContent() {
     simulatorFactor, setSimulatorFactor,
     activePracaId, setActivePracaId,
   } = useStationMonitor();
-  const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
