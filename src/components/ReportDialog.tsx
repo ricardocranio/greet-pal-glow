@@ -1404,7 +1404,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                                   <span className="text-foreground font-medium text-[8px] sm:text-[10px]">{st.name}</span>
                                 </div>
                               </td>
-                              {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
+                              {Array.from({ length: 24 }, (_, h) => h)
+                                .filter(h => h >= hourStart && h <= hourEnd)
+                                .filter(h => {
+                                  const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
+                                  return !isToday || h <= getBrasiliaHour();
+                                })
+                                .map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const val = row?.[st.id];
                                 return (
