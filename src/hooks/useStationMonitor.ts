@@ -263,6 +263,7 @@ export function useStationMonitor() {
     setSimulatorFactor,
     activePracaId,
     setActivePracaId,
+    loading: !stationsLoaded,
   };
 }
 
