@@ -456,9 +456,14 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
           <MapPin className="h-4 w-4 text-primary" />
           Praças & Emissoras
         </h2>
-        <Button size="sm" variant="outline" onClick={() => setShowPracaForm(!showPracaForm)} className="border-border text-muted-foreground">
-          <Plus className="h-4 w-4 mr-1" /> Nova Praça
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={fetchAll} className="border-border text-muted-foreground" title="Atualizar praças">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowPracaForm(!showPracaForm)} className="border-border text-muted-foreground">
+            <Plus className="h-4 w-4 mr-1" /> Nova Praça
+          </Button>
+        </div>
       </div>
 
       {/* Add Praça form */}
