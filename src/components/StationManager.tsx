@@ -492,27 +492,52 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
         return (
           <div key={praca.id} className="border border-border rounded-lg overflow-hidden">
             {/* Praça header */}
-            <div
-              className="flex items-center justify-between px-3 py-2.5 bg-secondary/40 cursor-pointer hover:bg-secondary/60 transition-colors"
-              onClick={() => setExpandedPraca(isExpanded ? null : praca.id)}
-            >
-              <div className="flex items-center gap-2">
-                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                <MapPin className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">{praca.name}</span>
-                {praca.state && <span className="text-xs text-muted-foreground">/ {praca.state.toUpperCase()}</span>}
-                <Badge variant="outline" className="text-[10px] ml-1">{pStations.length} emissora{pStations.length !== 1 ? "s" : ""}</Badge>
+            {editingPracaId === praca.id ? (
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/40">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <Input placeholder="Cidade" value={editPracaName} onChange={(e) => setEditPracaName(e.target.value)} className="text-sm h-7 flex-1" />
+                <Input placeholder="UF" value={editPracaState} onChange={(e) => setEditPracaState(e.target.value)} className="text-sm h-7 w-16" maxLength={2} />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => setEditingPracaId(null)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary" onClick={handleSaveEditPraca}>
+                  <Check className="h-3.5 w-3.5" />
+                </Button>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                onClick={(e) => { e.stopPropagation(); handleDeletePraca(praca); }}
-                title="Excluir praça"
+            ) : (
+              <div
+                className="flex items-center justify-between px-3 py-2.5 bg-secondary/40 cursor-pointer hover:bg-secondary/60 transition-colors"
+                onClick={() => setExpandedPraca(isExpanded ? null : praca.id)}
               >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+                <div className="flex items-center gap-2">
+                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">{praca.name}</span>
+                  {praca.state && <span className="text-xs text-muted-foreground">/ {praca.state.toUpperCase()}</span>}
+                  <Badge variant="outline" className="text-[10px] ml-1">{pStations.length} emissora{pStations.length !== 1 ? "s" : ""}</Badge>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); startEditPraca(praca); }}
+                    title="Editar praça"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); handleDeletePraca(praca); }}
+                    title="Excluir praça"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Expanded content */}
             {isExpanded && (
