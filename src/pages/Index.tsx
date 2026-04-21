@@ -126,7 +126,7 @@ function IndexContent() {
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
 
   const handleReport = useCallback((status: StationStatus) => {
-    setSelectedStation(status);
+    setSelectedStationId(status.station.id);
     setDialogOpen(true);
   }, []);
 
