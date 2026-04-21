@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 const HistoryViewer = lazy(() => import("@/components/HistoryViewer"));
 const BackupManager = lazy(() => import("@/components/BackupManager"));
 const StationManager = lazy(() => import("@/components/StationManager"));
+const SystemLogs = lazy(() => import("@/components/SystemLogs"));
 
 interface AppUser {
   id: string;
@@ -231,6 +232,11 @@ export default function AdminPanel() {
         {/* Automatic backups */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando backups…</div>}>
           <BackupManager />
+        </Suspense>
+
+        {/* System logs */}
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando logs…</div>}>
+          <SystemLogs />
         </Suspense>
 
         {/* Connected users */}
