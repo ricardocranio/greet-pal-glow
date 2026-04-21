@@ -115,6 +115,8 @@ Deno.serve(async (req) => {
         message: e.message,
         reason,
         fix,
+        ip: meta.ip || undefined,
+        user_agent: meta.user_agent || undefined,
       });
     });
 
