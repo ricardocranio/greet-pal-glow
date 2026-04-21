@@ -101,7 +101,7 @@ function IndexContent() {
     simulatorFactor, setSimulatorFactor,
     activePracaId, setActivePracaId,
   } = useStationMonitor();
-  const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
@@ -126,7 +126,7 @@ function IndexContent() {
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
 
   const handleReport = useCallback((status: StationStatus) => {
-    setSelectedStation(status);
+    setSelectedStationId(status.station.id);
     setDialogOpen(true);
   }, []);
 
@@ -397,7 +397,7 @@ function IndexContent() {
       {dialogOpen && (
         <Suspense fallback={null}>
           <ReportDialog
-            status={selectedStation}
+            status={statuses.find(s => s.station.id === selectedStationId) || null}
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             visibleStations={visibleStations}
