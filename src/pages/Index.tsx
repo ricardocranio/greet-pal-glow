@@ -124,6 +124,25 @@ function IndexContent() {
 
   const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
+  const [lastSyncTime, setLastSyncTime] = useState<string>(() => new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+
+  useEffect(() => {
+    // Update sync time whenever statuses are updated
+    setLastSyncTime(new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }));
+  }, [statuses]);
+
+  const nextBackupStr = useMemo(() => {
+    const now = new Date();
+    const nextMonday = new Date();
+    nextMonday.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
+    nextMonday.setHours(3, 0, 0, 0);
+    if (nextMonday < now) nextMonday.setDate(nextMonday.getDate() + 7);
+    return nextMonday.toLocaleString("pt-BR", { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  }, []);
 
   const handleReport = useCallback((status: StationStatus) => {
     setSelectedStationId(status.station.id);
@@ -360,6 +379,40 @@ function IndexContent() {
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-8">
+        {/* Status Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
+            <div className="h-10 w-10 rounded-full bg-online/10 flex items-center justify-center shrink-0">
+              <Activity className="h-5 w-5 text-online" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Status Geral</p>
+              <p className="text-sm font-bold text-foreground">Operando Normalmente</p>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <RefreshCw className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Sincronização</p>
+              <p className="text-sm font-bold text-foreground tabular-nums">{lastSyncTime}</p>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
+            <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+              <Download className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Próximo Backup</p>
+              <p className="text-sm font-bold text-foreground tabular-nums capitalize">{nextBackupStr}</p>
+            </div>
+          </div>
+
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
