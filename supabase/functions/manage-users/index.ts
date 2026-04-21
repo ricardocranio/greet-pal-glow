@@ -129,9 +129,13 @@ serve(async (req) => {
     if (action === "add_praca") {
       const { name, state } = body;
       if (!name?.trim()) return json({ error: "Nome da praça obrigatório" }, 400);
+      // Get creator display name
+      const { data: creator } = await supabase.from("app_users").select("display_name").eq("username", session.username).maybeSingle();
       const { data, error } = await supabase.from("pracas").insert({
         name: name.trim(),
         state: (state || "").trim(),
+        created_by: session.username,
+        created_by_display: creator?.display_name || session.username,
       }).select().single();
       if (error) {
         const msg = error.code === "23505" ? "Praça já existe" : error.message;
