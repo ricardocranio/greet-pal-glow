@@ -100,6 +100,7 @@ function IndexContent() {
     simulatorEnabled, setSimulatorEnabled,
     simulatorFactor, setSimulatorFactor,
     activePracaId, setActivePracaId,
+    loading: monitorLoading,
   } = useStationMonitor();
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
