@@ -1457,7 +1457,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           })}
                           <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
                             {(() => {
-                              const allVals = Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
+                              const allVals = Array.from({ length: 24 }, (_, h) => h)
+                                .filter(h => h >= hourStart && h <= hourEnd)
+                                .filter(h => {
+                                  const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
+                                  return !isToday || h <= getBrasiliaHour();
+                                })
+                                .map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                                 return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
