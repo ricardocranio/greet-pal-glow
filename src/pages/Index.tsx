@@ -92,6 +92,7 @@ function NowPlayingBar() {
 
 function IndexContent() {
   const {
+    stations,
     statuses, allStatuses, refresh,
     visibleStations, toggleStation,
     showReligious, setShowReligious,

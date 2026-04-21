@@ -106,6 +106,7 @@ function calcAvg(arr: number[]): number {
 }
 
 export function ReportDialog({ status, open, onOpenChange, visibleStations, simulatorEnabled = false, simulatorFactor = 75 }: Props) {
+  const { stations } = useStations();
   const factor = simulatorEnabled ? simulatorFactor : 1;
   const [viewMode, setViewMode] = useState<ViewMode>("realtime");
   const [isFullscreen, setIsFullscreen] = useState(true);

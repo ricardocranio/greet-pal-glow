@@ -32,7 +32,7 @@ interface BucketRow {
   samples: number;
 }
 
-const stationName = (id: string) => stations.find((s) => s.id === id)?.name || id;
+const stationName = (id: string, stationsList: { id: string; name: string }[]) => stationsList.find((s) => s.id === id)?.name || id;
 
 function bucketKey(date: Date, gran: Granularity): { key: string; label: string } {
   if (gran === "daily") {
@@ -52,7 +52,8 @@ function bucketKey(date: Date, gran: Granularity): { key: string; label: string 
 }
 
 export default function HistoryViewer() {
-  const [stationId, setStationId] = useState<string>(stations[0]?.id || "");
+  const { stations } = useStations();
+  const [stationId, setStationId] = useState<string>("");
   const [granularity, setGranularity] = useState<Granularity>("daily");
   const [from, setFrom] = useState<Date>(subDays(new Date(), 14));
   const [to, setTo] = useState<Date>(new Date());
