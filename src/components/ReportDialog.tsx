@@ -369,10 +369,21 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     const nowIso = new Date().toISOString();
     const tasks: Promise<void>[] = [];
 
-    // 1) Today's raw points (realtime chart)
+    // 1) Today's raw points (realtime chart) — paginate to bypass 1000-row default limit
     tasks.push((async () => {
-      const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
-      setAllSnapshots((data ?? []) as SnapshotRow[]);
+      const allRows: SnapshotRow[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .rpc("station_today_realtime", { p_station_id: stationId })
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allRows.push(...(data as SnapshotRow[]));
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      setAllSnapshots(allRows);
     })());
 
     // 2) Hourly averages (today)
