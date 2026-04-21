@@ -63,18 +63,17 @@ export function useStationMonitor() {
           .eq("active", true)
           .order("display_order", { ascending: true });
 
-        // Strictly filter by praça. If no active, and no assigned, show nothing (except for admin who might see all if intended, but user requested specific)
-        const filterPracaId = activePracaId || (userPracas.length > 0 ? userPracas[0].id : null);
+        // Strictly filter by praça. 
+        const filterPracaId = currentActiveId || (userPracas.length > 0 ? userPracas[0].id : null);
         
         if (filterPracaId) {
           query = query.eq("praca_id", filterPracaId);
         } else if (role !== "admin") {
           // If not admin and no praça, force a filter that returns nothing
           query = query.eq("praca_id", "00000000-0000-0000-0000-000000000000");
-        } else if (!activePracaId && userPracas.length > 0) {
-          // For admin, if no active ID yet, use the first one from their list
-          query = query.eq("praca_id", userPracas[0].id);
         }
+        // If it's an admin and filterPracaId is still null, it will show everything. 
+        // But with currentActiveId logic above, it should have picked the first one if available.
 
         const { data, error } = await query;
 
