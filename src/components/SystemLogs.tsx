@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, AlertCircle, RefreshCw, FileWarning, Info, CheckCircle2, Trash2, ChevronDown, ChevronUp, Lightbulb, HelpCircle } from "lucide-react";
+import { AlertTriangle, AlertCircle, RefreshCw, FileWarning, Info, CheckCircle2, Trash2, ChevronDown, ChevronUp, Lightbulb, HelpCircle, LogIn, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface LogEntry {
   timestamp: string;
@@ -18,6 +29,7 @@ const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEntry[] }) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [filter, setFilter] = useState<"all" | "error" | "warning" | "info">("all");
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
@@ -45,9 +57,22 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-  const clearLogs = () => {
-    setLogs([]);
-    setExpandedIdx(null);
+  const clearLogs = async () => {
+    setClearing(true);
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      await fetch(FUNC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: API_KEY },
+        body: JSON.stringify({ token, action: "clear" }),
+      });
+      setLogs([]);
+      setExpandedIdx(null);
+    } catch (e) {
+      console.error("Failed to clear logs:", e);
+    } finally {
+      setClearing(false);
+    }
   };
 
   // Merge external logs with server logs
@@ -57,14 +82,23 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
   const warnCount = allLogs.filter(l => l.level === "warning").length;
   const infoCount = allLogs.filter(l => l.level === "info").length;
 
-  const levelIcon = (level: string) => {
+  const levelIcon = (level: string, source?: string) => {
+    if (source === "Autenticação") {
+      if (level === "info") return <LogIn className="h-3.5 w-3.5 text-primary shrink-0" />;
+      if (level === "warning") return <User className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
+    }
     if (level === "error") return <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />;
     if (level === "warning") return <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />;
     if (level === "info") return <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />;
     return <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   };
 
-  const levelBadge = (level: string) => {
+  const levelBadge = (level: string, source?: string) => {
+    if (source === "Autenticação") {
+      if (level === "info") return <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/20 text-emerald-500 border-emerald-500/30">LOGIN</Badge>;
+      if (level === "warning") return <Badge className="text-[9px] px-1.5 py-0 bg-amber-500/20 text-amber-500 border-amber-500/30">AUTH</Badge>;
+      if (level === "error") return <Badge variant="destructive" className="text-[9px] px-1.5 py-0">AUTH ERRO</Badge>;
+    }
     if (level === "error") return <Badge variant="destructive" className="text-[9px] px-1.5 py-0">ERRO</Badge>;
     if (level === "warning") return <Badge className="text-[9px] px-1.5 py-0 bg-amber-500/20 text-amber-500 border-amber-500/30">AVISO</Badge>;
     if (level === "info") return <Badge className="text-[9px] px-1.5 py-0 bg-primary/20 text-primary border-primary/30">INFO</Badge>;
@@ -81,7 +115,7 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
 
   return (
     <div className="bg-card border border-border rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h2 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
           <FileWarning className="h-4 w-4 text-primary" />
           Logs do Sistema
@@ -105,10 +139,28 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
             <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
           </Button>
           {allLogs.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive" onClick={clearLogs} title="Limpar logs">
-              <Trash2 className="h-3 w-3 mr-1" />
-              Limpar
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive" title="Limpar logs">
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Limpar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Limpar todos os logs?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Isso irá apagar permanentemente todos os registros de eventos (logins, erros, avisos) das últimas 24 horas. Os diagnósticos em tempo real (emissoras offline, validações) continuarão aparecendo normalmente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearLogs} disabled={clearing}>
+                    {clearing ? "Limpando..." : "Limpar tudo"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </div>
@@ -129,6 +181,7 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
                 className={`rounded-lg px-2.5 py-1.5 text-xs transition-all ${
                   log.level === "error" ? "bg-destructive/5 border border-destructive/20" :
                   log.level === "warning" ? "bg-amber-500/5 border border-amber-500/20" :
+                  log.source === "Autenticação" && log.level === "info" ? "bg-emerald-500/5 border border-emerald-500/20" :
                   log.level === "info" ? "bg-primary/5 border border-primary/20" :
                   "bg-secondary/30 border border-border"
                 }`}
@@ -137,10 +190,10 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
                   className={`flex items-start gap-2 ${details ? "cursor-pointer" : ""}`}
                   onClick={() => details && setExpandedIdx(isExpanded ? null : i)}
                 >
-                  {levelIcon(log.level)}
+                  {levelIcon(log.level, log.source)}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      {levelBadge(log.level)}
+                      {levelBadge(log.level, log.source)}
                       <span className="text-[10px] text-muted-foreground font-mono">{formatTime(log.timestamp)}</span>
                       <span className="text-[10px] text-primary/70 font-medium">{log.source}</span>
                     </div>
