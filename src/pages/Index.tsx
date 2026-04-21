@@ -21,19 +21,18 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-function BrasiliaClock() {
+function LocalClock() {
   const [time, setTime] = useState("");
 
   useEffect(() => {
     const update = () => {
       const now = new Date();
-      const brasilia = now.toLocaleTimeString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
+      const timeStr = now.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
       });
-      setTime(brasilia);
+      setTime(timeStr);
     };
     update();
     const interval = setInterval(update, 1000);
@@ -44,7 +43,7 @@ function BrasiliaClock() {
     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
       <Clock className="h-3.5 w-3.5 text-primary" />
       <span className="font-mono font-medium text-foreground tabular-nums whitespace-nowrap">{time}</span>
-      <span className="text-[10px] uppercase">Brasília</span>
+      <span className="text-[10px] uppercase">Local</span>
     </div>
   );
 }
@@ -202,7 +201,7 @@ function IndexContent() {
             <span className="text-xs text-muted-foreground">
               Bem-vindo, <span className="text-foreground font-semibold">{authUsername}</span>
             </span>
-            <BrasiliaClock />
+            <LocalClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Activity className="h-4 w-4 text-online" />
