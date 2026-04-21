@@ -27,8 +27,8 @@ function BrasiliaClock() {
   useEffect(() => {
     const update = () => {
       const now = new Date();
-      const brasilia = now.toLocaleTimeString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
+      const timeStr = now.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
