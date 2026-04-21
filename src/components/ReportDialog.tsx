@@ -1310,7 +1310,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
                 {/* Station legend with checkboxes */}
                 <div data-export-hide="true" className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 px-1">
-                  {stations.map((st, i) => (
+                  {stations.filter(st => !visibleStations || visibleStations.has(st.id)).map((st, i) => (
                     <label key={st.id} className="flex items-center gap-1.5 cursor-pointer">
                       <Checkbox
                         checked={blendVisibleStations.has(st.id)}
