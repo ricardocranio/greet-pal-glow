@@ -275,14 +275,8 @@ Deno.serve(async (req) => {
       return { id: STREAMS[i].id, online: false, listeners: 0, peakListeners: 0, title: '', bitrate: 0, error: 'timeout' };
     });
 
-    // Background persistence (doesn't delay response)
-    // @ts-ignore - EdgeRuntime is available in Deno Deploy
-    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(persistResults(statuses));
-    } else {
-      persistResults(statuses);
-    }
+    // Background persistence
+    await persistResults(statuses);
 
     return new Response(JSON.stringify({ statuses, timestamp: new Date().toISOString() }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
