@@ -54,6 +54,9 @@ export function LoginGate({ children }: LoginGateProps) {
       sessionStorage.setItem("auth_token", data.token);
       sessionStorage.setItem("auth_username", data.username);
       sessionStorage.setItem("auth_role", data.role);
+      if (data.pracas) {
+        sessionStorage.setItem("auth_pracas", JSON.stringify(data.pracas));
+      }
       setShowSplash(true);
       setTimeout(() => {
         setAuthenticated(true);
