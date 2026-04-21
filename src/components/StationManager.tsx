@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Radio, Plus, Pencil, Trash2, X, Check, Image, ToggleLeft, ToggleRight, Upload, Play, MapPin, ChevronDown, ChevronRight } from "lucide-react";
+import { Radio, Plus, Pencil, Trash2, X, Check, Image, ToggleLeft, ToggleRight, Upload, Play, MapPin, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -181,7 +181,7 @@ function LogoUpload({ stationId, currentUrl, onUploaded }: {
   );
 }
 
-export default function StationManager() {
+export default function StationManager({ onPracasChanged }: { onPracasChanged?: () => void } = {}) {
   const [stations, setStations] = useState<DbStation[]>([]);
   const [pracas, setPracas] = useState<Praca[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,6 +192,11 @@ export default function StationManager() {
   const [newPracaName, setNewPracaName] = useState("");
   const [newPracaState, setNewPracaState] = useState("");
   const [addingPraca, setAddingPraca] = useState(false);
+
+  // Praça edit
+  const [editingPracaId, setEditingPracaId] = useState<string | null>(null);
+  const [editPracaName, setEditPracaName] = useState("");
+  const [editPracaState, setEditPracaState] = useState("");
 
   // Station form (per praça)
   const [showStationFormFor, setShowStationFormFor] = useState<string | null>(null);
