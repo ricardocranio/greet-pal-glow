@@ -170,7 +170,28 @@ function IndexContent() {
               <h1 className="font-display font-bold text-lg text-foreground leading-tight">
                 Monitoramento de Audiência
               </h1>
-              <p className="text-xs text-muted-foreground">Rádios de Natal/RN</p>
+              {userPracas.length > 1 ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <MapPin className="h-3 w-3 text-primary shrink-0" />
+                  <Select value={activePracaId || ""} onValueChange={setActivePracaId}>
+                    <SelectTrigger className="h-6 text-xs border-none bg-transparent p-0 gap-1 shadow-none text-muted-foreground hover:text-foreground w-auto">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userPracas.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}{p.state ? `/${p.state.toUpperCase()}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-primary" />
+                  {activePracaName}
+                </p>
+              )}
               <p className="text-[10px] text-muted-foreground/60">by Ricardo Amaral</p>
             </div>
           </div>
