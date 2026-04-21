@@ -37,16 +37,37 @@ export function useStationMonitor() {
   const [simulatorEnabled, setSimulatorEnabled] = useState(false);
   const [simulatorFactor, setSimulatorFactor] = useState(75);
 
-  // 1. Load stations from DB
+  // Praça filter
+  const [activePracaId, setActivePracaId] = useState<string | null>(null);
+
+  // 1. Load stations from DB (filtered by praça if viewer)
   useEffect(() => {
     let cancelled = false;
     async function loadStations() {
       try {
-        const { data, error } = await supabase
+        // Get user praças from session
+        const pracasJson = sessionStorage.getItem("auth_pracas");
+        const userPracas: { id: string; name: string; state: string }[] = pracasJson ? JSON.parse(pracasJson) : [];
+        const role = sessionStorage.getItem("auth_role") || "viewer";
+
+        // Set initial active praça
+        if (userPracas.length > 0 && !activePracaId) {
+          setActivePracaId(userPracas[0].id);
+        }
+
+        let query = supabase
           .from("stations")
-          .select("id, name, frequency, stream_url, logo_url, category, display_order, active")
+          .select("id, name, frequency, stream_url, logo_url, category, display_order, active, praca_id")
           .eq("active", true)
           .order("display_order", { ascending: true });
+
+        // Filter by praça for non-admin users, or by active praça for admins
+        const filterPracaId = activePracaId || (userPracas.length > 0 ? userPracas[0].id : null);
+        if (filterPracaId) {
+          query = query.eq("praca_id", filterPracaId);
+        }
+
+        const { data, error } = await query;
 
         if (error || !data || data.length === 0) {
           console.warn("Failed to load stations from DB, using fallback", error);
@@ -78,7 +99,7 @@ export function useStationMonitor() {
     }
     loadStations();
     return () => { cancelled = true; };
-  }, []);
+  }, [activePracaId]);
 
   const applyResult = useCallback((real: StreamResult) => {
     setStatuses((prev) =>
@@ -222,6 +243,8 @@ export function useStationMonitor() {
     setSimulatorEnabled,
     simulatorFactor,
     setSimulatorFactor,
+    activePracaId,
+    setActivePracaId,
   };
 }
 

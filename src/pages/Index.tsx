@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut, Users } from "lucide-react";
+import { Activity, RefreshCw, Radio, Volume2, VolumeX, Download, Clock, Volume1, Filter, ChurchIcon, Building2, Zap, LogOut, Users, MapPin } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useStationMonitor, StationStatus } from "@/hooks/useStationMonitor";
 import { StationCard } from "@/components/StationCard";
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useStations } from "@/hooks/useStations";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
@@ -99,6 +100,7 @@ function IndexContent() {
     showState, setShowState,
     simulatorEnabled, setSimulatorEnabled,
     simulatorFactor, setSimulatorFactor,
+    activePracaId, setActivePracaId,
   } = useStationMonitor();
   const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -107,6 +109,17 @@ function IndexContent() {
   const isAdmin = userRole === "admin";
   const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
   const navigate = useNavigate();
+
+  // User praças from session
+  const userPracas: { id: string; name: string; state: string }[] = useMemo(() => {
+    try { return JSON.parse(sessionStorage.getItem("auth_pracas") || "[]"); }
+    catch { return []; }
+  }, []);
+
+  const activePracaName = useMemo(() => {
+    const p = userPracas.find(p => p.id === activePracaId);
+    return p ? `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}` : "Rádios";
+  }, [userPracas, activePracaId]);
 
   const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
@@ -157,7 +170,28 @@ function IndexContent() {
               <h1 className="font-display font-bold text-lg text-foreground leading-tight">
                 Monitoramento de Audiência
               </h1>
-              <p className="text-xs text-muted-foreground">Rádios de Natal/RN</p>
+              {userPracas.length > 1 ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <MapPin className="h-3 w-3 text-primary shrink-0" />
+                  <Select value={activePracaId || ""} onValueChange={setActivePracaId}>
+                    <SelectTrigger className="h-6 text-xs border-none bg-transparent p-0 gap-1 shadow-none text-muted-foreground hover:text-foreground w-auto">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userPracas.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}{p.state ? `/${p.state.toUpperCase()}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-primary" />
+                  {activePracaName}
+                </p>
+              )}
               <p className="text-[10px] text-muted-foreground/60">by Ricardo Amaral</p>
             </div>
           </div>
