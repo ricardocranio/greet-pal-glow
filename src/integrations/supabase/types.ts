@@ -233,6 +233,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pracas: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stations: {
         Row: {
           active: boolean
@@ -243,6 +270,7 @@ export type Database = {
           id: string
           logo_url: string
           name: string
+          praca_id: string | null
           stream_url: string
           updated_at: string
         }
@@ -255,6 +283,7 @@ export type Database = {
           id: string
           logo_url?: string
           name: string
+          praca_id?: string | null
           stream_url?: string
           updated_at?: string
         }
@@ -267,10 +296,19 @@ export type Database = {
           id?: string
           logo_url?: string
           name?: string
+          praca_id?: string | null
           stream_url?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stations_praca_id_fkey"
+            columns: ["praca_id"]
+            isOneToOne: false
+            referencedRelation: "pracas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

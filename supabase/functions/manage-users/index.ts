@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,12 +26,7 @@ serve(async (req) => {
     const body = await req.json();
     const { action, token } = body;
 
-    // Verify admin token
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Token obrigatório" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!token) return json({ error: "Token obrigatório" }, 401);
 
     const { data: session } = await supabase
       .from("active_sessions")
@@ -34,168 +35,134 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!session || session.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Acesso negado" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Acesso negado" }, 403);
     }
 
     // ==================== USER ACTIONS ====================
 
-    // LIST users
     if (action === "list") {
       const { data: users } = await supabase
         .from("app_users")
         .select("id, username, display_name, role, blocked, created_at")
         .order("created_at", { ascending: true });
-
       const { data: sessions } = await supabase
         .from("active_sessions")
         .select("username, created_at");
-
-      return new Response(JSON.stringify({ users, sessions }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ users, sessions });
     }
 
-    // ADD user
     if (action === "add") {
       const { username, password, display_name, role } = body;
-      if (!username || !password) {
-        return new Response(JSON.stringify({ error: "Usuário e senha obrigatórios" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (!username || !password) return json({ error: "Usuário e senha obrigatórios" }, 400);
       const validRoles = ["admin", "editor", "viewer"];
       const userRole = validRoles.includes(role) ? role : "viewer";
-
       const { error } = await supabase.from("app_users").insert({
         username, password, display_name: display_name || username, role: userRole,
       });
-
       if (error) {
         const msg = error.code === "23505" ? "Usuário já existe" : error.message;
-        return new Response(JSON.stringify({ error: msg }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ error: msg }, 400);
       }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true });
     }
 
-    // TOGGLE BLOCK
     if (action === "toggle_block") {
       const { user_id, blocked } = body;
-      const { error } = await supabase
-        .from("app_users")
-        .update({ blocked })
-        .eq("id", user_id);
-
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
+      const { error } = await supabase.from("app_users").update({ blocked }).eq("id", user_id);
+      if (error) return json({ error: error.message }, 400);
       if (blocked) {
-        const { data: user } = await supabase
-          .from("app_users")
-          .select("username")
-          .eq("id", user_id)
-          .maybeSingle();
-        if (user) {
-          await supabase.from("active_sessions").delete().eq("username", user.username);
-        }
+        const { data: user } = await supabase.from("app_users").select("username").eq("id", user_id).maybeSingle();
+        if (user) await supabase.from("active_sessions").delete().eq("username", user.username);
       }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true });
     }
 
-    // KICK
     if (action === "kick") {
-      const { username } = body;
-      await supabase.from("active_sessions").delete().eq("username", username);
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      await supabase.from("active_sessions").delete().eq("username", body.username);
+      return json({ success: true });
     }
 
-    // DELETE user
     if (action === "delete") {
       const { user_id } = body;
-      const { data: user } = await supabase
-        .from("app_users")
-        .select("username")
-        .eq("id", user_id)
-        .maybeSingle();
-      
-      if (user) {
-        await supabase.from("active_sessions").delete().eq("username", user.username);
-      }
-      
+      const { data: user } = await supabase.from("app_users").select("username").eq("id", user_id).maybeSingle();
+      if (user) await supabase.from("active_sessions").delete().eq("username", user.username);
       await supabase.from("app_users").delete().eq("id", user_id);
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true });
     }
 
-    // EDIT user
     if (action === "edit") {
       const { user_id, display_name, password: newPass, role: newRole } = body;
       const updates: Record<string, unknown> = {};
       if (display_name !== undefined) updates.display_name = display_name;
       if (newPass) updates.password = newPass;
       if (newRole && ["admin", "editor", "viewer"].includes(newRole)) updates.role = newRole;
-
-      if (Object.keys(updates).length === 0) {
-        return new Response(JSON.stringify({ error: "Nenhuma alteração informada" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
+      if (Object.keys(updates).length === 0) return json({ error: "Nenhuma alteração informada" }, 400);
       const { error } = await supabase.from("app_users").update(updates).eq("id", user_id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ success: true });
+    }
+
+    // ==================== PRAÇA ACTIONS ====================
+
+    if (action === "list_pracas") {
+      const { data, error } = await supabase
+        .from("pracas")
+        .select("*")
+        .order("name", { ascending: true });
+      if (error) return json({ error: error.message }, 400);
+      return json({ pracas: data });
+    }
+
+    if (action === "add_praca") {
+      const { name, state } = body;
+      if (!name?.trim()) return json({ error: "Nome da praça obrigatório" }, 400);
+      const { data, error } = await supabase.from("pracas").insert({
+        name: name.trim(),
+        state: (state || "").trim(),
+      }).select().single();
       if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const msg = error.code === "23505" ? "Praça já existe" : error.message;
+        return json({ error: msg }, 400);
       }
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true, praca: data });
+    }
+
+    if (action === "edit_praca") {
+      const { praca_id, name, state, active } = body;
+      if (!praca_id) return json({ error: "ID da praça obrigatório" }, 400);
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (name !== undefined) updates.name = name.trim();
+      if (state !== undefined) updates.state = state.trim();
+      if (active !== undefined) updates.active = active;
+      const { error } = await supabase.from("pracas").update(updates).eq("id", praca_id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ success: true });
+    }
+
+    if (action === "delete_praca") {
+      const { praca_id } = body;
+      if (!praca_id) return json({ error: "ID da praça obrigatório" }, 400);
+      // Unlink stations first
+      await supabase.from("stations").update({ praca_id: null }).eq("praca_id", praca_id);
+      const { error } = await supabase.from("pracas").delete().eq("id", praca_id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ success: true });
     }
 
     // ==================== STATION ACTIONS ====================
 
-    // LIST stations
     if (action === "list_stations") {
-      const { data: stationsList, error } = await supabase
+      const { data, error } = await supabase
         .from("stations")
         .select("*")
         .order("display_order", { ascending: true });
-
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ stations: stationsList }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (error) return json({ error: error.message }, 400);
+      return json({ stations: data });
     }
 
-    // ADD station
     if (action === "add_station") {
-      const { id: stationId, name, frequency, stream_url, logo_url, category, display_order } = body;
-      if (!stationId || !name) {
-        return new Response(JSON.stringify({ error: "ID e nome são obrigatórios" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
+      const { id: stationId, name, frequency, stream_url, logo_url, category, display_order, praca_id } = body;
+      if (!stationId || !name) return json({ error: "ID e nome são obrigatórios" }, 400);
       const validCategories = ["commercial", "religious", "state"];
       const { error } = await supabase.from("stations").insert({
         id: stationId.trim().toLowerCase().replace(/\s+/g, ''),
@@ -206,29 +173,18 @@ serve(async (req) => {
         category: validCategories.includes(category) ? category : "commercial",
         display_order: display_order || 100,
         active: true,
+        praca_id: praca_id || null,
       });
-
       if (error) {
         const msg = error.code === "23505" ? "Emissora com este ID já existe" : error.message;
-        return new Response(JSON.stringify({ error: msg }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ error: msg }, 400);
       }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true });
     }
 
-    // EDIT station
     if (action === "edit_station") {
-      const { station_id, name, frequency, stream_url, logo_url, category, display_order, active } = body;
-      if (!station_id) {
-        return new Response(JSON.stringify({ error: "ID da emissora obrigatório" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
+      const { station_id, name, frequency, stream_url, logo_url, category, display_order, active, praca_id } = body;
+      if (!station_id) return json({ error: "ID da emissora obrigatório" }, 400);
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (name !== undefined) updates.name = name.trim();
       if (frequency !== undefined) updates.frequency = frequency.trim();
@@ -237,46 +193,62 @@ serve(async (req) => {
       if (category !== undefined && ["commercial", "religious", "state"].includes(category)) updates.category = category;
       if (display_order !== undefined) updates.display_order = display_order;
       if (active !== undefined) updates.active = active;
-
+      if (praca_id !== undefined) updates.praca_id = praca_id || null;
       const { error } = await supabase.from("stations").update(updates).eq("id", station_id);
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (error) return json({ error: error.message }, 400);
+      return json({ success: true });
     }
 
-    // DELETE station
     if (action === "delete_station") {
       const { station_id } = body;
-      if (!station_id) {
-        return new Response(JSON.stringify({ error: "ID da emissora obrigatório" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
+      if (!station_id) return json({ error: "ID da emissora obrigatório" }, 400);
       const { error } = await supabase.from("stations").delete().eq("id", station_id);
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (error) return json({ error: error.message }, 400);
+      return json({ success: true });
     }
 
-    return new Response(JSON.stringify({ error: "Ação inválida" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // ==================== LOGO UPLOAD ====================
+
+    if (action === "upload_logo") {
+      const { station_id, file_base64, file_name } = body;
+      if (!station_id || !file_base64 || !file_name) {
+        return json({ error: "station_id, file_base64 e file_name são obrigatórios" }, 400);
+      }
+
+      const ext = file_name.split('.').pop()?.toLowerCase() || 'png';
+      const path = `${station_id}.${ext}`;
+
+      // Decode base64
+      const binaryString = atob(file_base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Upload to storage (upsert)
+      const { error: uploadError } = await supabase.storage
+        .from("station-logos")
+        .upload(path, bytes, {
+          contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+          upsert: true,
+        });
+
+      if (uploadError) return json({ error: uploadError.message }, 400);
+
+      const { data: urlData } = supabase.storage.from("station-logos").getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+
+      // Update station logo_url
+      await supabase.from("stations").update({
+        logo_url: publicUrl,
+        updated_at: new Date().toISOString(),
+      }).eq("id", station_id);
+
+      return json({ success: true, logo_url: publicUrl });
+    }
+
+    return json({ error: "Ação inválida" }, 400);
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Erro interno" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Erro interno" }, 500);
   }
 });
