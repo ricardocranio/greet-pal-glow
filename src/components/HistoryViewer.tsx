@@ -130,7 +130,7 @@ export default function HistoryViewer() {
 
   const exportCSV = () => {
     const rows = [
-      ["Estação", stationName(stationId)],
+      ["Estação", stationName(stationId, stations)],
       ["Período", periodLabel],
       ["Granularidade", granLabel],
       [],
@@ -229,7 +229,7 @@ export default function HistoryViewer() {
     doc.setFontSize(16);
     doc.text("Relatório Consolidado de Audiência", textX, 18);
     doc.setFontSize(11);
-    doc.text(`Estação: ${stationName(stationId)}`, textX, 28);
+    doc.text(`Estação: ${stationName(stationId, stations)}`, textX, 28);
 
     doc.text(`Período: ${periodLabel}`, 14, 40);
     doc.text(`Granularidade: ${granLabel}`, 14, 46);
