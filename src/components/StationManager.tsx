@@ -511,12 +511,17 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
                 className="flex items-center justify-between px-3 py-2.5 bg-secondary/40 cursor-pointer hover:bg-secondary/60 transition-colors"
                 onClick={() => setExpandedPraca(isExpanded ? null : praca.id)}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   <MapPin className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">{praca.name}</span>
                   {praca.state && <span className="text-xs text-muted-foreground">/ {praca.state.toUpperCase()}</span>}
                   <Badge variant="outline" className="text-[10px] ml-1">{pStations.length} emissora{pStations.length !== 1 ? "s" : ""}</Badge>
+                  {praca.created_by_display && (
+                    <span className="text-[10px] text-muted-foreground/70">
+                      por {praca.created_by_display} · {new Date(praca.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <Button
