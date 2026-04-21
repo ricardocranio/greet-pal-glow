@@ -365,13 +365,21 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         });
         setBlendData(rows);
       }
+      }
+    }
+
+    // Refresh if today
+    const isTodayBlend = blendView === "horario" && formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
+    if (isTodayBlend) {
+      const interval = setInterval(fetchBlendData, 30000);
+      return () => { cancelled = true; clearInterval(interval); };
     }
 
     fetchBlendData().finally(() => {
       if (!cancelled) setIsLoadingBlend(false);
     });
     return () => { cancelled = true; };
-  }, [open, viewMode, blendView, blendDate]);
+  }, [open, viewMode, blendView, blendDate, refreshTrigger]);
 
   // FAST LOAD: only today's raw snapshots (small set) for realtime chart + stats.
   // Heavy aggregations (hourly/daily/monthly across 90 days) are done server-side via RPCs.
