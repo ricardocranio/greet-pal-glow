@@ -259,6 +259,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const STREAMS = await loadStreams();
+    if (STREAMS.length === 0) {
+      return new Response(JSON.stringify({ statuses: [], timestamp: new Date().toISOString() }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const results = await Promise.allSettled(
       STREAMS.map(stream => fetchShoutcastStats(stream))
     );
