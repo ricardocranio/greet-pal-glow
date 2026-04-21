@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { stations, Station, getDefaultVisibleStations } from "@/data/stations";
+import { Station, DbStation, dbToStation, fallbackStations, getDefaultVisibleStations } from "@/data/stations";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface StationStatus {
@@ -26,25 +26,59 @@ interface StreamResult {
 }
 
 export function useStationMonitor() {
-  const [statuses, setStatuses] = useState<StationStatus[]>(() =>
-    stations.map((station) => ({
-      station,
-      online: false,
-      listeners: 0,
-      peakListeners: 0,
-      peakTime: "--:--",
-      lastChecked: new Date(),
-      history: [],
-      source: 'simulated' as const,
-    }))
-  );
+  const [stations, setStations] = useState<Station[]>([]);
+  const [stationsLoaded, setStationsLoaded] = useState(false);
+  const [statuses, setStatuses] = useState<StationStatus[]>([]);
 
   // Filter controls
-  const [visibleStations, setVisibleStations] = useState<Set<string>>(() => new Set(getDefaultVisibleStations()));
+  const [visibleStations, setVisibleStations] = useState<Set<string>>(new Set());
   const [showReligious, setShowReligious] = useState(false);
   const [showState, setShowState] = useState(false);
   const [simulatorEnabled, setSimulatorEnabled] = useState(false);
   const [simulatorFactor, setSimulatorFactor] = useState(75);
+
+  // 1. Load stations from DB
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStations() {
+      try {
+        const { data, error } = await supabase
+          .from("stations")
+          .select("id, name, frequency, stream_url, logo_url, category, display_order, active")
+          .eq("active", true)
+          .order("display_order", { ascending: true });
+
+        if (error || !data || data.length === 0) {
+          console.warn("Failed to load stations from DB, using fallback", error);
+          if (!cancelled) {
+            setStations(fallbackStations);
+            setVisibleStations(new Set(getDefaultVisibleStations(fallbackStations)));
+            setStatuses(fallbackStations.map(s => makeEmptyStatus(s)));
+            setStationsLoaded(true);
+          }
+          return;
+        }
+
+        const loaded = (data as DbStation[]).map(dbToStation);
+        if (!cancelled) {
+          setStations(loaded);
+          setVisibleStations(new Set(getDefaultVisibleStations(loaded)));
+          setStatuses(loaded.map(s => makeEmptyStatus(s)));
+          setStationsLoaded(true);
+        }
+      } catch (err) {
+        console.error("Error loading stations:", err);
+        if (!cancelled) {
+          setStations(fallbackStations);
+          setVisibleStations(new Set(getDefaultVisibleStations(fallbackStations)));
+          setStatuses(fallbackStations.map(s => makeEmptyStatus(s)));
+          setStationsLoaded(true);
+        }
+      }
+    }
+    loadStations();
+    return () => { cancelled = true; };
+  }, []);
 
   const applyResult = useCallback((real: StreamResult) => {
     setStatuses((prev) =>
@@ -74,7 +108,6 @@ export function useStationMonitor() {
 
   const fetchRealData = useCallback(async () => {
     try {
-      // 1. Fast path: read pre-computed current_status from DB (cached, no upstream calls)
       const { data: rows } = await supabase
         .from('current_status')
         .select('station_id, online, listeners, peak_listeners, title, bitrate');
@@ -90,7 +123,6 @@ export function useStationMonitor() {
         }));
       }
 
-      // 2. Trigger fresh fetch in background (updates current_status for everyone)
       supabase.functions.invoke('stream-status').catch(err => console.error('stream-status:', err));
     } catch (err) {
       console.error('Failed to load status:', err);
@@ -98,11 +130,11 @@ export function useStationMonitor() {
   }, [applyResult]);
 
   useEffect(() => {
+    if (!stationsLoaded) return;
+
     fetchRealData();
-    // Background refresh every 60s (was 30s) — Realtime handles instant updates
     const interval = setInterval(fetchRealData, 60000);
 
-    // Realtime: push updates from current_status table
     const channel = supabase
       .channel('current_status_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'current_status' }, (payload) => {
@@ -123,9 +155,9 @@ export function useStationMonitor() {
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [fetchRealData, applyResult]);
+  }, [stationsLoaded, fetchRealData, applyResult]);
 
-  // Filtered statuses based on visibility (memoized)
+  // Filtered statuses
   const filteredStatuses = useMemo(
     () => statuses.filter(s => {
       if (s.station.category === 'religious' && !showReligious) return false;
@@ -135,7 +167,7 @@ export function useStationMonitor() {
     [statuses, showReligious, showState, visibleStations]
   );
 
-  // Apply simulator (memoized)
+  // Apply simulator
   const displayStatuses = useMemo(
     () => simulatorEnabled
       ? filteredStatuses.map(s => ({
@@ -158,6 +190,7 @@ export function useStationMonitor() {
   }, []);
 
   return {
+    stations,
     statuses: displayStatuses,
     allStatuses: statuses,
     refresh: fetchRealData,
@@ -166,7 +199,6 @@ export function useStationMonitor() {
     showReligious,
     setShowReligious: (v: boolean) => {
       setShowReligious(v);
-      // Auto-toggle visibility for religious stations
       setVisibleStations(prev => {
         const next = new Set(prev);
         stations.filter(s => s.category === 'religious').forEach(s => {
@@ -190,5 +222,18 @@ export function useStationMonitor() {
     setSimulatorEnabled,
     simulatorFactor,
     setSimulatorFactor,
+  };
+}
+
+function makeEmptyStatus(station: Station): StationStatus {
+  return {
+    station,
+    online: false,
+    listeners: 0,
+    peakListeners: 0,
+    peakTime: "--:--",
+    lastChecked: new Date(),
+    history: [],
+    source: 'simulated',
   };
 }
