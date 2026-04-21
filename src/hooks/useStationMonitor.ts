@@ -38,13 +38,21 @@ export function useStationMonitor() {
   const [simulatorFactor, setSimulatorFactor] = useState(75);
 
   // Praça filter
-  const [activePracaId, setActivePracaId] = useState<string | null>(null);
+  const [activePracaId, setActivePracaId] = useState<string | null>(() => {
+    const pracasJson = sessionStorage.getItem("auth_pracas");
+    if (pracasJson) {
+      const userPracas = JSON.parse(pracasJson);
+      if (userPracas.length > 0) return userPracas[0].id;
+    }
+    return null;
+  });
 
   // 1. Load stations from DB (filtered by praça if viewer)
   useEffect(() => {
     let cancelled = false;
     async function loadStations() {
       try {
+        setStationsLoaded(false);
         // Get user praças from session
         const pracasJson = sessionStorage.getItem("auth_pracas");
         const userPracas: { id: string; name: string; state: string }[] = pracasJson ? JSON.parse(pracasJson) : [];
@@ -72,8 +80,6 @@ export function useStationMonitor() {
           // If not admin and no praça, force a filter that returns nothing
           query = query.eq("praca_id", "00000000-0000-0000-0000-000000000000");
         }
-        // If it's an admin and filterPracaId is still null, it will show everything. 
-        // But with currentActiveId logic above, it should have picked the first one if available.
 
         const { data, error } = await query;
 
@@ -189,11 +195,14 @@ export function useStationMonitor() {
   // Filtered statuses
   const filteredStatuses = useMemo(
     () => statuses.filter(s => {
+      // Market filter (redundant but safe)
+      if (activePracaId && s.station.pracaId && s.station.pracaId !== activePracaId) return false;
+      
       if (s.station.category === 'religious' && !showReligious) return false;
       if (s.station.category === 'state' && !showState) return false;
       return visibleStations.has(s.station.id);
     }),
-    [statuses, showReligious, showState, visibleStations]
+    [statuses, showReligious, showState, visibleStations, activePracaId]
   );
 
   // Apply simulator
