@@ -65,6 +65,7 @@ export default function HistoryViewer() {
     if (!stationId && stations.length > 0) setStationId(stations[0].id);
   }, [stations, stationId]);
 
+  const fetchData = useCallback(async () => {
     if (!stationId) return;
     setLoading(true);
     const fromISO = startOfDay(from).toISOString();
