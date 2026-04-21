@@ -12,6 +12,8 @@ interface LogEntry {
   message: string;
   reason?: string;
   fix?: string;
+  ip?: string;
+  user_agent?: string;
 }
 
 Deno.serve(async (req) => {
@@ -115,6 +117,8 @@ Deno.serve(async (req) => {
         message: e.message,
         reason,
         fix,
+        ip: meta.ip || undefined,
+        user_agent: meta.user_agent || undefined,
       });
     });
 

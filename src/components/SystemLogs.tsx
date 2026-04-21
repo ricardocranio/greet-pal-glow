@@ -21,6 +21,8 @@ interface LogEntry {
   message: string;
   reason?: string;
   fix?: string;
+  ip?: string;
+  user_agent?: string;
 }
 
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/system-logs`;
@@ -111,7 +113,7 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
     } catch { return ts; }
   };
 
-  const hasDetails = (log: LogEntry) => !!(log.reason || log.fix);
+  const hasDetails = (log: LogEntry) => !!(log.reason || log.fix || log.ip || log.user_agent);
 
   return (
     <div className="bg-card border border-border rounded-xl p-4">
@@ -226,6 +228,25 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
                         <div>
                           <span className="text-[10px] font-semibold text-amber-500 uppercase">Solução</span>
                           <p className="text-foreground/80 text-[11px] mt-0.5">{log.fix}</p>
+                        </div>
+                      </div>
+                    )}
+                    {(log.ip || log.user_agent) && (
+                      <div className="flex items-start gap-1.5 pt-1 border-t border-border/30">
+                        <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          {log.ip && (
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="font-semibold uppercase">IP:</span>{" "}
+                              <span className="font-mono text-foreground/70">{log.ip}</span>
+                            </p>
+                          )}
+                          {log.user_agent && (
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="font-semibold uppercase">Navegador:</span>{" "}
+                              <span className="font-mono text-foreground/70 break-all">{log.user_agent}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
