@@ -364,6 +364,38 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
 
   // FAST LOAD: only today's raw snapshots (small set) for realtime chart + stats.
   // Heavy aggregations (hourly/daily/monthly across 90 days) are done server-side via RPCs.
+  // Reusable fetch for realtime + hourly data (called on open and every 60s)
+  const fetchRealtimeAndHourly = useCallback(async (stationId: string, isInitial: boolean) => {
+    const nowIso = new Date().toISOString();
+    const tasks: Promise<void>[] = [];
+
+    // 1) Today's raw points (realtime chart)
+    tasks.push((async () => {
+      const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
+      setAllSnapshots((data ?? []) as SnapshotRow[]);
+    })());
+
+    // 2) Hourly averages (today)
+    tasks.push((async () => {
+      const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      todayStartIso.setHours(0, 0, 0, 0);
+      const { data } = await supabase.rpc("station_hourly_avg", {
+        p_station_id: stationId,
+        p_from: todayStartIso.toISOString(),
+        p_to: nowIso,
+        p_dow_filter: "all",
+      });
+      const map = new Map<number, number>();
+      (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
+      setHourlyData(Array.from({ length: 24 }, (_, h) => ({
+        time: `${String(h).padStart(2, "0")}:00`,
+        listeners: map.get(h) ?? 0,
+      })));
+    })());
+
+    await Promise.all(tasks);
+  }, []);
+
   useEffect(() => {
     if (!open || !status) return;
     let cancelled = false;
@@ -379,31 +411,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     setIsLoadingMain(true);
 
     const tasks = [
-      // 1) Today's raw points only (for realtime chart). Small payload.
-      (async () => {
-        const { data } = await supabase.rpc("station_today_realtime", { p_station_id: stationId });
-        if (cancelled) return;
-        setAllSnapshots((data ?? []) as SnapshotRow[]);
-      })(),
-
-      // 2) Hourly averages (today only — used as default in horario tab when no filter active)
-      (async () => {
-        const todayStartIso = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-        todayStartIso.setHours(0, 0, 0, 0);
-        const { data } = await supabase.rpc("station_hourly_avg", {
-          p_station_id: stationId,
-          p_from: todayStartIso.toISOString(),
-          p_to: nowIso,
-          p_dow_filter: "all",
-        });
-        if (cancelled) return;
-        const map = new Map<number, number>();
-        (data ?? []).forEach((r: { hour: number; avg_listeners: number }) => map.set(r.hour, r.avg_listeners));
-        setHourlyData(Array.from({ length: 24 }, (_, h) => ({
-          time: `${String(h).padStart(2, "0")}:00`,
-          listeners: map.get(h) ?? 0,
-        })));
-      })(),
+      fetchRealtimeAndHourly(stationId, true),
 
       // 3) Day-of-week averages (90 days)
       (async () => {
@@ -441,8 +449,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       if (!cancelled) setIsLoadingMain(false);
     });
 
-    return () => { cancelled = true; };
-  }, [open, status]);
+    // Auto-refresh realtime + hourly every 60 seconds
+    const interval = setInterval(() => {
+      if (!cancelled) fetchRealtimeAndHourly(stationId, false);
+    }, 60_000);
+
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [open, status, fetchRealtimeAndHourly]);
 
   // Server-side hourly aggregates for the horario tab (filtered by dow / specific date)
   // Replaces the client-side filtering of allSnapshots that previously required loading 90 days of data.
