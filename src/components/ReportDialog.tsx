@@ -1362,7 +1362,13 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[100px] sm:min-w-[140px]">Emissora</th>
-                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => (
+                          {Array.from({ length: 24 }, (_, h) => h)
+                            .filter(h => h >= hourStart && h <= hourEnd)
+                            .filter(h => {
+                              const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
+                              return !isToday || h <= getBrasiliaHour();
+                            })
+                            .map(h => (
                             <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 whitespace-nowrap" style={{ minWidth: '30px' }}>
                               {`${String(h).padStart(2, "0")}h`}
                             </th>
