@@ -41,27 +41,31 @@ serve(async (req) => {
     // ==================== USER ACTIONS ====================
 
     if (action === "list") {
-      const { data: users } = await supabase
-        .from("app_users")
-        .select("id, username, display_name, role, blocked, created_at")
-        .order("created_at", { ascending: true });
-      const { data: sessions } = await supabase
-        .from("active_sessions")
-        .select("username, created_at");
-      return json({ users, sessions });
+      const [usersRes, sessionsRes, upRes, pracasRes] = await Promise.all([
+        supabase.from("app_users").select("id, username, display_name, role, blocked, created_at").order("created_at", { ascending: true }),
+        supabase.from("active_sessions").select("username, created_at"),
+        supabase.from("user_pracas").select("user_id, praca_id"),
+        supabase.from("pracas").select("id, name, state").order("name"),
+      ]);
+      return json({ users: usersRes.data, sessions: sessionsRes.data, user_pracas: upRes.data, pracas: pracasRes.data });
     }
 
     if (action === "add") {
-      const { username, password, display_name, role } = body;
+      const { username, password, display_name, role, praca_ids } = body;
       if (!username || !password) return json({ error: "Usuário e senha obrigatórios" }, 400);
       const validRoles = ["admin", "editor", "viewer"];
       const userRole = validRoles.includes(role) ? role : "viewer";
-      const { error } = await supabase.from("app_users").insert({
+      const { data: newUser, error } = await supabase.from("app_users").insert({
         username, password, display_name: display_name || username, role: userRole,
-      });
+      }).select("id").single();
       if (error) {
         const msg = error.code === "23505" ? "Usuário já existe" : error.message;
         return json({ error: msg }, 400);
+      }
+      // Assign praças
+      if (newUser && Array.isArray(praca_ids) && praca_ids.length > 0) {
+        const rows = praca_ids.map((pid: string) => ({ user_id: newUser.id, praca_id: pid }));
+        await supabase.from("user_pracas").insert(rows);
       }
       return json({ success: true });
     }
@@ -91,14 +95,23 @@ serve(async (req) => {
     }
 
     if (action === "edit") {
-      const { user_id, display_name, password: newPass, role: newRole } = body;
+      const { user_id, display_name, password: newPass, role: newRole, praca_ids } = body;
       const updates: Record<string, unknown> = {};
       if (display_name !== undefined) updates.display_name = display_name;
       if (newPass) updates.password = newPass;
       if (newRole && ["admin", "editor", "viewer"].includes(newRole)) updates.role = newRole;
-      if (Object.keys(updates).length === 0) return json({ error: "Nenhuma alteração informada" }, 400);
-      const { error } = await supabase.from("app_users").update(updates).eq("id", user_id);
-      if (error) return json({ error: error.message }, 400);
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase.from("app_users").update(updates).eq("id", user_id);
+        if (error) return json({ error: error.message }, 400);
+      }
+      // Update praça assignments if provided
+      if (Array.isArray(praca_ids)) {
+        await supabase.from("user_pracas").delete().eq("user_id", user_id);
+        if (praca_ids.length > 0) {
+          const rows = praca_ids.map((pid: string) => ({ user_id, praca_id: pid }));
+          await supabase.from("user_pracas").insert(rows);
+        }
+      }
       return json({ success: true });
     }
 

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { Users, Shield, ShieldCheck, Eye, UserPlus, Ban, Trash2, LogOut as LogOutIcon, ArrowLeft, RefreshCw, Wifi, Pencil, X, Check } from "lucide-react";
+import { Users, Shield, ShieldCheck, Eye, UserPlus, Ban, Trash2, LogOut as LogOutIcon, ArrowLeft, RefreshCw, Wifi, Pencil, X, Check, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 const HistoryViewer = lazy(() => import("@/components/HistoryViewer"));
@@ -22,6 +23,17 @@ interface AppUser {
 interface ActiveSession {
   username: string;
   created_at: string;
+}
+
+interface Praca {
+  id: string;
+  name: string;
+  state: string;
+}
+
+interface UserPraca {
+  user_id: string;
+  praca_id: string;
 }
 
 const FUNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-users`;
@@ -47,10 +59,41 @@ const roleBadge = (role: string) => {
   return <Badge variant="outline" className={m.className}>{m.label}</Badge>;
 };
 
+function PracaCheckboxes({ pracas, selected, onChange }: {
+  pracas: Praca[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  if (pracas.length === 0) return <p className="text-[11px] text-muted-foreground">Nenhuma praça cadastrada</p>;
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-foreground flex items-center gap-1">
+        <MapPin className="h-3 w-3" /> Praças visíveis
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {pracas.map((p) => (
+          <label key={p.id} className="flex items-center gap-1.5 text-sm cursor-pointer bg-secondary/40 rounded px-2 py-1 hover:bg-secondary/60 transition-colors">
+            <Checkbox
+              checked={selected.includes(p.id)}
+              onCheckedChange={(checked) => {
+                onChange(checked ? [...selected, p.id] : selected.filter(id => id !== p.id));
+              }}
+            />
+            <span className="text-foreground">{p.name}</span>
+            {p.state && <span className="text-muted-foreground text-xs">/{p.state.toUpperCase()}</span>}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
+  const [pracas, setPracas] = useState<Praca[]>([]);
+  const [userPracas, setUserPracas] = useState<UserPraca[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New user form
@@ -58,6 +101,7 @@ export default function AdminPanel() {
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newRole, setNewRole] = useState("viewer");
+  const [newPracaIds, setNewPracaIds] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
 
   // Edit state
@@ -65,6 +109,7 @@ export default function AdminPanel() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editRole, setEditRole] = useState("viewer");
+  const [editPracaIds, setEditPracaIds] = useState<string[]>([]);
 
   const userRole = sessionStorage.getItem("auth_role");
 
@@ -73,24 +118,26 @@ export default function AdminPanel() {
     const data = await callApi({ action: "list" });
     if (data.users) setUsers(data.users);
     if (data.sessions) setSessions(data.sessions);
+    if (data.pracas) setPracas(data.pracas);
+    if (data.user_pracas) setUserPracas(data.user_pracas);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (userRole !== "admin") {
-      navigate("/");
-      return;
-    }
+    if (userRole !== "admin") { navigate("/"); return; }
     fetchUsers();
   }, [userRole, navigate, fetchUsers]);
 
   const isOnline = (username: string) => sessions.some((s) => s.username === username);
 
+  const getUserPracaIds = (userId: string) => userPracas.filter(up => up.user_id === userId).map(up => up.praca_id);
+  const getPracaNames = (userId: string) => {
+    const ids = getUserPracaIds(userId);
+    return pracas.filter(p => ids.includes(p.id)).map(p => `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}`);
+  };
+
   const handleAdd = async () => {
-    if (!newUsername.trim() || !newPassword.trim()) {
-      toast.error("Usuário e senha são obrigatórios");
-      return;
-    }
+    if (!newUsername.trim() || !newPassword.trim()) { toast.error("Usuário e senha são obrigatórios"); return; }
     setAdding(true);
     const res = await callApi({
       action: "add",
@@ -98,15 +145,12 @@ export default function AdminPanel() {
       password: newPassword.trim(),
       display_name: newDisplayName.trim() || newUsername.trim(),
       role: newRole,
+      praca_ids: newPracaIds,
     });
-    if (res.error) {
-      toast.error(res.error);
-    } else {
+    if (res.error) toast.error(res.error);
+    else {
       toast.success("Usuário criado!");
-      setNewUsername("");
-      setNewPassword("");
-      setNewDisplayName("");
-      setNewRole("viewer");
+      setNewUsername(""); setNewPassword(""); setNewDisplayName(""); setNewRole("viewer"); setNewPracaIds([]);
       fetchUsers();
     }
     setAdding(false);
@@ -115,29 +159,20 @@ export default function AdminPanel() {
   const handleToggleBlock = async (user: AppUser) => {
     const res = await callApi({ action: "toggle_block", user_id: user.id, blocked: !user.blocked });
     if (res.error) toast.error(res.error);
-    else {
-      toast.success(user.blocked ? `${user.display_name} desbloqueado` : `${user.display_name} bloqueado`);
-      fetchUsers();
-    }
+    else { toast.success(user.blocked ? `${user.display_name} desbloqueado` : `${user.display_name} bloqueado`); fetchUsers(); }
   };
 
   const handleKick = async (username: string) => {
     const res = await callApi({ action: "kick", username });
     if (res.error) toast.error(res.error);
-    else {
-      toast.success("Sessão encerrada");
-      fetchUsers();
-    }
+    else { toast.success("Sessão encerrada"); fetchUsers(); }
   };
 
   const handleDelete = async (user: AppUser) => {
     if (!confirm(`Excluir o usuário "${user.display_name}"? Esta ação não pode ser desfeita.`)) return;
     const res = await callApi({ action: "delete", user_id: user.id });
     if (res.error) toast.error(res.error);
-    else {
-      toast.success("Usuário excluído");
-      fetchUsers();
-    }
+    else { toast.success("Usuário excluído"); fetchUsers(); }
   };
 
   const startEdit = (user: AppUser) => {
@@ -145,6 +180,7 @@ export default function AdminPanel() {
     setEditDisplayName(user.display_name || "");
     setEditPassword("");
     setEditRole(user.role);
+    setEditPracaIds(getUserPracaIds(user.id));
   };
 
   const cancelEdit = () => setEditingId(null);
@@ -156,13 +192,10 @@ export default function AdminPanel() {
       display_name: editDisplayName.trim(),
       password: editPassword.trim() || undefined,
       role: editRole,
+      praca_ids: editPracaIds,
     });
     if (res.error) toast.error(res.error);
-    else {
-      toast.success("Usuário atualizado!");
-      setEditingId(null);
-      fetchUsers();
-    }
+    else { toast.success("Usuário atualizado!"); setEditingId(null); fetchUsers(); }
   };
 
   if (userRole !== "admin") return null;
@@ -234,15 +267,16 @@ export default function AdminPanel() {
             <Input placeholder="Senha *" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
             <Input placeholder="Nome de exibição" value={newDisplayName} onChange={(e) => setNewDisplayName(e.target.value)} />
             <Select value={newRole} onValueChange={setNewRole}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="editor">Editor</SelectItem>
                 <SelectItem value="viewer">Viewer</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="mt-3">
+            <PracaCheckboxes pracas={pracas} selected={newPracaIds} onChange={setNewPracaIds} />
           </div>
           <Button className="mt-3" onClick={handleAdd} disabled={adding}>
             {adding ? "Criando..." : "Criar Usuário"}
@@ -262,15 +296,12 @@ export default function AdminPanel() {
               {users.map((u) => (
                 <div key={u.id} className={`rounded-lg px-3 py-2.5 border ${u.blocked ? "border-destructive/30 bg-destructive/5" : "border-border bg-secondary/30"}`}>
                   {editingId === u.id ? (
-                    /* Edit mode */
                     <div className="space-y-2">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <Input placeholder="Nome de exibição" value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="text-sm h-8" />
                         <Input placeholder="Nova senha (vazio = manter)" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} className="text-sm h-8" />
                         <Select value={editRole} onValueChange={setEditRole}>
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="editor">Editor</SelectItem>
@@ -278,6 +309,7 @@ export default function AdminPanel() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <PracaCheckboxes pracas={pracas} selected={editPracaIds} onChange={setEditPracaIds} />
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-muted-foreground mr-auto">@{u.username}</span>
                         <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={cancelEdit}>
@@ -289,17 +321,24 @@ export default function AdminPanel() {
                       </div>
                     </div>
                   ) : (
-                    /* View mode */
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${isOnline(u.username) ? "bg-primary animate-pulse" : "bg-muted-foreground/30"}`} />
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium text-foreground truncate">{u.display_name || u.username}</span>
                             {roleBadge(u.role)}
                             {u.blocked && <Badge variant="destructive" className="text-[10px]">Bloqueado</Badge>}
                           </div>
-                          <span className="text-[11px] text-muted-foreground">@{u.username}</span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[11px] text-muted-foreground">@{u.username}</span>
+                            {getPracaNames(u.id).length > 0 && (
+                              <span className="text-[11px] text-primary/80 flex items-center gap-0.5">
+                                <MapPin className="h-2.5 w-2.5" />
+                                {getPracaNames(u.id).join(", ")}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
