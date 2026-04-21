@@ -231,6 +231,25 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
                         </div>
                       </div>
                     )}
+                    {(log.ip || log.user_agent) && (
+                      <div className="flex items-start gap-1.5 pt-1 border-t border-border/30">
+                        <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          {log.ip && (
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="font-semibold uppercase">IP:</span>{" "}
+                              <span className="font-mono text-foreground/70">{log.ip}</span>
+                            </p>
+                          )}
+                          {log.user_agent && (
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="font-semibold uppercase">Navegador:</span>{" "}
+                              <span className="font-mono text-foreground/70 break-all">{log.user_agent}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
