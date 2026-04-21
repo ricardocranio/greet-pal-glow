@@ -1,0 +1,1 @@
+UPDATE stations SET stream_url = 'http://radio.saopaulo01.com.br:8334' WHERE id = 'radioolinda';
