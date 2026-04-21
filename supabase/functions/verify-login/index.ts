@@ -16,10 +16,18 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Capture client info for audit logs
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || req.headers.get("x-real-ip")
+    || req.headers.get("cf-connecting-ip")
+    || "desconhecido";
+  const userAgent = req.headers.get("user-agent") || "desconhecido";
+
   async function logEvent(event_type: string, source: string, message: string, username?: string, metadata?: Record<string, unknown>) {
     try {
       await supabase.from("system_events").insert({
-        event_type, source, message, username: username || null, metadata: metadata || {},
+        event_type, source, message, username: username || null,
+        metadata: { ...metadata, ip: clientIp, user_agent: userAgent },
       });
     } catch (e) {
       console.error("Failed to log event:", e);
