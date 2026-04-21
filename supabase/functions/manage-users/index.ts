@@ -39,6 +39,8 @@ serve(async (req) => {
       });
     }
 
+    // ==================== USER ACTIONS ====================
+
     // LIST users
     if (action === "list") {
       const { data: users } = await supabase
@@ -96,7 +98,6 @@ serve(async (req) => {
         });
       }
 
-      // If blocking, also remove their active session
       if (blocked) {
         const { data: user } = await supabase
           .from("app_users")
@@ -113,7 +114,7 @@ serve(async (req) => {
       });
     }
 
-    // KICK (force logout)
+    // KICK
     if (action === "kick") {
       const { username } = body;
       await supabase.from("active_sessions").delete().eq("username", username);
@@ -161,6 +162,110 @@ serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ==================== STATION ACTIONS ====================
+
+    // LIST stations
+    if (action === "list_stations") {
+      const { data: stationsList, error } = await supabase
+        .from("stations")
+        .select("*")
+        .order("display_order", { ascending: true });
+
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ stations: stationsList }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ADD station
+    if (action === "add_station") {
+      const { id: stationId, name, frequency, stream_url, logo_url, category, display_order } = body;
+      if (!stationId || !name) {
+        return new Response(JSON.stringify({ error: "ID e nome são obrigatórios" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const validCategories = ["commercial", "religious", "state"];
+      const { error } = await supabase.from("stations").insert({
+        id: stationId.trim().toLowerCase().replace(/\s+/g, ''),
+        name: name.trim(),
+        frequency: (frequency || "").trim(),
+        stream_url: (stream_url || "").trim(),
+        logo_url: (logo_url || "").trim(),
+        category: validCategories.includes(category) ? category : "commercial",
+        display_order: display_order || 100,
+        active: true,
+      });
+
+      if (error) {
+        const msg = error.code === "23505" ? "Emissora com este ID já existe" : error.message;
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // EDIT station
+    if (action === "edit_station") {
+      const { station_id, name, frequency, stream_url, logo_url, category, display_order, active } = body;
+      if (!station_id) {
+        return new Response(JSON.stringify({ error: "ID da emissora obrigatório" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (name !== undefined) updates.name = name.trim();
+      if (frequency !== undefined) updates.frequency = frequency.trim();
+      if (stream_url !== undefined) updates.stream_url = stream_url.trim();
+      if (logo_url !== undefined) updates.logo_url = logo_url.trim();
+      if (category !== undefined && ["commercial", "religious", "state"].includes(category)) updates.category = category;
+      if (display_order !== undefined) updates.display_order = display_order;
+      if (active !== undefined) updates.active = active;
+
+      const { error } = await supabase.from("stations").update(updates).eq("id", station_id);
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // DELETE station
+    if (action === "delete_station") {
+      const { station_id } = body;
+      if (!station_id) {
+        return new Response(JSON.stringify({ error: "ID da emissora obrigatório" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error } = await supabase.from("stations").delete().eq("id", station_id);
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
