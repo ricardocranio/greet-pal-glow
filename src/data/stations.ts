@@ -20,7 +20,6 @@ export interface Station {
   instagramHandle?: string;
   instagramFollowers?: number;
   category: StationCategory;
-  pracaId?: string;
 }
 
 // DB row shape from the stations table
@@ -33,7 +32,6 @@ export interface DbStation {
   category: string;
   display_order: number;
   active: boolean;
-  praca_id: string;
 }
 
 /** Convert DB row to app Station */
@@ -45,7 +43,6 @@ export function dbToStation(row: DbStation): Station {
     streamUrl: row.stream_url,
     logoUrl: row.logo_url,
     category: (row.category as StationCategory) || 'commercial',
-    pracaId: row.praca_id,
     social: {},
   };
 }
@@ -57,14 +54,12 @@ export const fallbackStations: Station[] = [
     streamUrl: "http://cast42.sitehosting.com.br:8010",
     logoUrl: "https://98fmnatal.com.br/site-core/views/18359912b2/inc/site/assets/images/new-logo2.png",
     category: 'commercial', social: {},
-    pracaId: 'a0000000-0000-0000-0000-000000000001',
   },
   {
     id: "97fm", name: "97 FM NATAL", frequency: "97,9 MHz",
     streamUrl: "https://azevedo.jmvstream.com/stream",
     logoUrl: "https://97fmnatal.com.br/images/logo.png",
     category: 'commercial', social: {},
-    pracaId: 'a0000000-0000-0000-0000-000000000001',
   },
 ];
 

@@ -197,22 +197,9 @@ async function persistResults(statuses: StreamResult[]) {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Sao_Paulo',
-      hour: 'numeric',
-      minute: 'numeric',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour12: false
-    });
-    const parts = formatter.formatToParts(now);
-    const v: Record<string, string> = {};
-    parts.forEach(p => v[p.type] = p.value);
-    
-    const hour = parseInt(v.hour);
-    const minute = parseInt(v.minute);
-    const brasiliaDateStr = `${v.year}-${v.month.padStart(2, '0')}-${v.day.padStart(2, '0')}`;
+    const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+    const hour = brasiliaTime.getHours();
+    const minute = brasiliaTime.getMinutes();
 
     // 1. Upsert current_status (1 row per station) — drives Realtime updates
     const currentRows = statuses.map(s => ({
@@ -246,7 +233,7 @@ async function persistResults(statuses: StreamResult[]) {
     // 3. Trigger daily averages near end of day
     if (hour === 23 && minute >= 55) {
       try {
-        const brasiliaStr = brasiliaDateStr;
+        const brasiliaStr = brasiliaTime.toISOString().split('T')[0];
         await fetch(`${supabaseUrl}/functions/v1/calculate-daily-averages?date=${brasiliaStr}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
@@ -288,8 +275,14 @@ Deno.serve(async (req) => {
       return { id: STREAMS[i].id, online: false, listeners: 0, peakListeners: 0, title: '', bitrate: 0, error: 'timeout' };
     });
 
-    // Background persistence
-    await persistResults(statuses);
+    // Background persistence (doesn't delay response)
+    // @ts-ignore - EdgeRuntime is available in Deno Deploy
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(persistResults(statuses));
+    } else {
+      persistResults(statuses);
+    }
 
     return new Response(JSON.stringify({ statuses, timestamp: new Date().toISOString() }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },

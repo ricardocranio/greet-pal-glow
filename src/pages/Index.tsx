@@ -21,18 +21,19 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-function LocalClock() {
+function BrasiliaClock() {
   const [time, setTime] = useState("");
 
   useEffect(() => {
     const update = () => {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString("pt-BR", {
+      const brasilia = now.toLocaleTimeString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
       });
-      setTime(timeStr);
+      setTime(brasilia);
     };
     update();
     const interval = setInterval(update, 1000);
@@ -43,7 +44,7 @@ function LocalClock() {
     <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
       <Clock className="h-3.5 w-3.5 text-primary" />
       <span className="font-mono font-medium text-foreground tabular-nums whitespace-nowrap">{time}</span>
-      <span className="text-[10px] uppercase">Local</span>
+      <span className="text-[10px] uppercase">Brasília</span>
     </div>
   );
 }
@@ -100,9 +101,8 @@ function IndexContent() {
     simulatorEnabled, setSimulatorEnabled,
     simulatorFactor, setSimulatorFactor,
     activePracaId, setActivePracaId,
-    loading: monitorLoading,
   } = useStationMonitor();
-  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
@@ -117,36 +117,15 @@ function IndexContent() {
   }, []);
 
   const activePracaName = useMemo(() => {
-    // If no activePracaId yet, try to use the first one from userPracas
-    const currentId = activePracaId || (userPracas.length > 0 ? userPracas[0].id : null);
-    const p = userPracas.find(p => p.id === currentId);
-    return p ? `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}` : "Geral";
+    const p = userPracas.find(p => p.id === activePracaId);
+    return p ? `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}` : "Rádios";
   }, [userPracas, activePracaId]);
 
   const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
-  const [lastSyncTime, setLastSyncTime] = useState<string>(() => new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-
-  useEffect(() => {
-    // Update sync time whenever statuses are updated
-    setLastSyncTime(new Date().toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }));
-  }, [statuses]);
-
-  const nextBackupStr = useMemo(() => {
-    const now = new Date();
-    const nextMonday = new Date();
-    nextMonday.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7 || 7));
-    nextMonday.setHours(3, 0, 0, 0);
-    if (nextMonday < now) nextMonday.setDate(nextMonday.getDate() + 7);
-    return nextMonday.toLocaleString("pt-BR", { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-  }, []);
 
   const handleReport = useCallback((status: StationStatus) => {
-    setSelectedStationId(status.station.id);
+    setSelectedStation(status);
     setDialogOpen(true);
   }, []);
 
@@ -221,7 +200,7 @@ function IndexContent() {
             <span className="text-xs text-muted-foreground">
               Bem-vindo, <span className="text-foreground font-semibold">{authUsername}</span>
             </span>
-            <LocalClock />
+            <BrasiliaClock />
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Activity className="h-4 w-4 text-online" />
@@ -380,99 +359,44 @@ function IndexContent() {
       </header>
 
       <main className="container max-w-6xl mx-auto px-4 py-8">
-        {monitorLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Radio className="h-12 w-12 text-primary animate-pulse" />
-            <p className="text-sm text-muted-foreground font-display">Carregando dados das emissoras…</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(() => {
+                const rankMap = new Map<string, number>();
+                [...statuses]
+                  .filter((s) => s.online)
+                  .sort((a, b) => b.listeners - a.listeners)
+                  .forEach((s, i) => rankMap.set(s.station.id, i + 1));
+                const ordered = [...statuses].sort((a, b) => {
+                  const ra = rankMap.get(a.station.id) ?? Infinity;
+                  const rb = rankMap.get(b.station.id) ?? Infinity;
+                  return ra - rb;
+                });
+                return ordered.map((status) => (
+                  <StationCard
+                    key={status.station.id}
+                    status={status}
+                    rank={rankMap.get(status.station.id)}
+                    onReport={() => handleReport(status)}
+                  />
+                ));
+              })()}
+            </div>
           </div>
-        ) : statuses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-              <Radio className="h-8 w-8 text-muted-foreground opacity-50" />
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <AudienceRanking statuses={statuses} />
             </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Nenhuma emissora visível</p>
-              <p className="text-xs text-muted-foreground mt-1">Selecione uma praça ou ajuste os filtros para ver as estações.</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={refresh}>
-              <RefreshCw className="h-3 w-3 mr-1.5" /> Tentar novamente
-            </Button>
           </div>
-        ) : (
-          <>
-            {/* Status Dashboard */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
-                <div className="h-10 w-10 rounded-full bg-online/10 flex items-center justify-center shrink-0">
-                  <Activity className="h-5 w-5 text-online" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Status Geral</p>
-                  <p className="text-sm font-bold text-foreground">Operando Normalmente</p>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <RefreshCw className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Sincronização</p>
-                  <p className="text-sm font-bold text-foreground tabular-nums">{lastSyncTime}</p>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4 shadow-sm">
-                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-                  <Download className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Próximo Backup</p>
-                  <p className="text-sm font-bold text-foreground tabular-nums capitalize">{nextBackupStr}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(() => {
-                    const rankMap = new Map<string, number>();
-                    [...statuses]
-                      .filter((s) => s.online)
-                      .sort((a, b) => b.listeners - a.listeners)
-                      .forEach((s, i) => rankMap.set(s.station.id, i + 1));
-                    const ordered = [...statuses].sort((a, b) => {
-                      const ra = rankMap.get(a.station.id) ?? Infinity;
-                      const rb = rankMap.get(b.station.id) ?? Infinity;
-                      return ra - rb;
-                    });
-                    return ordered.map((status) => (
-                      <StationCard
-                        key={status.station.id}
-                        status={status}
-                        rank={rankMap.get(status.station.id)}
-                        onReport={() => handleReport(status)}
-                      />
-                    ));
-                  })()}
-                </div>
-              </div>
-              <div className="lg:col-span-1">
-                <div className="sticky top-24">
-                  <AudienceRanking statuses={statuses} />
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        </div>
       </main>
 
       <NowPlayingBar />
       {dialogOpen && (
         <Suspense fallback={null}>
           <ReportDialog
-            status={statuses.find(s => s.station.id === selectedStationId) || null}
+            status={selectedStation}
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             visibleStations={visibleStations}

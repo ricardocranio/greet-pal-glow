@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { getBrasiliaHour } from "@/lib/brasiliaTime";
 import { Station, DbStation, dbToStation, fallbackStations, getDefaultVisibleStations } from "@/data/stations";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -39,31 +38,21 @@ export function useStationMonitor() {
   const [simulatorFactor, setSimulatorFactor] = useState(75);
 
   // Praça filter
-  const [activePracaId, setActivePracaId] = useState<string | null>(() => {
-    const pracasJson = sessionStorage.getItem("auth_pracas");
-    if (pracasJson) {
-      const userPracas = JSON.parse(pracasJson);
-      if (userPracas.length > 0) return userPracas[0].id;
-    }
-    return null;
-  });
+  const [activePracaId, setActivePracaId] = useState<string | null>(null);
 
   // 1. Load stations from DB (filtered by praça if viewer)
   useEffect(() => {
     let cancelled = false;
     async function loadStations() {
       try {
-        setStationsLoaded(false);
         // Get user praças from session
         const pracasJson = sessionStorage.getItem("auth_pracas");
         const userPracas: { id: string; name: string; state: string }[] = pracasJson ? JSON.parse(pracasJson) : [];
         const role = sessionStorage.getItem("auth_role") || "viewer";
 
-        // Set initial active praça if not set
-        let currentActiveId = activePracaId;
-        if (userPracas.length > 0 && !currentActiveId) {
-          currentActiveId = userPracas[0].id;
-          setActivePracaId(currentActiveId);
+        // Set initial active praça
+        if (userPracas.length > 0 && !activePracaId) {
+          setActivePracaId(userPracas[0].id);
         }
 
         let query = supabase
@@ -72,14 +61,10 @@ export function useStationMonitor() {
           .eq("active", true)
           .order("display_order", { ascending: true });
 
-        // Strictly filter by praça. 
-        const filterPracaId = currentActiveId || (userPracas.length > 0 ? userPracas[0].id : null);
-        
+        // Filter by praça for non-admin users, or by active praça for admins
+        const filterPracaId = activePracaId || (userPracas.length > 0 ? userPracas[0].id : null);
         if (filterPracaId) {
           query = query.eq("praca_id", filterPracaId);
-        } else if (role !== "admin") {
-          // If not admin and no praça, force a filter that returns nothing
-          query = query.eq("praca_id", "00000000-0000-0000-0000-000000000000");
         }
 
         const { data, error } = await query;
@@ -98,7 +83,6 @@ export function useStationMonitor() {
         const loaded = (data as DbStation[]).map(dbToStation);
         if (!cancelled) {
           setStations(loaded);
-          // Always reset visible stations when market/stations change
           setVisibleStations(new Set(getDefaultVisibleStations(loaded)));
           setStatuses(loaded.map(s => makeEmptyStatus(s)));
           setStationsLoaded(true);
@@ -122,9 +106,7 @@ export function useStationMonitor() {
       prev.map((s) => {
         if (s.station.id !== real.id) return s;
         const now = new Date();
-        const currentHour = getBrasiliaHour(now);
-        const currentMinute = now.getMinutes();
-        const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+        const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         const newHistory = [...s.history, { time: timeStr, listeners: real.listeners }].slice(-24);
         const newPeak = real.listeners > s.peakListeners ? real.listeners : s.peakListeners;
         const newPeakTime = real.listeners > s.peakListeners ? timeStr : s.peakTime;
@@ -199,14 +181,11 @@ export function useStationMonitor() {
   // Filtered statuses
   const filteredStatuses = useMemo(
     () => statuses.filter(s => {
-      // Market filter (redundant but safe)
-      if (activePracaId && s.station.pracaId && s.station.pracaId !== activePracaId) return false;
-      
       if (s.station.category === 'religious' && !showReligious) return false;
       if (s.station.category === 'state' && !showState) return false;
       return visibleStations.has(s.station.id);
     }),
-    [statuses, showReligious, showState, visibleStations, activePracaId]
+    [statuses, showReligious, showState, visibleStations]
   );
 
   // Apply simulator
@@ -266,7 +245,6 @@ export function useStationMonitor() {
     setSimulatorFactor,
     activePracaId,
     setActivePracaId,
-    loading: !stationsLoaded,
   };
 }
 

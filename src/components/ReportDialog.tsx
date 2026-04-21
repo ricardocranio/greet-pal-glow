@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatBrasiliaDateInput, getBrasiliaDay, getBrasiliaHour } from "@/lib/brasiliaTime";
+import { formatBrasiliaDateInput, getBrasiliaDay } from "@/lib/brasiliaTime";
 import { useStations } from "@/hooks/useStations";
 import { toPng } from "html-to-image";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -115,14 +115,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
   const [blendDate, setBlendDate] = useState<Date>(() => normalizeCalendarDate(new Date()) ?? new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => normalizeCalendarDate(new Date()));
-  const isToday = !selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput();
   // Hour-range filter (00..23). End is inclusive — covers minute 59 of that hour.
   const [hourStart, setHourStart] = useState<number>(0);
   const [hourEnd, setHourEnd] = useState<number>(23);
@@ -134,15 +132,6 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [isLoadingCompare, setIsLoadingCompare] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
-
-  // Auto-refresh timer for today's data
-  useEffect(() => {
-    if (!open) return;
-    const interval = setInterval(() => {
-      setRefreshTrigger(prev => prev + 1);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [open]);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Sync blend visible with parent visible
@@ -371,7 +360,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       if (!cancelled) setIsLoadingBlend(false);
     });
     return () => { cancelled = true; };
-  }, [open, viewMode, blendView, blendDate, refreshTrigger]);
+  }, [open, viewMode, blendView, blendDate]);
 
   // FAST LOAD: only today's raw snapshots (small set) for realtime chart + stats.
   // Heavy aggregations (hourly/daily/monthly across 90 days) are done server-side via RPCs.
@@ -382,14 +371,12 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     const cutoffIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const nowIso = new Date().toISOString();
 
-    // Reset only on first load or when station changes, NOT on auto-refresh
-    if (refreshTrigger === 0) {
-      setAllSnapshots([]);
-      setHourlyData(status.history);
-      setDailyData([]);
-      setMonthlyData([]);
-      setIsLoadingMain(true);
-    }
+    // Reset to avoid showing stale data from a previously opened station
+    setAllSnapshots([]);
+    setHourlyData(status.history);
+    setDailyData([]);
+    setMonthlyData([]);
+    setIsLoadingMain(true);
 
     const tasks = [
       // 1) Today's raw points only (for realtime chart). Small payload.
@@ -418,38 +405,36 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         })));
       })(),
 
-      // 3) Day-of-week averages (90 days) - only fetch on first load
-      ...(refreshTrigger === 0 ? [
-        (async () => {
-          const { data } = await supabase.rpc("station_dow_avg", {
-            p_station_id: stationId,
-            p_from: cutoffIso,
-            p_to: nowIso,
-          });
-          if (cancelled) return;
-          const map = new Map<number, number>();
-          (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
-          setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
-            time: DAY_NAMES[d],
-            listeners: map.get(d) ?? 0,
-          })));
-        })(),
+      // 3) Day-of-week averages (90 days)
+      (async () => {
+        const { data } = await supabase.rpc("station_dow_avg", {
+          p_station_id: stationId,
+          p_from: cutoffIso,
+          p_to: nowIso,
+        });
+        if (cancelled) return;
+        const map = new Map<number, number>();
+        (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
+        setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
+          time: DAY_NAMES[d],
+          listeners: map.get(d) ?? 0,
+        })));
+      })(),
 
-        // 4) Monthly averages (90 days)
-        (async () => {
-          const { data } = await supabase.rpc("station_month_avg", {
-            p_station_id: stationId,
-            p_from: cutoffIso,
-            p_to: nowIso,
-          });
-          if (cancelled) return;
-          const rows = (data ?? []) as { month: string; avg_listeners: number }[];
-          setMonthlyData(rows.map(r => {
-            const mm = parseInt(r.month.split("-")[1], 10);
-            return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
-          }));
-        })(),
-      ] : []),
+      // 4) Monthly averages (90 days)
+      (async () => {
+        const { data } = await supabase.rpc("station_month_avg", {
+          p_station_id: stationId,
+          p_from: cutoffIso,
+          p_to: nowIso,
+        });
+        if (cancelled) return;
+        const rows = (data ?? []) as { month: string; avg_listeners: number }[];
+        setMonthlyData(rows.map(r => {
+          const mm = parseInt(r.month.split("-")[1], 10);
+          return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
+        }));
+      })(),
     ];
 
     Promise.all(tasks).finally(() => {
@@ -457,15 +442,15 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
 
     return () => { cancelled = true; };
-  }, [open, status, refreshTrigger]);
+  }, [open, status]);
 
   // Server-side hourly aggregates for the horario tab (filtered by dow / specific date)
   // Replaces the client-side filtering of allSnapshots that previously required loading 90 days of data.
   const [serverHourlyData, setServerHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
     if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); setIsLoadingHorario(false); return; }
-    const isTodayDia = horarioFilter === "dia" && (!selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput());
-    if (isTodayDia) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
+    const isToday = horarioFilter === "dia" && (!selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput());
+    if (isToday) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
 
     let cancelled = false;
     setIsLoadingHorario(true);
@@ -499,7 +484,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       setIsLoadingHorario(false);
     })();
     return () => { cancelled = true; };
-  }, [open, status, viewMode, horarioFilter, selectedDate, refreshTrigger]);
+  }, [open, status, viewMode, horarioFilter, selectedDate]);
 
   // Server-side peak/min for stats card (replaces scanning 90 days of allSnapshots client-side)
   const [serverPeakMin, setServerPeakMin] = useState<{
@@ -538,7 +523,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       });
     })();
     return () => { cancelled = true; };
-  }, [open, status, viewMode, horarioFilter, selectedDate, refreshTrigger]);
+  }, [open, status, viewMode, horarioFilter, selectedDate]);
 
   // Filtered hourly data: prefer server-aggregated result; fall back to today snapshots / hourlyData
   const filteredHourlyData = useMemo(() => {
@@ -1377,13 +1362,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left text-muted-foreground font-medium py-1.5 pr-1 sm:pr-2 sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm min-w-[100px] sm:min-w-[140px]">Emissora</th>
-                          {Array.from({ length: 24 }, (_, h) => h)
-                            .filter(h => h >= hourStart && h <= hourEnd)
-                            .filter(h => {
-                              const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
-                              return !isToday || h <= getBrasiliaHour();
-                            })
-                            .map(h => (
+                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => (
                             <th key={h} className="text-center text-muted-foreground font-medium py-1.5 px-0.5 sm:px-1 whitespace-nowrap" style={{ minWidth: '30px' }}>
                               {`${String(h).padStart(2, "0")}h`}
                             </th>
@@ -1419,13 +1398,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                                   <span className="text-foreground font-medium text-[8px] sm:text-[10px]">{st.name}</span>
                                 </div>
                               </td>
-                              {Array.from({ length: 24 }, (_, h) => h)
-                                .filter(h => h >= hourStart && h <= hourEnd)
-                                .filter(h => {
-                                  const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
-                                  return !isToday || h <= getBrasiliaHour();
-                                })
-                                .map(h => {
+                              {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const val = row?.[st.id];
                                 return (
@@ -1452,13 +1425,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                               <span className="text-primary font-bold text-[8px] sm:text-[10px]">Média {simulatorEnabled ? 'Fi' : 'Geral'} FM</span>
                             </div>
                           </td>
-                          {Array.from({ length: 24 }, (_, h) => h)
-                            .filter(h => h >= hourStart && h <= hourEnd)
-                            .filter(h => {
-                              const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
-                              return !isToday || h <= getBrasiliaHour();
-                            })
-                            .map(h => {
+                          {Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                             const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                             const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                             const avg = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
@@ -1472,13 +1439,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                           })}
                           <td className="text-center py-1.5 sm:py-2 px-0.5 sm:px-1 font-mono tabular-nums font-bold border-l border-accent/30">
                             {(() => {
-                              const allVals = Array.from({ length: 24 }, (_, h) => h)
-                                .filter(h => h >= hourStart && h <= hourEnd)
-                                .filter(h => {
-                                  const isToday = !blendDate || formatCalendarDateInput(blendDate) === formatBrasiliaDateInput();
-                                  return !isToday || h <= getBrasiliaHour();
-                                })
-                                .map(h => {
+                              const allVals = Array.from({ length: 24 }, (_, h) => h).filter(h => h >= hourStart && h <= hourEnd).map(h => {
                                 const row = displayBlendData.find(r => r.time === `${String(h).padStart(2, "0")}:00`);
                                 const vals = blendStations.map(st => row?.[st.id]).filter((v): v is number => v != null && v > 0);
                                 return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
