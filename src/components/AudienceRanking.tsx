@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Trophy, Clock, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBrasiliaHour } from "@/lib/brasiliaTime";
+import { getBrasiliaHour, formatBrasiliaDateInput } from "@/lib/brasiliaTime";
 
 interface Props {
   statuses: StationStatus[];
@@ -31,7 +31,7 @@ export function AudienceRanking({ statuses }: Props) {
 
   useEffect(() => {
     const now = new Date();
-    const brasiliaStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const brasiliaStr = formatBrasiliaDateInput(now);
     const startOfDay = `${brasiliaStr}T00:00:00-03:00`;
     const endOfDay = `${brasiliaStr}T23:59:59-03:00`;
 
@@ -132,7 +132,8 @@ export function AudienceRanking({ statuses }: Props) {
   const hourlyData = useMemo(() => {
     return statuses.map((s) => {
       const stationSnaps = snapshotsByStation.get(s.station.id) ?? [];
-      const currentHour = getBrasiliaHour();
+      const currentHourRaw = getBrasiliaHour();
+      const currentHour = isNaN(currentHourRaw) ? 0 : Math.max(0, Math.min(23, currentHourRaw));
       const hourData = Array.from({ length: currentHour + 1 }, (_, i) => i).map((h) => {
         const hourSnaps = stationSnaps.filter((snap) => snap.hour === h);
         if (hourSnaps.length === 0) {
@@ -208,7 +209,7 @@ export function AudienceRanking({ statuses }: Props) {
       <div className="flex items-center gap-1.5">
         <span className="text-muted-foreground font-mono text-[10px] w-4">{idx + 1}º</span>
         <img src={station.logoUrl} alt="" className="h-5 w-5 object-contain rounded shrink-0" width={20} height={20} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-        <span className="truncate">{station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}</span>
+        <span className="truncate">{(station.name || "").replace(/ NATAL/gi, "").replace(/DE /gi, "")}</span>
       </div>
     </td>
   );
@@ -270,7 +271,7 @@ export function AudienceRanking({ statuses }: Props) {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-display font-semibold text-foreground truncate">
-                      {s.station.name.replace(/ NATAL/gi, "").replace(/DE /gi, "")}
+                      {(s.station.name || "").replace(/ NATAL/gi, "").replace(/DE /gi, "")}
                     </p>
                     <p className="text-[11px] font-mono text-muted-foreground">{s.station.frequency}</p>
                   </div>

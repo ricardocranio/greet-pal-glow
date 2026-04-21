@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { getBrasiliaHour } from "@/lib/brasiliaTime";
 import { Station, DbStation, dbToStation, fallbackStations, getDefaultVisibleStations } from "@/data/stations";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -121,7 +122,9 @@ export function useStationMonitor() {
       prev.map((s) => {
         if (s.station.id !== real.id) return s;
         const now = new Date();
-        const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const currentHour = getBrasiliaHour(now);
+        const currentMinute = now.getMinutes();
+        const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
         const newHistory = [...s.history, { time: timeStr, listeners: real.listeners }].slice(-24);
         const newPeak = real.listeners > s.peakListeners ? real.listeners : s.peakListeners;
         const newPeakTime = real.listeners > s.peakListeners ? timeStr : s.peakTime;
