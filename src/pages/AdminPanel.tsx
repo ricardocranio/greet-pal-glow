@@ -95,6 +95,7 @@ export default function AdminPanel() {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [pracas, setPracas] = useState<Praca[]>([]);
   const [userPracas, setUserPracas] = useState<UserPraca[]>([]);
+  const [backupLogs, setBackupLogs] = useState<{ timestamp: string; level: string; source: string; message: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New user form
@@ -226,7 +227,14 @@ export default function AdminPanel() {
 
         {/* Station management */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando emissoras…</div>}>
-          <StationManager onPracasChanged={fetchUsers} />
+          <StationManager onPracasChanged={fetchUsers} onBackupLog={(entry) => {
+            setBackupLogs(prev => [{
+              timestamp: new Date().toISOString(),
+              level: "info",
+              source: "Backup",
+              message: `Backup ${entry.format.toUpperCase()} exportado: ${entry.pracas} praças, ${entry.stations} emissoras — por ${sessionStorage.getItem("auth_display") || sessionStorage.getItem("auth_user") || "admin"}`,
+            }, ...prev]);
+          }} />
         </Suspense>
 
         {/* Automatic backups */}
@@ -236,7 +244,7 @@ export default function AdminPanel() {
 
         {/* System logs */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando logs…</div>}>
-          <SystemLogs />
+          <SystemLogs externalLogs={backupLogs} />
         </Suspense>
 
         {/* Connected users */}

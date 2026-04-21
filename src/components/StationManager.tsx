@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface DbStation {
   id: string;
@@ -41,7 +43,7 @@ async function callApi(body: Record<string, unknown>) {
 }
 
 function isValidStreamUrl(url: string): boolean {
-  if (!url.trim()) return true; // allow empty
+  if (!url.trim()) return true;
   try {
     const u = new URL(url.trim());
     return u.protocol === "http:" || u.protocol === "https:";
@@ -58,14 +60,14 @@ function StreamUrlInput({ value, onChange, onTest, className }: {
 }) {
   const valid = isValidStreamUrl(value);
   return (
-    <div className="flex gap-1 items-center">
+    <div className={`flex gap-1 ${className || ""}`}>
       <Input
-        placeholder="URL do Stream (http/https)"
+        placeholder="URL do Stream"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`text-sm h-8 flex-1 ${!valid ? "border-destructive" : ""} ${className || ""}`}
+        className={`text-sm h-8 flex-1 ${!valid && value ? "border-destructive" : ""}`}
       />
-      {onTest && value.trim() && (
+      {onTest && (
         <Button
           type="button"
           size="sm"
@@ -130,7 +132,6 @@ function LogoUpload({ stationId, currentUrl, onUploaded }: {
       toast.error("Imagem deve ter no máximo 2MB");
       return;
     }
-
     setUploading(true);
     try {
       const reader = new FileReader();
@@ -139,14 +140,15 @@ function LogoUpload({ stationId, currentUrl, onUploaded }: {
         const res = await callApi({
           action: "upload_logo",
           station_id: stationId,
-          file_base64: base64,
           file_name: file.name,
+          file_base64: base64,
+          content_type: file.type,
         });
         if (res.error) {
           toast.error(res.error);
-        } else {
-          toast.success("Logo atualizado!");
-          onUploaded(res.logo_url);
+        } else if (res.url) {
+          onUploaded(res.url);
+          toast.success("Logo enviada!");
         }
         setUploading(false);
       };
@@ -183,24 +185,27 @@ function LogoUpload({ stationId, currentUrl, onUploaded }: {
   );
 }
 
-export default function StationManager({ onPracasChanged }: { onPracasChanged?: () => void } = {}) {
+type BackupStep = "idle" | "starting" | "exporting" | "done" | "error";
+
+export default function StationManager({ onPracasChanged, onBackupLog }: { onPracasChanged?: () => void; onBackupLog?: (entry: { format: string; pracas: number; stations: number }) => void } = {}) {
   const [stations, setStations] = useState<DbStation[]>([]);
   const [pracas, setPracas] = useState<Praca[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPraca, setExpandedPraca] = useState<string | null>(null);
 
-  // Praça form
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [backupStep, setBackupStep] = useState<BackupStep>("idle");
+  const [backupFormat, setBackupFormat] = useState<"csv" | "json">("csv");
+
   const [showPracaForm, setShowPracaForm] = useState(false);
   const [newPracaName, setNewPracaName] = useState("");
   const [newPracaState, setNewPracaState] = useState("");
   const [addingPraca, setAddingPraca] = useState(false);
 
-  // Praça edit
   const [editingPracaId, setEditingPracaId] = useState<string | null>(null);
   const [editPracaName, setEditPracaName] = useState("");
   const [editPracaState, setEditPracaState] = useState("");
 
-  // Station form (per praça)
   const [showStationFormFor, setShowStationFormFor] = useState<string | null>(null);
   const [newId, setNewId] = useState("");
   const [newName, setNewName] = useState("");
@@ -211,7 +216,6 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
   const [newOrder, setNewOrder] = useState("100");
   const [addingStation, setAddingStation] = useState(false);
 
-  // Edit
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editFrequency, setEditFrequency] = useState("");
@@ -234,7 +238,6 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ========== PRAÇA HANDLERS ==========
   const handleAddPraca = async () => {
     if (!newPracaName.trim()) { toast.error("Nome obrigatório"); return; }
     setAddingPraca(true);
@@ -269,7 +272,6 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
     else { toast.success("Praça atualizada!"); setEditingPracaId(null); fetchAll(); }
   };
 
-  // ========== STATION HANDLERS ==========
   const resetStationForm = () => {
     setNewId(""); setNewName(""); setNewFrequency(""); setNewStreamUrl("");
     setNewLogoUrl(""); setNewCategory("commercial"); setNewOrder("100");
@@ -338,45 +340,68 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
     return <Badge variant="outline" className={m.className}>{m.label}</Badge>;
   };
 
-  // ========== BACKUP CSV ==========
-  const exportBackupCSV = useCallback(() => {
-    if (stations.length === 0 && pracas.length === 0) { toast.error("Nada para exportar"); return; }
-    const now = new Date();
-    const ts = now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }).replace(/[/:]/g, "-").replace(/ /g, "_");
+  const runBackup = useCallback(async (format: "csv" | "json") => {
+    setBackupFormat(format);
+    setBackupOpen(true);
+    setBackupStep("starting");
 
-    // Build CSV rows
-    const lines: string[] = [];
-    lines.push("Praça,UF,Emissora ID,Emissora Nome,Frequência,Stream URL,Categoria,Ordem,Ativa,Criado por,Criado em");
+    await new Promise(r => setTimeout(r, 400));
+    setBackupStep("exporting");
 
-    pracas.forEach(p => {
-      const pStations = stations.filter(s => s.praca_id === p.id);
-      if (pStations.length === 0) {
-        lines.push(`"${p.name}","${p.state}","","(sem emissoras)","","","","","","${p.created_by_display}","${new Date(p.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}"`);
+    try {
+      const now = new Date();
+      const ts = now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }).replace(/[/:]/g, "-").replace(/ /g, "_");
+
+      if (format === "json") {
+        const payload = {
+          exportedAt: now.toISOString(),
+          exportedBy: sessionStorage.getItem("auth_display") || sessionStorage.getItem("auth_user") || "admin",
+          pracas: pracas.map(p => ({
+            ...p,
+            stations: stations.filter(s => s.praca_id === p.id),
+          })),
+          orphanStations: stations.filter(s => !s.praca_id),
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `backup_pracas_emissoras_${ts}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
       } else {
-        pStations.forEach(s => {
-          lines.push(`"${p.name}","${p.state}","${s.id}","${s.name}","${s.frequency}","${s.stream_url}","${s.category}","${s.display_order}","${s.active ? "Sim" : "Não"}","${p.created_by_display}","${new Date(p.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}"`);
+        const lines: string[] = [];
+        lines.push("Praça,UF,Emissora ID,Emissora Nome,Frequência,Stream URL,Categoria,Ordem,Ativa,Criado por,Criado em");
+        pracas.forEach(p => {
+          const pStations = stations.filter(s => s.praca_id === p.id);
+          if (pStations.length === 0) {
+            lines.push(`"${p.name}","${p.state}","","(sem emissoras)","","","","","","${p.created_by_display}","${new Date(p.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}"`);
+          } else {
+            pStations.forEach(s => {
+              lines.push(`"${p.name}","${p.state}","${s.id}","${s.name}","${s.frequency}","${s.stream_url}","${s.category}","${s.display_order}","${s.active ? "Sim" : "Não"}","${p.created_by_display}","${new Date(p.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}"`);
+            });
+          }
         });
+        stations.filter(s => !s.praca_id).forEach(s => {
+          lines.push(`"(sem praça)","","${s.id}","${s.name}","${s.frequency}","${s.stream_url}","${s.category}","${s.display_order}","${s.active ? "Sim" : "Não"}","",""`);
+        });
+        const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `backup_pracas_emissoras_${ts}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
       }
-    });
 
-    // Orphan stations
-    const orphans = stations.filter(s => !s.praca_id);
-    orphans.forEach(s => {
-      lines.push(`"(sem praça)","","${s.id}","${s.name}","${s.frequency}","${s.stream_url}","${s.category}","${s.display_order}","${s.active ? "Sim" : "Não"}","",""`);
-    });
+      await new Promise(r => setTimeout(r, 300));
+      setBackupStep("done");
+      onBackupLog?.({ format, pracas: pracas.length, stations: stations.length });
+    } catch {
+      setBackupStep("error");
+    }
+  }, [stations, pracas, onBackupLog]);
 
-    const csv = lines.join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `backup_pracas_emissoras_${ts}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Backup CSV exportado!");
-  }, [stations, pracas]);
-
-  // Group stations by praca_id
   const stationsByPraca = (pracaId: string) => stations.filter(s => s.praca_id === pracaId);
   const orphanStations = stations.filter(s => !s.praca_id);
 
@@ -457,23 +482,20 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
         <Input placeholder="Nome da Rádio *" value={newName} onChange={(e) => setNewName(e.target.value)} className="text-sm h-8" />
         <Input placeholder="Frequência (ex: 99,9 MHz)" value={newFrequency} onChange={(e) => setNewFrequency(e.target.value)} className="text-sm h-8" />
         <StreamUrlInput value={newStreamUrl} onChange={setNewStreamUrl} onTest={() => testStream(newStreamUrl)} />
-        <Input placeholder="URL do Logo (opcional)" value={newLogoUrl} onChange={(e) => setNewLogoUrl(e.target.value)} className="text-sm h-8" />
-        <div className="flex gap-2">
-          <Select value={newCategory} onValueChange={setNewCategory}>
-            <SelectTrigger className="h-8 text-sm flex-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="commercial">Comercial</SelectItem>
-              <SelectItem value="religious">Religiosa</SelectItem>
-              <SelectItem value="state">Estatal</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input placeholder="Ordem" value={newOrder} onChange={(e) => setNewOrder(e.target.value)} className="text-sm h-8 w-20" type="number" />
-        </div>
+        <Input placeholder="URL Logo (ou use upload após criar)" value={newLogoUrl} onChange={(e) => setNewLogoUrl(e.target.value)} className="text-sm h-8" />
+        <Select value={newCategory} onValueChange={setNewCategory}>
+          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="commercial">Comercial</SelectItem>
+            <SelectItem value="religious">Religiosa</SelectItem>
+            <SelectItem value="state">Estatal</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input placeholder="Ordem (ex: 1)" value={newOrder} onChange={(e) => setNewOrder(e.target.value)} className="text-sm h-8" type="number" />
       </div>
-      <p className="text-[11px] text-muted-foreground">💡 Após criar, use "Editar" para fazer upload da logomarca</p>
       <div className="flex gap-2">
         <Button size="sm" className="h-7 text-xs" onClick={() => handleAddStation(pracaId)} disabled={addingStation}>
-          {addingStation ? "Adicionando..." : "Adicionar Emissora"}
+          {addingStation ? "Adicionando..." : "Adicionar"}
         </Button>
         <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={resetStationForm}>
           Cancelar
@@ -488,18 +510,67 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
     </div>
   );
 
+  const stepLabel = (step: BackupStep) => {
+    if (step === "starting") return "Iniciando backup...";
+    if (step === "exporting") return `Exportando ${backupFormat.toUpperCase()} (${pracas.length} praças, ${stations.length} emissoras)...`;
+    if (step === "done") return "✅ Backup concluído!";
+    if (step === "error") return "❌ Erro no backup";
+    return "";
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl p-4 space-y-4">
-      {/* Header */}
+      <Dialog open={backupOpen} onOpenChange={(o) => { if (!o) { setBackupOpen(false); setBackupStep("idle"); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">Backup Praças & Emissoras</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {(["starting", "exporting", "done", "error"] as BackupStep[]).map((s) => {
+              const isActive = s === backupStep;
+              const isPast = (["starting", "exporting", "done", "error"].indexOf(backupStep) > ["starting", "exporting", "done", "error"].indexOf(s));
+              return (
+                <div key={s} className={`flex items-center gap-3 text-sm ${isActive ? "text-foreground font-medium" : isPast ? "text-muted-foreground" : "text-muted-foreground/40"}`}>
+                  <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                    isActive ? "bg-primary text-primary-foreground animate-pulse" :
+                    isPast ? "bg-primary/30 text-primary" : "bg-muted"
+                  }`}>
+                    {isPast ? "✓" : s === "starting" ? "1" : s === "exporting" ? "2" : s === "done" ? "3" : "!"}
+                  </div>
+                  <span>{stepLabel(s === "error" && backupStep !== "error" ? "done" : s)}</span>
+                </div>
+              );
+            })}
+          </div>
+          {backupStep === "done" && (
+            <Button size="sm" className="w-full" onClick={() => { setBackupOpen(false); setBackupStep("idle"); }}>
+              Fechar
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center justify-between">
         <h2 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
           <MapPin className="h-4 w-4 text-primary" />
           Praças & Emissoras
         </h2>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={exportBackupCSV} className="border-border text-muted-foreground" title="Backup CSV">
-            <Download className="h-4 w-4 mr-1" /> Backup
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="border-border text-muted-foreground" disabled={stations.length === 0 && pracas.length === 0}>
+                <Download className="h-4 w-4 mr-1" /> Backup <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => runBackup("csv")}>
+                📄 CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => runBackup("json")}>
+                📋 JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" variant="outline" onClick={fetchAll} className="border-border text-muted-foreground" title="Atualizar praças">
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -509,7 +580,6 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
         </div>
       </div>
 
-      {/* Add Praça form */}
       {showPracaForm && (
         <div className="p-3 rounded-lg border border-border bg-secondary/20 space-y-2">
           <p className="text-xs font-medium text-foreground">Nova Praça</p>
@@ -528,13 +598,11 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
         </div>
       )}
 
-      {/* Praças list */}
       {pracas.map((praca) => {
         const pStations = stationsByPraca(praca.id);
         const isExpanded = expandedPraca === praca.id;
         return (
           <div key={praca.id} className="border border-border rounded-lg overflow-hidden">
-            {/* Praça header */}
             {editingPracaId === praca.id ? (
               <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/40">
                 <MapPin className="h-4 w-4 text-primary shrink-0" />
@@ -543,67 +611,49 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => setEditingPracaId(null)}>
                   <X className="h-3.5 w-3.5" />
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary" onClick={handleSaveEditPraca}>
+                <Button size="sm" className="h-7 w-7 p-0" onClick={handleSaveEditPraca}>
                   <Check className="h-3.5 w-3.5" />
                 </Button>
               </div>
             ) : (
-              <div
-                className="flex items-center justify-between px-3 py-2.5 bg-secondary/40 cursor-pointer hover:bg-secondary/60 transition-colors"
+              <button
+                className="flex items-center justify-between w-full px-3 py-2.5 bg-secondary/40 hover:bg-secondary/60 transition-colors text-left"
                 onClick={() => setExpandedPraca(isExpanded ? null : praca.id)}
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                  <MapPin className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">{praca.name}</span>
-                  {praca.state && <span className="text-xs text-muted-foreground">/ {praca.state.toUpperCase()}</span>}
-                  <Badge variant="outline" className="text-[10px] ml-1">{pStations.length} emissora{pStations.length !== 1 ? "s" : ""}</Badge>
+                <div className="flex items-center gap-2 min-w-0">
+                  {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  <MapPin className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm font-medium text-foreground truncate">{praca.name}</span>
+                  {praca.state && <span className="text-xs text-muted-foreground">/{praca.state.toUpperCase()}</span>}
+                  <Badge variant="outline" className="text-[10px] border-border">{pStations.length} emissoras</Badge>
                   {praca.created_by_display && (
-                    <span className="text-[10px] text-muted-foreground/70">
-                      por {praca.created_by_display} · {new Date(praca.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                      por {praca.created_by_display} · {new Date(praca.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                    onClick={(e) => { e.stopPropagation(); startEditPraca(praca); }}
-                    title="Editar praça"
-                  >
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={() => startEditPraca(praca)} title="Editar praça">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                    onClick={(e) => { e.stopPropagation(); handleDeletePraca(praca); }}
-                    title="Excluir praça"
-                  >
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10" onClick={() => handleDeletePraca(praca)} title="Excluir praça">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-              </div>
+              </button>
             )}
 
-            {/* Expanded content */}
             {isExpanded && (
               <div className="p-3 space-y-2">
-                {pStations.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic">Nenhuma emissora nesta praça</p>
+                {pStations.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2 text-center">Nenhuma emissora nesta praça.</p>
+                ) : (
+                  pStations.map(renderStation)
                 )}
-                {pStations.map(renderStation)}
-
                 {showStationFormFor === praca.id ? (
                   renderStationForm(praca.id)
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs w-full border-dashed border-border text-muted-foreground"
-                    onClick={() => { resetStationForm(); setShowStationFormFor(praca.id); }}
-                  >
+                  <Button size="sm" variant="outline" className="w-full h-8 text-xs border-dashed" onClick={() => setShowStationFormFor(praca.id)}>
                     <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Emissora
                   </Button>
                 )}
@@ -613,24 +663,15 @@ export default function StationManager({ onPracasChanged }: { onPracasChanged?: 
         );
       })}
 
-      {/* Orphan stations (no praça) */}
       {orphanStations.length > 0 && (
         <div className="border border-border rounded-lg overflow-hidden">
-          <div className="px-3 py-2.5 bg-muted/30">
-            <div className="flex items-center gap-2">
-              <Radio className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-semibold text-muted-foreground">Sem praça vinculada</span>
-              <Badge variant="outline" className="text-[10px]">{orphanStations.length}</Badge>
-            </div>
+          <div className="px-3 py-2.5 bg-secondary/40">
+            <span className="text-sm font-medium text-muted-foreground">Sem praça vinculada ({orphanStations.length})</span>
           </div>
           <div className="p-3 space-y-2">
             {orphanStations.map(renderStation)}
           </div>
         </div>
-      )}
-
-      {pracas.length === 0 && orphanStations.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-4">Crie uma praça para começar a adicionar emissoras</p>
       )}
     </div>
   );
