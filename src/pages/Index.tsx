@@ -397,7 +397,7 @@ function IndexContent() {
       {dialogOpen && (
         <Suspense fallback={null}>
           <ReportDialog
-            status={selectedStation}
+            status={statuses.find(s => s.station.id === selectedStationId) || null}
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             visibleStations={visibleStations}
