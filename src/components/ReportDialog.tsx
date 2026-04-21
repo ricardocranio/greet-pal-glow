@@ -382,12 +382,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     const cutoffIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const nowIso = new Date().toISOString();
 
-    // Reset to avoid showing stale data from a previously opened station
-    setAllSnapshots([]);
-    setHourlyData(status.history);
-    setDailyData([]);
-    setMonthlyData([]);
-    setIsLoadingMain(true);
+    // Reset only on first load or when station changes, NOT on auto-refresh
+    if (refreshTrigger === 0) {
+      setAllSnapshots([]);
+      setHourlyData(status.history);
+      setDailyData([]);
+      setMonthlyData([]);
+      setIsLoadingMain(true);
+    }
 
     const tasks = [
       // 1) Today's raw points only (for realtime chart). Small payload.
@@ -416,36 +418,38 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
         })));
       })(),
 
-      // 3) Day-of-week averages (90 days)
-      (async () => {
-        const { data } = await supabase.rpc("station_dow_avg", {
-          p_station_id: stationId,
-          p_from: cutoffIso,
-          p_to: nowIso,
-        });
-        if (cancelled) return;
-        const map = new Map<number, number>();
-        (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
-        setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
-          time: DAY_NAMES[d],
-          listeners: map.get(d) ?? 0,
-        })));
-      })(),
+      // 3) Day-of-week averages (90 days) - only fetch on first load
+      ...(refreshTrigger === 0 ? [
+        (async () => {
+          const { data } = await supabase.rpc("station_dow_avg", {
+            p_station_id: stationId,
+            p_from: cutoffIso,
+            p_to: nowIso,
+          });
+          if (cancelled) return;
+          const map = new Map<number, number>();
+          (data ?? []).forEach((r: { dow: number; avg_listeners: number }) => map.set(r.dow, r.avg_listeners));
+          setDailyData([0, 1, 2, 3, 4, 5, 6].map(d => ({
+            time: DAY_NAMES[d],
+            listeners: map.get(d) ?? 0,
+          })));
+        })(),
 
-      // 4) Monthly averages (90 days)
-      (async () => {
-        const { data } = await supabase.rpc("station_month_avg", {
-          p_station_id: stationId,
-          p_from: cutoffIso,
-          p_to: nowIso,
-        });
-        if (cancelled) return;
-        const rows = (data ?? []) as { month: string; avg_listeners: number }[];
-        setMonthlyData(rows.map(r => {
-          const mm = parseInt(r.month.split("-")[1], 10);
-          return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
-        }));
-      })(),
+        // 4) Monthly averages (90 days)
+        (async () => {
+          const { data } = await supabase.rpc("station_month_avg", {
+            p_station_id: stationId,
+            p_from: cutoffIso,
+            p_to: nowIso,
+          });
+          if (cancelled) return;
+          const rows = (data ?? []) as { month: string; avg_listeners: number }[];
+          setMonthlyData(rows.map(r => {
+            const mm = parseInt(r.month.split("-")[1], 10);
+            return { time: MONTH_NAMES[mm - 1], listeners: r.avg_listeners };
+          }));
+        })(),
+      ] : []),
     ];
 
     Promise.all(tasks).finally(() => {
@@ -453,7 +457,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     });
 
     return () => { cancelled = true; };
-  }, [open, status]);
+  }, [open, status, refreshTrigger]);
 
   // Server-side hourly aggregates for the horario tab (filtered by dow / specific date)
   // Replaces the client-side filtering of allSnapshots that previously required loading 90 days of data.
