@@ -98,10 +98,16 @@ async function tryFetch(url: string, viaJina: boolean, timeoutMs: number): Promi
 async function tryEndpoint(stream: StreamConfig, idx: number): Promise<Partial<StreamResult> | null> {
   const ep = ENDPOINTS[idx];
   const directUrl = `${stream.url}${ep.path}`;
-  // Try direct first (fast), then jina fallback for TLS issues
+  // Try direct first (fast)
   let text = await tryFetch(directUrl, false, 5000);
+  // Fallback 1: jina proxy (handles TLS issues)
   if (!text) {
     text = await tryFetch(`https://r.jina.ai/${directUrl}`, true, 8000);
+  }
+  // Fallback 2: allorigins proxy (handles blocked IPs / non-standard ports)
+  if (!text) {
+    const encoded = encodeURIComponent(directUrl);
+    text = await tryFetch(`https://api.allorigins.win/raw?url=${encoded}`, false, 8000);
   }
   if (!text) return null;
   return ep.parser(text);
