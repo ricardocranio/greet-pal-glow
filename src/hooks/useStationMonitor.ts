@@ -97,6 +97,7 @@ export function useStationMonitor() {
         const loaded = (data as DbStation[]).map(dbToStation);
         if (!cancelled) {
           setStations(loaded);
+          // Always reset visible stations when market/stations change
           setVisibleStations(new Set(getDefaultVisibleStations(loaded)));
           setStatuses(loaded.map(s => makeEmptyStatus(s)));
           setStationsLoaded(true);
@@ -262,6 +263,7 @@ export function useStationMonitor() {
     setSimulatorFactor,
     activePracaId,
     setActivePracaId,
+    loading: !stationsLoaded,
   };
 }
 
