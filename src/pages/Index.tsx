@@ -117,8 +117,10 @@ function IndexContent() {
   }, []);
 
   const activePracaName = useMemo(() => {
-    const p = userPracas.find(p => p.id === activePracaId);
-    return p ? `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}` : "Rádios";
+    // If no activePracaId yet, try to use the first one from userPracas
+    const currentId = activePracaId || (userPracas.length > 0 ? userPracas[0].id : null);
+    const p = userPracas.find(p => p.id === currentId);
+    return p ? `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}` : "Geral";
   }, [userPracas, activePracaId]);
 
   const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);

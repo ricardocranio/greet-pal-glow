@@ -50,9 +50,11 @@ export function useStationMonitor() {
         const userPracas: { id: string; name: string; state: string }[] = pracasJson ? JSON.parse(pracasJson) : [];
         const role = sessionStorage.getItem("auth_role") || "viewer";
 
-        // Set initial active praça
-        if (userPracas.length > 0 && !activePracaId) {
-          setActivePracaId(userPracas[0].id);
+        // Set initial active praça if not set
+        let currentActiveId = activePracaId;
+        if (userPracas.length > 0 && !currentActiveId) {
+          currentActiveId = userPracas[0].id;
+          setActivePracaId(currentActiveId);
         }
 
         let query = supabase
@@ -61,11 +63,17 @@ export function useStationMonitor() {
           .eq("active", true)
           .order("display_order", { ascending: true });
 
-        // Filter by praça for non-admin users, or by active praça for admins
-        const filterPracaId = activePracaId || (userPracas.length > 0 ? userPracas[0].id : null);
+        // Strictly filter by praça. 
+        const filterPracaId = currentActiveId || (userPracas.length > 0 ? userPracas[0].id : null);
+        
         if (filterPracaId) {
           query = query.eq("praca_id", filterPracaId);
+        } else if (role !== "admin") {
+          // If not admin and no praça, force a filter that returns nothing
+          query = query.eq("praca_id", "00000000-0000-0000-0000-000000000000");
         }
+        // If it's an admin and filterPracaId is still null, it will show everything. 
+        // But with currentActiveId logic above, it should have picked the first one if available.
 
         const { data, error } = await query;
 
