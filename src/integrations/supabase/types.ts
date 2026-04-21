@@ -316,6 +316,36 @@ export type Database = {
           },
         ]
       }
+      system_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          message: string
+          metadata: Json | null
+          source: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          source?: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          source?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       user_pracas: {
         Row: {
           created_at: string
