@@ -464,8 +464,8 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [serverHourlyData, setServerHourlyData] = useState<{ time: string; listeners: number; hour: number }[] | null>(null);
   useEffect(() => {
     if (!open || !status || viewMode !== "horario") { setServerHourlyData(null); setIsLoadingHorario(false); return; }
-    const isToday = horarioFilter === "dia" && (!selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput());
-    if (isToday) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
+    const isTodayDia = horarioFilter === "dia" && (!selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput());
+    if (isTodayDia) { setServerHourlyData(null); setIsLoadingHorario(false); return; }
 
     let cancelled = false;
     setIsLoadingHorario(true);
@@ -499,7 +499,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       setIsLoadingHorario(false);
     })();
     return () => { cancelled = true; };
-  }, [open, status, viewMode, horarioFilter, selectedDate]);
+  }, [open, status, viewMode, horarioFilter, selectedDate, refreshTrigger]);
 
   // Server-side peak/min for stats card (replaces scanning 90 days of allSnapshots client-side)
   const [serverPeakMin, setServerPeakMin] = useState<{
