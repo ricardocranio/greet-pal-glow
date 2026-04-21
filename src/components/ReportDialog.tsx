@@ -134,6 +134,15 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [isLoadingCompare, setIsLoadingCompare] = useState(false);
   const realtimeChartRef = useRef<HTMLDivElement>(null);
   const blendChartRef = useRef<HTMLDivElement>(null);
+
+  // Auto-refresh timer for today's data
+  useEffect(() => {
+    if (!open) return;
+    const interval = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [open]);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Sync blend visible with parent visible
