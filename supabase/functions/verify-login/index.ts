@@ -81,11 +81,45 @@ serve(async (req) => {
       role: match.role,
     });
 
+    // Get user's praças
+    const { data: userData } = await supabase
+      .from("app_users")
+      .select("id")
+      .eq("username", match.username)
+      .single();
+
+    let userPracas: { id: string; name: string; state: string }[] = [];
+    if (userData) {
+      const { data: upRows } = await supabase
+        .from("user_pracas")
+        .select("praca_id")
+        .eq("user_id", userData.id);
+      
+      if (upRows && upRows.length > 0) {
+        const pracaIds = upRows.map(r => r.praca_id);
+        const { data: pracas } = await supabase
+          .from("pracas")
+          .select("id, name, state")
+          .in("id", pracaIds);
+        if (pracas) userPracas = pracas;
+      }
+    }
+
+    // For admins with no praças assigned, return all praças
+    if (match.role === "admin" && userPracas.length === 0) {
+      const { data: allPracas } = await supabase
+        .from("pracas")
+        .select("id, name, state")
+        .eq("active", true);
+      if (allPracas) userPracas = allPracas;
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       token: newToken, 
       username: match.display_name || match.username,
       role: match.role,
+      pracas: userPracas,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
