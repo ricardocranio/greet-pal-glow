@@ -115,12 +115,14 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [dailyData, setDailyData] = useState<{ time: string; listeners: number }[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ time: string; listeners: number }[]>([]);
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
   const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
   const [blendDate, setBlendDate] = useState<Date>(() => normalizeCalendarDate(new Date()) ?? new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => normalizeCalendarDate(new Date()));
+  const isToday = !selectedDate || formatCalendarDateInput(selectedDate) === formatBrasiliaDateInput();
   // Hour-range filter (00..23). End is inclusive — covers minute 59 of that hour.
   const [hourStart, setHourStart] = useState<number>(0);
   const [hourEnd, setHourEnd] = useState<number>(23);
