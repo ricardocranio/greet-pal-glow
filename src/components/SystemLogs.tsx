@@ -113,7 +113,7 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
     } catch { return ts; }
   };
 
-  const hasDetails = (log: LogEntry) => !!(log.reason || log.fix);
+  const hasDetails = (log: LogEntry) => !!(log.reason || log.fix || log.ip || log.user_agent);
 
   return (
     <div className="bg-card border border-border rounded-xl p-4">
