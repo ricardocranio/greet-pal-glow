@@ -99,6 +99,7 @@ function IndexContent() {
     showState, setShowState,
     simulatorEnabled, setSimulatorEnabled,
     simulatorFactor, setSimulatorFactor,
+    activePracaId, setActivePracaId,
   } = useStationMonitor();
   const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -107,6 +108,17 @@ function IndexContent() {
   const isAdmin = userRole === "admin";
   const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
   const navigate = useNavigate();
+
+  // User praças from session
+  const userPracas: { id: string; name: string; state: string }[] = useMemo(() => {
+    try { return JSON.parse(sessionStorage.getItem("auth_pracas") || "[]"); }
+    catch { return []; }
+  }, []);
+
+  const activePracaName = useMemo(() => {
+    const p = userPracas.find(p => p.id === activePracaId);
+    return p ? `${p.name}${p.state ? `/${p.state.toUpperCase()}` : ""}` : "Rádios";
+  }, [userPracas, activePracaId]);
 
   const onlineCount = useMemo(() => statuses.filter((s) => s.online).length, [statuses]);
   const totalListeners = useMemo(() => statuses.reduce((sum, s) => sum + s.listeners, 0), [statuses]);
