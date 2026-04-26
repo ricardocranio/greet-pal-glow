@@ -117,7 +117,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
   const [allSnapshots, setAllSnapshots] = useState<SnapshotRow[]>([]);
   const [blendView, setBlendView] = useState<BlendView>("horario");
   const [blendData, setBlendData] = useState<Record<string, any>[]>([]);
-  const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? stations.map(s => s.id)));
+  const [blendVisibleStations, setBlendVisibleStations] = useState<Set<string>>(() => new Set(visibleStations ?? []));
   const [blendDate, setBlendDate] = useState<Date>(() => normalizeCalendarDate(new Date()) ?? new Date());
   const [horarioFilter, setHorarioFilter] = useState<HorarioFilter>("dia");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => normalizeCalendarDate(new Date()));
