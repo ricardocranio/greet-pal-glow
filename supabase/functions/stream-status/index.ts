@@ -95,18 +95,33 @@ async function tryFetch(url: string, viaJina: boolean, timeoutMs: number): Promi
   }
 }
 
+// Build a list of URL variants to try: direct, swap http<->https (some servers respond on only one)
+function urlVariants(baseUrl: string, path: string): string[] {
+  const variants: string[] = [`${baseUrl}${path}`];
+  try {
+    const u = new URL(baseUrl);
+    const swapped = (u.protocol === 'https:' ? 'http:' : 'https:') + '//' + u.host + u.pathname;
+    variants.push(`${swapped}${path}`);
+  } catch { /* ignore */ }
+  return variants;
+}
+
 async function tryEndpoint(stream: StreamConfig, idx: number): Promise<Partial<StreamResult> | null> {
   const ep = ENDPOINTS[idx];
-  const directUrl = `${stream.url}${ep.path}`;
-  // Try direct first (fast)
-  let text = await tryFetch(directUrl, false, 5000);
+  const variants = urlVariants(stream.url, ep.path);
+  // Try each variant (direct, then protocol-swapped) sequentially
+  let text: string | null = null;
+  for (const u of variants) {
+    text = await tryFetch(u, false, 8000);
+    if (text) break;
+  }
   // Fallback 1: jina proxy (handles TLS issues)
   if (!text) {
-    text = await tryFetch(`https://r.jina.ai/${directUrl}`, true, 8000);
+    text = await tryFetch(`https://r.jina.ai/${variants[0]}`, true, 8000);
   }
   // Fallback 2: allorigins proxy (handles blocked IPs / non-standard ports)
   if (!text) {
-    const encoded = encodeURIComponent(directUrl);
+    const encoded = encodeURIComponent(variants[0]);
     text = await tryFetch(`https://api.allorigins.win/raw?url=${encoded}`, false, 8000);
   }
   if (!text) return null;
@@ -230,7 +245,29 @@ async function persistResults(statuses: StreamResult[]) {
       last_checked: now.toISOString(),
       updated_at: now.toISOString(),
     }));
+    // Detect transitions (online -> offline / offline -> online) before upserting
+    const { data: prevRows } = await supabase
+      .from('current_status')
+      .select('station_id, online')
+      .in('station_id', statuses.map(s => s.id));
+    const prevMap = new Map((prevRows ?? []).map((r: any) => [r.station_id, r.online]));
+
     await supabase.from('current_status').upsert(currentRows, { onConflict: 'station_id' });
+
+    // Log transitions for assertiveness
+    const transitions: any[] = [];
+    for (const s of statuses) {
+      const wasOnline = prevMap.get(s.id);
+      if (wasOnline === undefined) continue;
+      if (wasOnline && !s.online) {
+        transitions.push({ event_type: 'warning', source: 'monitor', message: `Estação ${s.id} ficou offline`, metadata: { station_id: s.id } });
+      } else if (!wasOnline && s.online) {
+        transitions.push({ event_type: 'info', source: 'monitor', message: `Estação ${s.id} voltou online (${s.listeners} ouvintes)`, metadata: { station_id: s.id, listeners: s.listeners } });
+      }
+    }
+    if (transitions.length > 0) {
+      await supabase.from('system_events').insert(transitions);
+    }
 
     // 2. Append to audience_snapshots (history) — only online stations
     const snapshotRows = statuses
