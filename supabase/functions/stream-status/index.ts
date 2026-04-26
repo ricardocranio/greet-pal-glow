@@ -244,7 +244,29 @@ async function persistResults(statuses: StreamResult[]) {
       last_checked: now.toISOString(),
       updated_at: now.toISOString(),
     }));
+    // Detect transitions (online -> offline / offline -> online) before upserting
+    const { data: prevRows } = await supabase
+      .from('current_status')
+      .select('station_id, online')
+      .in('station_id', statuses.map(s => s.id));
+    const prevMap = new Map((prevRows ?? []).map((r: any) => [r.station_id, r.online]));
+
     await supabase.from('current_status').upsert(currentRows, { onConflict: 'station_id' });
+
+    // Log transitions for assertiveness
+    const transitions: any[] = [];
+    for (const s of statuses) {
+      const wasOnline = prevMap.get(s.id);
+      if (wasOnline === undefined) continue;
+      if (wasOnline && !s.online) {
+        transitions.push({ event_type: 'warning', source: 'monitor', message: `Estação ${s.id} ficou offline`, metadata: { station_id: s.id } });
+      } else if (!wasOnline && s.online) {
+        transitions.push({ event_type: 'info', source: 'monitor', message: `Estação ${s.id} voltou online (${s.listeners} ouvintes)`, metadata: { station_id: s.id, listeners: s.listeners } });
+      }
+    }
+    if (transitions.length > 0) {
+      await supabase.from('system_events').insert(transitions);
+    }
 
     // 2. Append to audience_snapshots (history) — only online stations
     const snapshotRows = statuses
