@@ -285,9 +285,15 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
     }
   }, [viewMode, inlineImages, restoreImages]);
 
+  // Stations available for the blend = restrict to praça (visibleStations from parent)
+  const pracaStations = useMemo(
+    () => visibleStations ? stations.filter(s => visibleStations.has(s.id)) : stations,
+    [stations, visibleStations]
+  );
+
   // Blend stations filtered & sorted by audience (respects hour-range filter when in horario view)
   const blendStations = useMemo(() => {
-    const filtered = stations.filter(s => blendVisibleStations.has(s.id));
+    const filtered = pracaStations.filter(s => blendVisibleStations.has(s.id));
     if (blendData.length === 0) return filtered;
 
     // For horario view, only consider rows inside the selected hour range so
@@ -306,7 +312,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
       const avgB = valsB.length > 0 ? valsB.reduce((s, v) => s + v, 0) / valsB.length : 0;
       return avgB - avgA;
     });
-  }, [blendVisibleStations, blendData, blendView, hourStart, hourEnd]);
+  }, [blendVisibleStations, blendData, blendView, hourStart, hourEnd, pracaStations]);
 
   // Fetch blend data via server-side aggregate (1 row per station+hour or station+dow)
   useEffect(() => {
