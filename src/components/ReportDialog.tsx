@@ -1162,7 +1162,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
                       <SelectItem value="none" className="text-[11px]">Sem comparação</SelectItem>
-                      {stations.filter(s => s.id !== status?.station.id).map(s => (
+                      {pracaStations.filter(s => s.id !== status?.station.id).map(s => (
                         <SelectItem key={s.id} value={s.id} className="text-[11px]">{s.name}</SelectItem>
                       ))}
                     </SelectContent>
