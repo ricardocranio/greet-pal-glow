@@ -269,18 +269,16 @@ async function persistResults(statuses: StreamResult[]) {
       await supabase.from('system_events').insert(transitions);
     }
 
-    // 2. Append to audience_snapshots (history) — only online stations
-    const snapshotRows = statuses
-      .filter(s => s.online)
-      .map(s => ({
-        station_id: s.id,
-        listeners: s.listeners,
-        peak_listeners: s.peakListeners,
-        title: s.title,
-        bitrate: s.bitrate,
-        hour,
-        recorded_at: now.toISOString(),
-      }));
+    // 2. Append to audience_snapshots (history) — all stations (online/offline)
+    const snapshotRows = statuses.map(s => ({
+      station_id: s.id,
+      listeners: s.online ? s.listeners : 0,
+      peak_listeners: s.peakListeners,
+      title: s.title,
+      bitrate: s.bitrate,
+      hour,
+      recorded_at: now.toISOString(),
+    }));
     if (snapshotRows.length > 0) {
       await supabase.from('audience_snapshots').insert(snapshotRows);
     }
