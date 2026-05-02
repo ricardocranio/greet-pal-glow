@@ -1180,7 +1180,7 @@ export function ReportDialog({ status, open, onOpenChange, visibleStations, simu
                     <ResponsiveContainer width="100%" height={isFullscreen ? 300 : 180}>
                       <BarChart data={viewMode === "horario" && mergedHorarioData ? mergedHorarioData : chartData} margin={{ top: 5, right: 12, left: 8, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 18%)" />
-                    <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={viewMode === "horario" ? 1 : 0} />
+                    <XAxis dataKey="time" tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} interval={0} />
                     <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 9 }} axisLine={false} tickLine={false} width={56} tickMargin={6} tickFormatter={(v: number) => v.toLocaleString("pt-BR")} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "hsl(220 18% 12%)", border: "1px solid hsl(220 14% 18%)", borderRadius: "8px", color: "hsl(210 20% 92%)", fontSize: 11 }}
