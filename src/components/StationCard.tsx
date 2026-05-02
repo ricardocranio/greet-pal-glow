@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square, Medal, Trophy } from "lucide-react";
+import { Users, TrendingUp, Clock, Globe, Instagram, Facebook, Twitter, Youtube, Play, Square, Medal, Trophy, ExternalLink } from "lucide-react";
 import { StationStatus } from "@/hooks/useStationMonitor";
 import { Button } from "@/components/ui/button";
 import { SocialLinks } from "@/data/stations";
@@ -72,38 +72,51 @@ function StationCardImpl({ status, onReport, rank }: Props) {
 
       {/* Station info */}
       <div className="flex items-start gap-3 mb-3 pr-10">
-        <button
-          type="button"
-          onClick={() => online && play(station.id, station.streamUrl)}
-          disabled={!online}
-          aria-label={isPlaying ? `Parar ${station.name}` : `Tocar ${station.name}`}
-          className={`group/logo relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden shrink-0 transition-all ${
-            online ? "cursor-pointer hover:ring-2 hover:ring-primary/60" : "cursor-not-allowed opacity-60"
-          } ${isPlaying ? "ring-2 ring-primary" : ""}`}
-        >
-          {station.logoUrl ? (
-            <img
-              src={station.logoUrl}
-              alt={station.name}
-              className="h-10 w-10 object-contain"
-              loading="lazy"
-              width={40}
-              height={40}
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : (
-            <span className="text-sm font-bold text-muted-foreground">FM</span>
-          )}
-          {online && (
+        <div className="relative group/logo-container shrink-0">
+          <button
+            type="button"
+            onClick={() => play(station.id, station.streamUrl)}
+            aria-label={isPlaying ? `Parar ${station.name}` : `Tocar ${station.name}`}
+            className={`group/logo relative flex h-12 w-12 items-center justify-center rounded-lg bg-secondary overflow-hidden transition-all cursor-pointer hover:ring-2 hover:ring-primary/60 ${
+              isPlaying ? "ring-2 ring-primary" : ""
+            } ${!online ? "opacity-70 grayscale-[0.5]" : ""}`}
+            title={online ? "Clique para ouvir" : "Estação offline, mas você pode tentar conectar"}
+          >
+            {station.logoUrl ? (
+              <img
+                src={station.logoUrl}
+                alt={station.name}
+                className="h-10 w-10 object-contain"
+                loading="lazy"
+                width={40}
+                height={40}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <span className="text-sm font-bold text-muted-foreground">FM</span>
+            )}
             <span className={`absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm transition-opacity ${
               isPlaying ? "opacity-100" : "opacity-0 group-hover/logo:opacity-100"
             }`}>
               {isPlaying ? <Square className="h-4 w-4 text-primary" /> : <Play className="h-4 w-4 text-primary ml-0.5" />}
             </span>
-          )}
-        </button>
+          </button>
+          
+          {/* External Link Overlay */}
+          <a 
+            href={station.streamUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="absolute -bottom-1 -right-1 bg-background border border-border rounded-full p-1 opacity-0 group-hover/logo-container:opacity-100 transition-opacity hover:text-primary shadow-sm"
+            title="Abrir URL do stream diretamente"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-2.5 w-2.5" />
+          </a>
+        </div>
+        
         <div className="flex-1 min-w-0">
           <h3 className="font-display font-bold text-foreground leading-tight text-sm truncate">
             {station.name}
