@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useRef, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useRef, useCallback, ReactNode, useEffect } from "react";
+import { toast } from "sonner";
 
 interface AudioContextType {
   playingStationId: string | null;
@@ -85,7 +86,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     
     const tryPlay = (index: number) => {
       if (index >= urls.length) {
-        setError("Não foi possível reproduzir o stream. Verifique se o navegador permite conteúdo misto (HTTP/HTTPS).");
+        const msg = "Não foi possível reproduzir o stream. Verifique se o navegador permite conteúdo misto (HTTP/HTTPS) ou tente o link direto.";
+        setError(msg);
+        toast.error(msg);
         setPlayingStationId(null);
         return;
       }
