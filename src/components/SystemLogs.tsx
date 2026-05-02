@@ -34,6 +34,8 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
   const [clearing, setClearing] = useState(false);
   const [filter, setFilter] = useState<"all" | "error" | "warning" | "info">("all");
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -173,88 +175,127 @@ export default function SystemLogs({ externalLogs = [] }: { externalLogs?: LogEn
           <p className="text-xs">{loading ? "Carregando..." : "Nenhum log encontrado"}</p>
         </div>
       ) : (
-        <div className="space-y-1 max-h-[400px] overflow-y-auto pr-1">
-          {filtered.map((log, i) => {
-            const isExpanded = expandedIdx === i;
-            const details = hasDetails(log);
+        <div className="space-y-1">
+          {(() => {
+            const totalPages = Math.ceil(filtered.length / pageSize);
+            const start = (currentPage - 1) * pageSize;
+            const paginated = filtered.slice(start, start + pageSize);
+
             return (
-              <div
-                key={`${log.timestamp}-${i}`}
-                className={`rounded-lg px-2.5 py-1.5 text-xs transition-all ${
-                  log.level === "error" ? "bg-destructive/5 border border-destructive/20" :
-                  log.level === "warning" ? "bg-amber-500/5 border border-amber-500/20" :
-                  log.source === "Autenticação" && log.level === "info" ? "bg-emerald-500/5 border border-emerald-500/20" :
-                  log.level === "info" ? "bg-primary/5 border border-primary/20" :
-                  "bg-secondary/30 border border-border"
-                }`}
-              >
-                <div
-                  className={`flex items-start gap-2 ${details ? "cursor-pointer" : ""}`}
-                  onClick={() => details && setExpandedIdx(isExpanded ? null : i)}
-                >
-                  {levelIcon(log.level, log.source)}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {levelBadge(log.level, log.source)}
-                      <span className="text-[10px] text-muted-foreground font-mono">{formatTime(log.timestamp)}</span>
-                      <span className="text-[10px] text-primary/70 font-medium">{log.source}</span>
-                    </div>
-                    <p className="text-foreground mt-0.5 break-words">{log.message}</p>
-                  </div>
-                  {details && (
-                    <div className="shrink-0 mt-0.5">
-                      {isExpanded
-                        ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                        : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                      }
-                    </div>
-                  )}
+              <>
+                <div className="max-h-[500px] overflow-y-auto pr-1 space-y-1">
+                  {paginated.map((log, i) => {
+                    const realIdx = start + i;
+                    const isExpanded = expandedIdx === realIdx;
+                    const details = hasDetails(log);
+                    return (
+                      <div
+                        key={`${log.timestamp}-${realIdx}`}
+                        className={`rounded-lg px-2.5 py-1.5 text-xs transition-all ${
+                          log.level === "error" ? "bg-destructive/5 border border-destructive/20" :
+                          log.level === "warning" ? "bg-amber-500/5 border border-amber-500/20" :
+                          log.source === "Autenticação" && log.level === "info" ? "bg-emerald-500/5 border border-emerald-500/20" :
+                          log.level === "info" ? "bg-primary/5 border border-primary/20" :
+                          "bg-secondary/30 border border-border"
+                        }`}
+                      >
+                        <div
+                          className={`flex items-start gap-2 ${details ? "cursor-pointer" : ""}`}
+                          onClick={() => details && setExpandedIdx(isExpanded ? null : realIdx)}
+                        >
+                          {levelIcon(log.level, log.source)}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {levelBadge(log.level, log.source)}
+                              <span className="text-[10px] text-muted-foreground font-mono">{formatTime(log.timestamp)}</span>
+                              <span className="text-[10px] text-primary/70 font-medium">{log.source}</span>
+                            </div>
+                            <p className="text-foreground mt-0.5 break-words">{log.message}</p>
+                          </div>
+                          {details && (
+                            <div className="shrink-0 mt-0.5">
+                              {isExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground rotate-180" />
+                                : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              }
+                            </div>
+                          )}
+                        </div>
+
+                        {isExpanded && details && (
+                          <div className="mt-2 ml-5 space-y-1.5 border-t border-border/50 pt-2">
+                            {log.reason && (
+                              <div className="flex items-start gap-1.5">
+                                <HelpCircle className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Causa</span>
+                                  <p className="text-foreground/80 text-[11px] mt-0.5">{log.reason}</p>
+                                </div>
+                              </div>
+                            )}
+                            {log.fix && (
+                              <div className="flex items-start gap-1.5">
+                                <Lightbulb className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="text-[10px] font-semibold text-amber-500 uppercase">Solução</span>
+                                  <p className="text-foreground/80 text-[11px] mt-0.5">{log.fix}</p>
+                                </div>
+                              </div>
+                            )}
+                            {(log.ip || log.user_agent) && (
+                              <div className="flex items-start gap-1.5 pt-1 border-t border-border/30">
+                                <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                                <div className="space-y-0.5">
+                                  {log.ip && (
+                                    <p className="text-[10px] text-muted-foreground">
+                                      <span className="font-semibold uppercase">IP:</span>{" "}
+                                      <span className="font-mono text-foreground/70">{log.ip}</span>
+                                    </p>
+                                  )}
+                                  {log.user_agent && (
+                                    <p className="text-[10px] text-muted-foreground">
+                                      <span className="font-semibold uppercase">Navegador:</span>{" "}
+                                      <span className="font-mono text-foreground/70 break-all">{log.user_agent}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {isExpanded && details && (
-                  <div className="mt-2 ml-5 space-y-1.5 border-t border-border/50 pt-2">
-                    {log.reason && (
-                      <div className="flex items-start gap-1.5">
-                        <HelpCircle className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-[10px] font-semibold text-muted-foreground uppercase">Causa</span>
-                          <p className="text-foreground/80 text-[11px] mt-0.5">{log.reason}</p>
-                        </div>
-                      </div>
-                    )}
-                    {log.fix && (
-                      <div className="flex items-start gap-1.5">
-                        <Lightbulb className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="text-[10px] font-semibold text-amber-500 uppercase">Solução</span>
-                          <p className="text-foreground/80 text-[11px] mt-0.5">{log.fix}</p>
-                        </div>
-                      </div>
-                    )}
-                    {(log.ip || log.user_agent) && (
-                      <div className="flex items-start gap-1.5 pt-1 border-t border-border/30">
-                        <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                        <div className="space-y-0.5">
-                          {log.ip && (
-                            <p className="text-[10px] text-muted-foreground">
-                              <span className="font-semibold uppercase">IP:</span>{" "}
-                              <span className="font-mono text-foreground/70">{log.ip}</span>
-                            </p>
-                          )}
-                          {log.user_agent && (
-                            <p className="text-[10px] text-muted-foreground">
-                              <span className="font-semibold uppercase">Navegador:</span>{" "}
-                              <span className="font-mono text-foreground/70 break-all">{log.user_agent}</span>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-4 pt-2 border-t border-border/50">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-7 px-2 text-[10px]"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-7 px-2 text-[10px]"
+                    >
+                      Próxima
+                    </Button>
                   </div>
                 )}
-              </div>
+              </>
             );
-          })}
+          })()}
         </div>
       )}
     </div>

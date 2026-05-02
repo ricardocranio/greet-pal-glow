@@ -98,6 +98,10 @@ export default function AdminPanel() {
   const [backupLogs, setBackupLogs] = useState<{ timestamp: string; level: string; source: string; message: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination for users
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   // New user form
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -307,74 +311,110 @@ export default function AdminPanel() {
             <p className="text-xs text-muted-foreground">Carregando...</p>
           ) : (
             <div className="space-y-2">
-              {users.map((u) => (
-                <div key={u.id} className={`rounded-lg px-3 py-2.5 border ${u.blocked ? "border-destructive/30 bg-destructive/5" : "border-border bg-secondary/30"}`}>
-                  {editingId === u.id ? (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <Input placeholder="Nome de exibição" value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="text-sm h-8" />
-                        <Input placeholder="Nova senha (vazio = manter)" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} className="text-sm h-8" />
-                        <Select value={editRole} onValueChange={setEditRole}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="editor">Editor</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <PracaCheckboxes pracas={pracas} selected={editPracaIds} onChange={setEditPracaIds} />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground mr-auto">@{u.username}</span>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={cancelEdit}>
-                          <X className="h-3.5 w-3.5 mr-1" /> Cancelar
-                        </Button>
-                        <Button size="sm" className="h-7 text-xs" onClick={() => handleSaveEdit(u.id)}>
-                          <Check className="h-3.5 w-3.5 mr-1" /> Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${isOnline(u.username) ? "bg-primary animate-pulse" : "bg-muted-foreground/30"}`} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-foreground truncate">{u.display_name || u.username}</span>
-                            {roleBadge(u.role)}
-                            {u.blocked && <Badge variant="destructive" className="text-[10px]">Bloqueado</Badge>}
+              {(() => {
+                const totalPages = Math.ceil(users.length / pageSize);
+                const start = (currentPage - 1) * pageSize;
+                const paginatedUsers = users.slice(start, start + pageSize);
+
+                return (
+                  <>
+                    {paginatedUsers.map((u) => (
+                      <div key={u.id} className={`rounded-lg px-3 py-2.5 border ${u.blocked ? "border-destructive/30 bg-destructive/5" : "border-border bg-secondary/30"}`}>
+                        {editingId === u.id ? (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <Input placeholder="Nome de exibição" value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="text-sm h-8" />
+                              <Input placeholder="Nova senha (vazio = manter)" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} className="text-sm h-8" />
+                              <Select value={editRole} onValueChange={setEditRole}>
+                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="editor">Editor</SelectItem>
+                                  <SelectItem value="viewer">Viewer</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <PracaCheckboxes pracas={pracas} selected={editPracaIds} onChange={setEditPracaIds} />
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-muted-foreground mr-auto">@{u.username}</span>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={cancelEdit}>
+                                <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                              </Button>
+                              <Button size="sm" className="h-7 text-xs" onClick={() => handleSaveEdit(u.id)}>
+                                <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-[11px] text-muted-foreground">@{u.username}</span>
-                            {getPracaNames(u.id).length > 0 && (
-                              <span className="text-[11px] text-primary/80 flex items-center gap-0.5">
-                                <MapPin className="h-2.5 w-2.5" />
-                                {getPracaNames(u.id).join(", ")}
-                              </span>
-                            )}
+                        ) : (
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${isOnline(u.username) ? "bg-primary animate-pulse" : "bg-muted-foreground/30"}`} />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-medium text-foreground truncate">{u.display_name || u.username}</span>
+                                  {roleBadge(u.role)}
+                                  {u.blocked && <Badge variant="destructive" className="text-[10px]">Bloqueado</Badge>}
+                                </div>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-[11px] text-muted-foreground">@{u.username}</span>
+                                  {getPracaNames(u.id).length > 0 && (
+                                    <span className="text-[11px] text-primary/80 flex items-center gap-0.5">
+                                      <MapPin className="h-2.5 w-2.5" />
+                                      {getPracaNames(u.id).join(", ")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={() => startEdit(u)} title="Editar">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className={`h-8 w-8 p-0 ${u.blocked ? "text-primary hover:bg-primary/10" : "text-accent hover:bg-accent/10"}`} onClick={() => handleToggleBlock(u)} title={u.blocked ? "Desbloquear" : "Bloquear"}>
+                                {u.blocked ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                              </Button>
+                              {isOnline(u.username) && (
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-accent hover:bg-accent/10" onClick={() => handleKick(u.username)} title="Desconectar">
+                                  <LogOutIcon className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(u)} title="Excluir">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={() => startEdit(u)} title="Editar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className={`h-8 w-8 p-0 ${u.blocked ? "text-primary hover:bg-primary/10" : "text-accent hover:bg-accent/10"}`} onClick={() => handleToggleBlock(u)} title={u.blocked ? "Desbloquear" : "Bloquear"}>
-                          {u.blocked ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-                        </Button>
-                        {isOnline(u.username) && (
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-accent hover:bg-accent/10" onClick={() => handleKick(u.username)} title="Desconectar">
-                            <LogOutIcon className="h-4 w-4" />
-                          </Button>
                         )}
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(u)} title="Excluir">
-                          <Trash2 className="h-4 w-4" />
+                      </div>
+                    ))}
+
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-center gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="h-8 px-2"
+                        >
+                          Anterior
+                        </Button>
+                        <span className="text-[11px] text-muted-foreground">
+                          {currentPage} / {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="h-8 px-2"
+                        >
+                          Próxima
                         </Button>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>

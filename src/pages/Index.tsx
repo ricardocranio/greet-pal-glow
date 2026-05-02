@@ -105,10 +105,20 @@ function IndexContent() {
   const [selectedStation, setSelectedStation] = useState<StationStatus | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
+
   const userRole = sessionStorage.getItem("auth_role") || "viewer";
   const isAdmin = userRole === "admin";
   const authUsername = sessionStorage.getItem("auth_username") || "Usuário";
   const navigate = useNavigate();
+
+  // Reset page when market changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activePracaId]);
 
   // User praças from session
   const userPracas: { id: string; name: string; state: string }[] = useMemo(() => {
@@ -364,23 +374,58 @@ function IndexContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(() => {
                 const rankMap = new Map<string, number>();
-                [...statuses]
+                [...allStatuses]
                   .filter((s) => s.online)
                   .sort((a, b) => b.listeners - a.listeners)
                   .forEach((s, i) => rankMap.set(s.station.id, i + 1));
+                
                 const ordered = [...statuses].sort((a, b) => {
                   const ra = rankMap.get(a.station.id) ?? Infinity;
                   const rb = rankMap.get(b.station.id) ?? Infinity;
                   return ra - rb;
                 });
-                return ordered.map((status) => (
-                  <StationCard
-                    key={status.station.id}
-                    status={status}
-                    rank={rankMap.get(status.station.id)}
-                    onReport={() => handleReport(status)}
-                  />
-                ));
+
+                // Pagination logic
+                const totalPages = Math.ceil(ordered.length / pageSize);
+                const start = (currentPage - 1) * pageSize;
+                const paginated = ordered.slice(start, start + pageSize);
+
+                return (
+                  <>
+                    {paginated.map((status) => (
+                      <StationCard
+                        key={status.station.id}
+                        status={status}
+                        rank={rankMap.get(status.station.id)}
+                        onReport={() => handleReport(status)}
+                      />
+                    ))}
+                    
+                    {totalPages > 1 && (
+                      <div className="col-span-full flex items-center justify-center gap-2 mt-6">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Anterior
+                        </Button>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Página {currentPage} de {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Próxima
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                );
               })()}
             </div>
           </div>
